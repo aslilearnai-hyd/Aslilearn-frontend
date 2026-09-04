@@ -173,13 +173,12 @@ function buildPdfDocumentInit(source: PdfSource): PdfDocumentInit {
 
   if (source.mode === 'url') {
     const isApiProxy = isContentPreviewProxyUrl(source.url);
-    const tokenInQuery = source.url.includes('token=');
     return {
       ...base,
       url: source.url,
-      withCredentials: !isApiProxy && !tokenInQuery,
+      withCredentials: true,
       httpHeaders:
-        token && !tokenInQuery && !isApiProxy
+        token && !isApiProxy
           ? { Authorization: `Bearer ${token}` }
           : undefined,
     };

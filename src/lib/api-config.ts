@@ -93,13 +93,8 @@ export function normalizeContentFileUrl(fileUrl: string): string {
   return `${API_BASE_URL}/${raw}`;
 }
 
-function readAuthToken(): string {
-  if (typeof window === "undefined") return "";
-  return getAuthToken() || "";
-}
-
 /**
- * PDF bytes via API proxy + JWT query (iframe and PDF.js).
+ * PDF bytes via API proxy. Authentication uses the httpOnly session cookie.
  * Use on digital boards where embedded browser PDF plugins fail.
  */
 export function getPdfContentPreviewProxyUrl(fileUrl: string, title?: string): string {
@@ -107,12 +102,10 @@ export function getPdfContentPreviewProxyUrl(fileUrl: string, title?: string): s
   if (!absolute) return "";
   if (shouldFetchDirectly(absolute)) return absolute;
 
-  const token = readAuthToken();
   return (
     `${API_BASE_URL}/api/student/content-preview` +
     `?url=${encodeURIComponent(absolute)}` +
-    `&filename=${encodeURIComponent(title || "preview.pdf")}` +
-    `&token=${encodeURIComponent(token)}`
+    `&filename=${encodeURIComponent(title || "preview.pdf")}`
   );
 }
 
@@ -161,12 +154,10 @@ export function openProtectedFile(fileUrl: string, title?: string): void {
 export function getPdfJsFetchUrl(fileUrl: string, title?: string): string {
   const absolute = normalizeContentFileUrl(fileUrl);
   if (!absolute) return "";
-  const token = readAuthToken();
   return (
     `${API_BASE_URL}/api/student/content-preview` +
     `?url=${encodeURIComponent(absolute)}` +
     `&filename=${encodeURIComponent(title || "preview.pdf")}` +
-    `&token=${encodeURIComponent(token)}` +
     `&forceProxy=1`
   );
 }
@@ -251,8 +242,8 @@ function resolvePdfPreviewBaseUrl(fileUrl: string, title?: string): string {
 }
 
 /**
- * `src` for student PDF iframes. External URLs use `/content-preview` with `token` in the query
- * because the browser cannot send `Authorization` on iframe navigations.
+ * `src` for student PDF iframes. The API authenticates these requests with the
+ * httpOnly session cookie; access tokens never appear in URLs.
  */
 export function getStudentPdfPreviewIframeSrc(
   fileUrl: string,
