@@ -109,7 +109,7 @@ const renderMarkdown = (text: string, variant: RenderMarkdownVariant = 'default'
   // If content starts with HTML tags (from formatters), return it directly without markdown processing
   const trimmed = processedText.trim();
   if (trimmed.startsWith('<div') || trimmed.startsWith('<h1') || trimmed.startsWith('<h2') || trimmed.startsWith('<h3') || trimmed.startsWith('<p') || trimmed.startsWith('<span')) {
-    return processedText;
+    return sanitizeAiHtml(processedText);
   }
   
   // Clean up escaped LaTeX (convert \\ to \ for proper rendering)
