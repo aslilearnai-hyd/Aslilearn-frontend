@@ -14,6 +14,18 @@ import { prepareClientForNewLogin } from '@/lib/client-cache-reset';
 import { fetchDashboardBootstrap } from '@/lib/dashboard-bootstrap';
 
 const LOGIN_INTRO_KEY = 'aslilearn_skip_login_intro';
+const REMEMBER_ME_KEY = 'aslilearn_remember_me';
+const REMEMBERED_EMAIL_KEY = 'aslilearn_remembered_email';
+
+function readRememberedLogin(): { rememberMe: boolean; email: string } {
+  try {
+    const rememberMe = localStorage.getItem(REMEMBER_ME_KEY) === '1';
+    const email = rememberMe ? String(localStorage.getItem(REMEMBERED_EMAIL_KEY) || '').trim() : '';
+    return { rememberMe, email };
+  } catch {
+    return { rememberMe: false, email: '' };
+  }
+}
 
 const Login = () => {
   const [, setLocation] = useLocation();
@@ -31,10 +43,12 @@ const Login = () => {
       return true;
     }
   });
+  const rememberedLogin = readRememberedLogin();
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: rememberedLogin.email,
+    password: '',
   });
+  const [rememberMe, setRememberMe] = useState(rememberedLogin.rememberMe);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -92,6 +106,52 @@ const Login = () => {
     }, 800);
     return () => clearTimeout(timer);
   }, []);
+
+  // When Remember me is off, strip browser password-manager autofill so fields stay empty.
+  useEffect(() => {
+    if (rememberMe || !showSignInForm) return;
+    const clearAll = () => {
+      setFormData((prev) => {
+        if (!prev.email && !prev.password) return prev;
+        // Only wipe values that look like silent autofill before the user edits.
+        return { email: '', password: '' };
+      });
+    };
+    const clearPasswordOnly = () => {
+      setFormData((prev) => (prev.password ? { ...prev, password: '' } : prev));
+    };
+    const t1 = window.setTimeout(clearAll, 50);
+    const t2 = window.setTimeout(clearPasswordOnly, 450);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [rememberMe, showSignInForm]);
+
+  const persistRememberPreference = (enabled: boolean, emailValue?: string) => {
+    try {
+      if (enabled) {
+        localStorage.setItem(REMEMBER_ME_KEY, '1');
+        const emailToStore = String(emailValue ?? formData.email ?? '').trim();
+        if (emailToStore) localStorage.setItem(REMEMBERED_EMAIL_KEY, emailToStore);
+      } else {
+        localStorage.removeItem(REMEMBER_ME_KEY);
+        localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    if (!checked) {
+      persistRememberPreference(false);
+      setFormData({ email: '', password: '' });
+    } else {
+      persistRememberPreference(true, formData.email);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,7 +243,13 @@ const Login = () => {
         errors?: string[];
         token?: string;
         refreshToken?: string;
-        user?: { role?: string; email?: string; paymentRequired?: boolean; isIndividualAccount?: boolean };
+        user?: {
+          role?: string;
+          email?: string;
+          paymentRequired?: boolean;
+          isIndividualAccount?: boolean;
+          isSchoolManagedSubscription?: boolean;
+        };
       } = {};
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -208,6 +274,8 @@ const Login = () => {
 
       if (response.ok) {
         prepareClientForNewLogin();
+        // Never persist passwords. Remember me only keeps the email/student ID.
+        persistRememberPreference(rememberMe, email);
 
         if (data.token) {
           setAuthToken(data.token, data.refreshToken);
@@ -486,7 +554,11 @@ const Login = () => {
                   </motion.div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form
+                  onSubmit={handleSubmit}
+                  className="space-y-6"
+                  autoComplete={rememberMe ? 'on' : 'off'}
+                >
                   <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -506,7 +578,7 @@ const Login = () => {
                           name="email"
                           type="text"
                           inputMode="email"
-                          autoComplete="username"
+                          autoComplete={rememberMe ? 'username' : 'off'}
                           value={formData.email}
                           onChange={handleChange}
                           placeholder="Email or student ID (e.g. 1724)"
@@ -535,6 +607,7 @@ const Login = () => {
                           id="password"
                           name="password"
                           type={showPassword ? 'text' : 'password'}
+                          autoComplete={rememberMe ? 'current-password' : 'new-password'}
                           value={formData.password}
                           onChange={handleChange}
                           placeholder="Enter your password"
@@ -564,6 +637,8 @@ const Login = () => {
                       <input
                         id="remember"
                         type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => handleRememberMeChange(e.target.checked)}
                         className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 focus:ring-2 cursor-pointer"
                       />
                       <Label htmlFor="remember" className="cursor-pointer text-base text-gray-600">

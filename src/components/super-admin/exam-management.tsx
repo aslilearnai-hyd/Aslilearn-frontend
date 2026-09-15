@@ -2845,6 +2845,17 @@ export default function ExamManagement() {
         });
         return;
       }
+    } else if (String(form.questionType || '').toLowerCase() === 'match_following') {
+      const colI = parseMatchColumnLines(form.matchColumnIText);
+      const colII = parseMatchColumnLines(form.matchColumnIIText);
+      if (!colI.length || !colII.length) {
+        toast({
+          title: 'Validation Error',
+          description: 'Fill Column I and Column II (one item per line) for Match the Following.',
+          variant: 'destructive',
+        });
+        return;
+      }
     } else if (!String(form.questionText || '').trim() && !String(form.questionImage || '').trim()) {
       toast({
         title: 'Validation Error',
@@ -6065,13 +6076,38 @@ export default function ExamManagement() {
                 <Label>Question Type *</Label>
                 <Select
                   value={questionFormData.questionType}
-                  onValueChange={(value: any) => {
-                    setQuestionFormData({
-                      ...questionFormData,
-                      questionType: value,
-                      correctAnswer: '',
-                      correctAnswers: [],
-                      integerAnswer: ''
+                  onValueChange={(value: typeof EMPTY_QUESTION_FORM.questionType) => {
+                    setQuestionFormData((prev) => {
+                      const next: typeof EMPTY_QUESTION_FORM = {
+                        ...prev,
+                        questionType: value,
+                        correctAnswer: '',
+                        correctOptionIndex: -1,
+                        correctAnswers: [],
+                        integerAnswer: value === 'integer' ? prev.integerAnswer : '',
+                      };
+                      if (value !== 'integer') {
+                        const opts = [...prev.options];
+                        while (opts.length < 4) opts.push('');
+                        next.options = opts.slice(0, Math.max(4, opts.length));
+                      }
+                      if (value === 'assertion_reason') {
+                        if (!String(prev.sharedMatterText || '').trim()) {
+                          next.sharedMatterText = DEFAULT_ASSERTION_REASON_DIRECTIONS;
+                          next.sharedMatterKind = 'assertion_reason';
+                        } else if (!prev.sharedMatterKind) {
+                          next.sharedMatterKind = 'assertion_reason';
+                        }
+                        const parsed = parseAssertionReasonStem(prev.questionText);
+                        if (parsed) {
+                          if (!String(prev.assertionText || '').trim()) next.assertionText = parsed.assertion;
+                          if (!String(prev.reasonText || '').trim()) next.reasonText = parsed.reason;
+                        }
+                      }
+                      if (value === 'match_following') {
+                        next.sharedMatterKind = prev.sharedMatterKind || 'match_following';
+                      }
+                      return next;
                     });
                   }}
                 >
@@ -6107,6 +6143,80 @@ export default function ExamManagement() {
                 </Select>
               </div>
 
+              {(questionFormData.questionType === 'assertion_reason' ||
+                questionFormData.questionType === 'match_following' ||
+                questionFormData.sharedMatterText) && (
+                <div>
+                  <Label>Shared matter / directions (optional)</Label>
+                  <Textarea
+                    value={questionFormData.sharedMatterText}
+                    onChange={(e) =>
+                      setQuestionFormData({ ...questionFormData, sharedMatterText: e.target.value })
+                    }
+                    placeholder="Case passage / AR directions / Match directions"
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {(questionFormData.questionType === 'assertion_reason' ||
+                questionFormData.assertionText ||
+                questionFormData.reasonText) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Assertion (A) *</Label>
+                    <Textarea
+                      value={questionFormData.assertionText}
+                      onChange={(e) =>
+                        setQuestionFormData({ ...questionFormData, assertionText: e.target.value })
+                      }
+                      placeholder="Enter the Assertion statement"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label>Reason (R) *</Label>
+                    <Textarea
+                      value={questionFormData.reasonText}
+                      onChange={(e) =>
+                        setQuestionFormData({ ...questionFormData, reasonText: e.target.value })
+                      }
+                      placeholder="Enter the Reason statement"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(questionFormData.questionType === 'match_following' ||
+                questionFormData.matchColumnIText ||
+                questionFormData.matchColumnIIText) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Column I (one per line) *</Label>
+                    <Textarea
+                      value={questionFormData.matchColumnIText}
+                      onChange={(e) =>
+                        setQuestionFormData({ ...questionFormData, matchColumnIText: e.target.value })
+                      }
+                      placeholder={'A) Item one\nB) Item two'}
+                      rows={4}
+                    />
+                  </div>
+                  <div>
+                    <Label>Column II (one per line) *</Label>
+                    <Textarea
+                      value={questionFormData.matchColumnIIText}
+                      onChange={(e) =>
+                        setQuestionFormData({ ...questionFormData, matchColumnIIText: e.target.value })
+                      }
+                      placeholder={'1) Match one\n2) Match two'}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <Label>
                   {questionFormData.questionType === 'assertion_reason'
@@ -6114,6 +6224,8 @@ export default function ExamManagement() {
                     : 'Question Text'}
                   {questionFormData.questionType === 'assertion_reason' ? (
                     <span className="ml-1 font-normal text-slate-500">— A & R fields are enough</span>
+                  ) : questionFormData.questionType === 'match_following' ? (
+                    <span className="ml-1 font-normal text-slate-500">— columns above + options</span>
                   ) : (
                     <span className="ml-1 font-normal text-slate-500">— text or image required</span>
                   )}
@@ -6123,15 +6235,19 @@ export default function ExamManagement() {
                   onChange={(e) => setQuestionFormData({ ...questionFormData, questionText: e.target.value })}
                   placeholder={
                     questionFormData.questionType === 'assertion_reason'
-                      ? 'Optional. Leave blank if Assertion and Reason are filled below.'
-                      : 'Enter the question text, or leave blank and upload a question image below...'
+                      ? 'Optional. Leave blank if Assertion and Reason are filled above.'
+                      : questionFormData.questionType === 'match_following'
+                        ? 'Optional stem / instructions. Fill Column I and Column II above.'
+                        : 'Enter the question text, or leave blank and upload a question image below...'
                   }
                   rows={4}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {questionFormData.questionType === 'assertion_reason'
-                    ? 'For Assertion–Reason, fill Assertion (A) and Reason (R); question text is optional.'
-                    : 'Provide question text and/or a question image below. At least one is required for Single/Multiple MCQ, Integer, and Match questions.'}
+                    ? 'For Assertion–Reason, fill Assertion (A) and Reason (R) above; question text is optional.'
+                    : questionFormData.questionType === 'match_following'
+                      ? 'For Match the Following, fill Column I and Column II above, then pick the correct option.'
+                      : 'Provide question text and/or a question image below. At least one is required for Single/Multiple MCQ and Integer questions.'}
                 </p>
               </div>
 
