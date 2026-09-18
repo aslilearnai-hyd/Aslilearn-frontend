@@ -23,6 +23,7 @@ export type QuestionSnapshotRow = {
 
 export type SchoolAnalysisExamResult = {
   _id?: string;
+  examId?: string | { _id?: string };
   userId: {
     _id?: string;
     fullName?: string;
@@ -44,6 +45,53 @@ export type SchoolAnalysisExamResult = {
   questionSnapshot?: QuestionSnapshotRow[];
 };
 
+function studentKeyFromResult(result: SchoolAnalysisExamResult): string {
+  return String(result.userId?._id || result.userId?.email || result.userId?.fullName || '').trim();
+}
+
+function examKeyFromResult(result: SchoolAnalysisExamResult): string {
+  const raw = result.examId;
+  if (raw && typeof raw === 'object' && raw._id != null) return String(raw._id);
+  return String(raw || '').trim();
+}
+
+/**
+ * Assign Attempt 1/2/3 chronologically per student (+ exam).
+ * If stored attemptNumbers are already unique and complete, keep them; otherwise recompute.
+ */
+export function enrichExamResultsWithAttempts<T extends SchoolAnalysisExamResult>(rows: T[]): T[] {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
+
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = `${studentKeyFromResult(row)}::${examKeyFromResult(row)}`;
+    const list = groups.get(key) || [];
+    list.push(row);
+    groups.set(key, list);
+  }
+
+  const enriched: T[] = [];
+  for (const list of groups.values()) {
+    const sorted = [...list].sort(
+      (a, b) =>
+        new Date(a.completedAt || 0).getTime() - new Date(b.completedAt || 0).getTime() ||
+        String(a._id || '').localeCompare(String(b._id || '')),
+    );
+    const storedNums = sorted.map((r) => Number(r.attemptNumber)).filter((n) => n >= 1);
+    const useStored =
+      storedNums.length === sorted.length && new Set(storedNums).size === sorted.length;
+
+    sorted.forEach((row, idx) => {
+      enriched.push({
+        ...row,
+        attemptNumber: useStored ? Number(row.attemptNumber) : idx + 1,
+      });
+    });
+  }
+
+  return enriched;
+}
+
 /** Keep every attempt; only remove exact duplicate rows from the API. */
 export function prepareResultsForAnalysisExport(
   results: SchoolAnalysisExamResult[],
@@ -51,12 +99,10 @@ export function prepareResultsForAnalysisExport(
   const seen = new Set<string>();
   const out: SchoolAnalysisExamResult[] = [];
 
-  for (const raw of results) {
+  for (const raw of enrichExamResultsWithAttempts(results)) {
     const normalized = normalizeResultCounts(raw);
     const resultId = String(normalized._id || '').trim();
-    const studentId = String(
-      normalized.userId?._id || normalized.userId?.email || normalized.userId?.fullName || '',
-    ).trim();
+    const studentId = studentKeyFromResult(normalized);
     const attempt = Number(normalized.attemptNumber) >= 1 ? Number(normalized.attemptNumber) : 1;
     const completedAt = String(normalized.completedAt || '');
 

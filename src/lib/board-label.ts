@@ -25,12 +25,13 @@ export function normalizeBoardKey(raw?: string | null): string {
   return s.toUpperCase().replace(/[\s-]+/g, '_');
 }
 
-/** Short label for UI, e.g. "IIT/NEET" → "IIT". */
+/** Short label for UI, e.g. "IIT/NEET" → "IIT". Hub code is hidden (show Class N only). */
 export function displayBoardShort(board?: string | null): string {
   const key = normalizeBoardKey(board);
   if (!key) return '';
   if (key === 'IIT/NEET' || key === 'IIT') return 'IIT';
-  if (key === 'ASLI_EXCLUSIVE_SCHOOLS') return 'Asli Exclusive';
+  // Internal hub — do not show "Asli Exclusive" on class/subject cards.
+  if (key === 'ASLI_EXCLUSIVE_SCHOOLS') return '';
   if (key === 'STATE') return 'State Board';
   // Title-case multi-word codes like TELANGANA → Telangana (callers may pass full DB name separately)
   if (key.includes('_')) {
@@ -60,7 +61,9 @@ export function parseClassBoardLabel(label: string): { classNum: string; board: 
     const board =
       /^iit$/i.test(boardRaw) || /^iit\s*\/\s*neet$/i.test(boardRaw)
         ? 'IIT/NEET'
-        : normalizeBoardKey(boardRaw);
+        : /^asli\s*exclusive/i.test(boardRaw)
+          ? 'ASLI_EXCLUSIVE_SCHOOLS'
+          : normalizeBoardKey(boardRaw);
     return { classNum: withBoard[1], board };
   }
   const legacy = raw.match(/^Class\s+(\d+)\s*$/i);

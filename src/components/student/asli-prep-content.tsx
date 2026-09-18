@@ -205,10 +205,10 @@ export default function AsliPrepContent() {
               <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              AsliLearn Exclusive
+              Asli Prep
             </h2>
           </div>
-          <p className="text-gray-600 mt-1 ml-[52px]">Premium study materials curated by Super Admin</p>
+          <p className="text-gray-600 mt-1 ml-[52px]">Premium study materials curated for your school</p>
         </div>
       </div>
 

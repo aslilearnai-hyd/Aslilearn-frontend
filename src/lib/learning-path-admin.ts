@@ -1,5 +1,6 @@
 import {
   classBoardFilterKey,
+  displayBoardShort,
   formatClassBoardFilterLabel,
   normalizeBoardKey,
   parseClassBoardFilterKey,
@@ -196,6 +197,15 @@ function consolidateLearningPathSubjectsWithKey(
       normalizeBoardKey(agg.board);
 
     const plainName = extractPlainSubjectName(agg.name || '');
+    const boardKey = normalizeBoardKey(inferredBoard);
+    const boardSuffix =
+      !boardKey || boardKey === 'ASLI_EXCLUSIVE_SCHOOLS'
+        ? ''
+        : ` (${boardKey === 'IIT/NEET' ? 'IIT' : displayBoardShort(inferredBoard) || boardKey})`;
+    const existingDescription = String(agg.description || '')
+      .replace(/\s*\(\s*ASLI_EXCLUSIVE_SCHOOLS\s*\)\s*/gi, '')
+      .replace(/\s*\(\s*Asli\s+Exclusive(?:\s+Schools)?\s*\)\s*/gi, '')
+      .trim();
 
     return {
       ...agg,
@@ -204,10 +214,8 @@ function consolidateLearningPathSubjectsWithKey(
       name: plainName,
       description:
         descriptionForRow?.(plainName, agg) ||
-        agg.description?.trim() ||
-        `Structured content for ${plainName}${inferredClass ? ` · Class ${inferredClass}` : ''}${
-          inferredBoard ? ` (${normalizeBoardKey(inferredBoard) === 'IIT/NEET' ? 'IIT' : inferredBoard})` : ''
-        }`,
+        existingDescription ||
+        `Structured content for ${plainName}${inferredClass ? ` · Class ${inferredClass}` : ''}${boardSuffix}`,
       mergedSubjectIds: ids,
       asliPrepContent: contents,
       totalContent: contents.length,

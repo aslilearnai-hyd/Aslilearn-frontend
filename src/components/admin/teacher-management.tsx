@@ -1768,56 +1768,60 @@ Jane Smith,jane.smith@school.edu,TeacherPass2,1234567891,Science,MSc in Chemistr
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-auto">
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className={adminBtn.secondary}
+                  <div className="mt-auto grid grid-cols-5 gap-1.5 border-t border-gray-200 pt-4 sm:gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`${adminBtn.secondary} min-w-0 px-0`}
                         onClick={() => {
                           setEditingTeacher(teacher);
                           setIsEditDialogOpen(true);
                         }}
                         title="Edit teacher"
+                        aria-label="Edit teacher"
                       >
-                        <Pencil className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className={adminBtn.secondary}
-                        onClick={() => openAssignClassDialog(teacher)}
-                        title="Assign Class"
-                      >
-                        <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-xl"
-                        onClick={() => openAssignDialog(teacher)}
-                        title="Assign subjects"
-                      >
-                        <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-xl"
+                        className={`${adminBtn.secondary} min-w-0 px-0`}
+                        onClick={() => openAssignClassDialog(teacher)}
+                        title="Assign Class"
+                        aria-label="Assign class"
+                      >
+                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-w-0 border-emerald-200 px-0 text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                        onClick={() => openAssignDialog(teacher)}
+                        title="Assign subjects"
+                        aria-label="Assign subjects"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-w-0 border-indigo-200 px-0 text-indigo-700 hover:bg-indigo-50 rounded-xl"
                         onClick={() => setDailyDialogTeacher(teacher)}
                         title="View daily diary"
+                        aria-label="View daily diary"
                       >
-                        <BookMarked className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <BookMarked className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="border-red-200 text-red-700 hover:bg-red-50 rounded-xl"
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-w-0 border-red-200 px-0 text-red-700 hover:bg-red-50 rounded-xl"
                         onClick={() => handleDeleteTeacher(teacher.id, teacher.fullName)}
+                        title="Delete teacher"
+                        aria-label="Delete teacher"
                       >
-                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
-                    </div>
                   </div>
                 </div>
               </motion.div>

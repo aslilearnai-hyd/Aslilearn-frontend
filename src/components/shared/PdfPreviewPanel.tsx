@@ -95,8 +95,9 @@ function isContentPreviewProxyUrl(url: string): boolean {
 }
 
 function pdfFetchCredentials(url: string): RequestCredentials {
-  if (/\/uploads\//i.test(url)) return 'omit';
-  if (isContentPreviewProxyUrl(url)) return 'omit';
+  // Cookie-first auth for our API proxy (Bearer alone is often empty after refresh).
+  if (isContentPreviewProxyUrl(url)) return 'include';
+  if (/\/uploads\//i.test(url)) return 'include';
   if (typeof window !== 'undefined') {
     try {
       if (new URL(url, window.location.href).origin !== window.location.origin) return 'omit';
@@ -113,7 +114,7 @@ function pdfFetchHeaders(url: string, token: string): HeadersInit | undefined {
   }
   // Never send the AsliLearn JWT to a third-party textbook host. Besides being
   // unsafe, Authorization forces a CORS preflight that many PDF hosts reject.
-  if (token && isContentPreviewProxyUrl(url)) {
+  if (token && (isContentPreviewProxyUrl(url) || /\/uploads\//i.test(url))) {
     return { Authorization: `Bearer ${token}` };
   }
   return undefined;

@@ -27,6 +27,7 @@ import StudentExamHandoffModal from '@/components/admin/StudentExamHandoffModal'
 import AdminExamQuestionBreakdown from '@/components/admin/AdminExamQuestionBreakdown';
 import type { HandoffIndividualReport } from '@/lib/exam-analytics-handoff';
 import type { SchoolAnalysisExamResult } from '@/lib/school-performance-analysis-data';
+import { enrichExamResultsWithAttempts } from '@/lib/school-performance-analysis-data';
 
 interface Exam {
   _id: string;
@@ -202,16 +203,55 @@ export default function ExamViewOnly() {
   const [listClassFilter, setListClassFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showAllPerformers, setShowAllPerformers] = useState(false);
+  /** Per-student selected result id for the attempt dropdown. */
+  const [selectedAttemptByStudent, setSelectedAttemptByStudent] = useState<Record<string, string>>(
+    {},
+  );
 
-  const rankedExamResults = useMemo(() => {
-    return [...examResults]
-      .map((result) => ({
-        result,
-        marksPct: getResultPercentage(result),
-        questionAcc: getQuestionAccuracy(result),
-      }))
-      .sort((a, b) => b.marksPct - a.marksPct || b.result.obtainedMarks - a.result.obtainedMarks);
-  }, [examResults]);
+  const enrichedExamResults = useMemo(
+    () => enrichExamResultsWithAttempts(examResults),
+    [examResults],
+  );
+
+  /** One table row per student; attempts available via dropdown. */
+  const studentAttemptRows = useMemo(() => {
+    const byStudent = new Map<string, ExamResult[]>();
+    for (const result of enrichedExamResults) {
+      const sid = String(result.userId?._id || result.userId?.email || result._id);
+      const list = byStudent.get(sid) || [];
+      list.push(result);
+      byStudent.set(sid, list);
+    }
+
+    const rows = Array.from(byStudent.entries()).map(([studentId, attempts]) => {
+      const sorted = [...attempts].sort(
+        (a, b) =>
+          (Number(a.attemptNumber) || 0) - (Number(b.attemptNumber) || 0) ||
+          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime(),
+      );
+      const preferredId = selectedAttemptByStudent[studentId];
+      const selected =
+        sorted.find((r) => String(r._id) === preferredId) ||
+        [...sorted].sort(
+          (a, b) =>
+            getResultPercentage(b) - getResultPercentage(a) ||
+            (b.obtainedMarks || 0) - (a.obtainedMarks || 0),
+        )[0] ||
+        sorted[sorted.length - 1];
+      return {
+        studentId,
+        attempts: sorted,
+        result: selected,
+        marksPct: getResultPercentage(selected),
+        questionAcc: getQuestionAccuracy(selected),
+      };
+    });
+
+    rows.sort(
+      (a, b) => b.marksPct - a.marksPct || b.result.obtainedMarks - a.result.obtainedMarks,
+    );
+    return rows;
+  }, [enrichedExamResults, selectedAttemptByStudent]);
 
   const getExamSortTime = (exam: Exam) => {
     const candidates = [exam.updatedAt, exam.createdAt, exam.startDate, exam.endDate];
@@ -295,7 +335,8 @@ export default function ExamViewOnly() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setExamResults(data.data || []);
+          setExamResults(enrichExamResultsWithAttempts(data.data || []));
+          setSelectedAttemptByStudent({});
         }
       }
     } catch (error) {
@@ -399,8 +440,13 @@ export default function ExamViewOnly() {
       ]);
       const resultsData = await resultsRes.json().catch(() => ({}));
       const analyticsData = await analyticsRes.json().catch(() => ({}));
-      if (resultsRes.ok && resultsData.success) setExamResults(resultsData.data || []);
-      else setExamResults([]);
+      if (resultsRes.ok && resultsData.success) {
+        setExamResults(enrichExamResultsWithAttempts(resultsData.data || []));
+        setSelectedAttemptByStudent({});
+      } else {
+        setExamResults([]);
+        setSelectedAttemptByStudent({});
+      }
       if (analyticsRes.ok && analyticsData.success && analyticsData.data) {
         setAnalytics(analyticsData.data);
       } else {
@@ -442,13 +488,13 @@ export default function ExamViewOnly() {
     useState<SchoolAnalysisExamResult | null>(null);
 
   const handoffReport = useMemo(() => {
-    if (!selectedExam || examResults.length === 0) return null;
-    return buildExamAnalyticsHandoffReport(selectedExam.title, examResults);
-  }, [selectedExam, examResults]);
+    if (!selectedExam || enrichedExamResults.length === 0) return null;
+    return buildExamAnalyticsHandoffReport(selectedExam.title, enrichedExamResults);
+  }, [selectedExam, enrichedExamResults]);
 
   const classQuestionStats = useMemo(
-    () => buildClassQuestionBreakdown(examResults),
-    [examResults],
+    () => buildClassQuestionBreakdown(enrichedExamResults),
+    [enrichedExamResults],
   );
 
   const openStudentReport = (result: ExamResult) => {
@@ -476,14 +522,18 @@ export default function ExamViewOnly() {
   };
 
   const exportToExcel = async () => {
-    if (!selectedExam || examResults.length === 0) {
+    if (!selectedExam || enrichedExamResults.length === 0) {
       notify('No results to export');
       return;
     }
 
     setIsExporting(true);
     try {
-      const ok = await downloadSchoolPerformanceAnalysisExcel(selectedExam.title, examResults);
+      // Export every attempt as its own row (Attempt 1, Attempt 2, …).
+      const ok = await downloadSchoolPerformanceAnalysisExcel(
+        selectedExam.title,
+        enrichedExamResults,
+      );
       if (!ok) notify('No results to export');
     } catch (error) {
       console.error('Excel export failed:', error);
@@ -769,7 +819,7 @@ export default function ExamViewOnly() {
                 variant="outline" 
                 size="sm"
                 className="w-full sm:w-auto shrink-0"
-                disabled={isExporting || examResults.length === 0}
+                disabled={isExporting || enrichedExamResults.length === 0}
                 onClick={() => void exportToExcel()}
               >
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
@@ -778,16 +828,16 @@ export default function ExamViewOnly() {
             </CardTitle>
             {handoffReport ? (
               <p className="text-xs text-slate-500 font-normal mt-1">
-                Click <span className="font-semibold text-slate-700">View analysis</span> on any
-                student for the full on-screen report (same as the Excel individual sheet: snapshot,
-                every question, class counts, subjects, behaviour, actions). Excel export is optional.
+                One row per student — use the <span className="font-semibold text-slate-700">Attempt</span>{' '}
+                dropdown to switch attempts and open <span className="font-semibold text-slate-700">View analysis</span>.
+                Excel export includes every attempt as a separate row (Attempt 1, Attempt 2, …).
               </p>
             ) : null}
           </CardHeader>
           <CardContent>
             {isLoadingResults ? (
               <div>Loading results...</div>
-            ) : examResults.length > 0 ? (
+            ) : studentAttemptRows.length > 0 ? (
               <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full min-w-[1100px] text-sm">
                   <thead className="bg-slate-50">
@@ -805,7 +855,7 @@ export default function ExamViewOnly() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rankedExamResults.map(({ result, marksPct, questionAcc }, idx) => {
+                    {studentAttemptRows.map(({ studentId, attempts, result, marksPct, questionAcc }, idx) => {
                       const completed = formatCompletedAt(result.completedAt);
                       const subjects = subjectWiseEntries(result);
                       const totalQ =
@@ -816,8 +866,9 @@ export default function ExamViewOnly() {
                             (Number(result.wrongAnswers) || 0) +
                             (Number(result.unattempted) || 0)
                         );
+                      const selectedAttemptId = String(result._id);
                       return (
-                        <tr key={result._id} className="border-b border-gray-100 hover:bg-slate-50/80 align-top">
+                        <tr key={studentId} className="border-b border-gray-100 hover:bg-slate-50/80 align-top">
                           <td className="py-3 px-3">
                             <span
                               className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
@@ -846,17 +897,50 @@ export default function ExamViewOnly() {
                                   .join(' · ')}
                               </p>
                             ) : null}
+                            {attempts.length > 1 ? (
+                              <p className="text-mini text-indigo-600 mt-1 font-medium">
+                                {attempts.length} attempts recorded
+                              </p>
+                            ) : null}
                           </td>
                           <td className="py-3 px-3 text-slate-800">
                             {normalizeClassNumberForDisplay(result.userId.classNumber)}
                           </td>
-                          <td className="py-3 px-3 text-slate-700">
-                            {result.attemptNumber && result.attemptNumber > 1 ? (
-                              <Badge variant="outline" className="text-xs">
-                                Attempt {result.attemptNumber}
-                              </Badge>
+                          <td className="py-3 px-3 text-slate-700 min-w-[140px]">
+                            {attempts.length > 1 ? (
+                              <Select
+                                value={selectedAttemptId}
+                                onValueChange={(value) =>
+                                  setSelectedAttemptByStudent((prev) => ({
+                                    ...prev,
+                                    [studentId]: value,
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="h-8 w-[130px] text-xs">
+                                  <SelectValue placeholder="Select attempt" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {attempts.map((att) => {
+                                    const n =
+                                      Number(att.attemptNumber) >= 1
+                                        ? Number(att.attemptNumber)
+                                        : 1;
+                                    return (
+                                      <SelectItem key={att._id} value={String(att._id)}>
+                                        Attempt {n}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
                             ) : (
-                              <span className="text-xs text-slate-500">1st</span>
+                              <Badge variant="outline" className="text-xs">
+                                Attempt{' '}
+                                {Number(result.attemptNumber) >= 1
+                                  ? Number(result.attemptNumber)
+                                  : 1}
+                              </Badge>
                             )}
                           </td>
                           <td className="py-3 px-3">
