@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import {
-  getTimetablePhotoFileSrc,
+  resolveTimetablePhotoUrl,
   useDeleteMyTimetablePhoto,
   useMyTimetablePhoto,
   useUploadMyTimetablePhoto,
@@ -83,7 +83,7 @@ export default function TeacherTimetableDashboard() {
   };
 
   const displayImage =
-    previewUrl || (photo ? getTimetablePhotoFileSrc() : '');
+    previewUrl || resolveTimetablePhotoUrl(photo?.imageUrl);
 
   return (
     <div className="space-y-4">

@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { API_BASE_URL } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-utils';
 import {
-  getTimetablePhotoFileSrc,
+  resolveTimetablePhotoUrl,
   useDeleteTimetablePhoto,
   useTimetablePhotos,
   useUploadTimetablePhoto,
@@ -160,7 +160,7 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
   };
 
   const displayImage =
-    previewUrl || (existingPhoto ? getTimetablePhotoFileSrc(selectedClassId) : '');
+    previewUrl || resolveTimetablePhotoUrl(existingPhoto?.imageUrl);
 
   return (
     <div className="space-y-4">
@@ -320,7 +320,7 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
                 >
                   <div className="aspect-[4/3] bg-slate-50">
                     <img
-                      src={getTimetablePhotoFileSrc(photo.classId)}
+                      src={resolveTimetablePhotoUrl(photo.imageUrl)}
                       alt={photo.label}
                       className="h-full w-full object-cover"
                     />

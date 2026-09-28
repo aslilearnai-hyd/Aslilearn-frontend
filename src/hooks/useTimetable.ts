@@ -239,16 +239,6 @@ export function resolveTimetablePhotoUrl(imageUrl?: string | null): string {
   return `${API_BASE_URL}/${raw}`;
 }
 
-/** Authenticated image URL for <img> (Bearer cannot be sent on img src). */
-export function getTimetablePhotoFileSrc(classId?: string | null): string {
-  const token = getAuthToken() || '';
-  const params = new URLSearchParams();
-  if (classId) params.set('classId', classId);
-  if (token) params.set('token', token);
-  const qs = params.toString();
-  return `${API_BASE_URL}/api/timetable/photo/file${qs ? `?${qs}` : ''}`;
-}
-
 export function useTimetablePhotos(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['timetable-photos'],
