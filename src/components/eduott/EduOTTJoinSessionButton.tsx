@@ -4,7 +4,7 @@ import { canJoinLiveSession, type EduOTTLiveSessionLike } from '@/lib/eduott-vid
 
 type EduOTTJoinSessionButtonProps = {
   session: EduOTTLiveSessionLike;
-  onJoin: (session: EduOTTLiveSessionLike) => void;
+  onJoin: () => void;
   className?: string;
 };
 
@@ -16,7 +16,7 @@ export function EduOTTJoinSessionButton({ session, onJoin, className }: EduOTTJo
       type="button"
       variant="default"
       className={className ?? 'bg-red-600 hover:bg-red-700 text-white shrink-0'}
-      onClick={() => onJoin(session)}
+      onClick={onJoin}
     >
       <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
       Join Session

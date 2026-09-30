@@ -671,7 +671,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
       {(chapter?.title || chapterSubtopicShown) && (
         <div className="flex items-center gap-4 overflow-hidden rounded-[1.75rem] border border-sky-100 bg-gradient-to-r from-sky-50 via-teal-50/40 to-white p-5 shadow-sm dark:border-slate-800 dark:from-slate-800/60 dark:via-slate-900 dark:to-slate-900">
           <div className="min-w-0">
-            {chapter.title && (
+            {chapter?.title && (
               <h3 className="flex items-center gap-2 text-lg font-black tracking-tight">
                 {ChapterIcon && <ChapterIcon className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" />}
                 <span className="truncate">{chapter.title}</span>
@@ -681,7 +681,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
               <p className="mt-1 font-bold text-teal-700 dark:text-teal-300">{chapterSubtopicShown}</p>
             ) : null}
           </div>
-          {chapter.emoji && <div className="ml-auto shrink-0 text-4xl drop-shadow-sm">{chapter.emoji}</div>}
+          {chapter?.emoji && <div className="ml-auto shrink-0 text-4xl drop-shadow-sm">{chapter.emoji}</div>}
         </div>
       )}
 

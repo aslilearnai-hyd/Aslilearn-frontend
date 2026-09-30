@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle, Target } from 'lucide-react';
 
 interface Question {
   id?: number;

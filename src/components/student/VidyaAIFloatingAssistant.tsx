@@ -34,6 +34,7 @@ interface VidyaAIFloatingAssistantProps {
   role?: VidyaAssistantRole;
   /** Override default navigation (admin/teacher tab switch) */
   onClick?: () => void;
+  className?: string;
 }
 
 export default function VidyaAIFloatingAssistant({

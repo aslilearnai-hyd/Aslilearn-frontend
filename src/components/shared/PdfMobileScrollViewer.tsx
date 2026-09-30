@@ -181,7 +181,7 @@ async function renderPdfPageCanvas(
 function PdfPageCanvas({
   canvasRef,
 }: {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
+  canvasRef: RefObject<HTMLCanvasElement>;
 }) {
   return (
     <canvas

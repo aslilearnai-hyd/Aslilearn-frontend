@@ -826,6 +826,10 @@ export default function AdminManagement() {
           secondaryContactPerson: '',
           secondaryContactPhone: '',
           schoolDetails: emptySchoolDetails(),
+          studentBillingEnabled: false,
+          studentPaymentMode: 'offline',
+          studentAnnualPriceInr: 0,
+          studentTrialDays: 15,
         });
         setNewRoleAccess(defaultSchoolRoleAccess());
         setNewRoleTab('admin');
@@ -1115,6 +1119,10 @@ export default function AdminManagement() {
           secondaryContactPhone: '',
           schoolDetails: emptySchoolDetails(),
           isActive: true,
+          studentBillingEnabled: false,
+          studentPaymentMode: 'offline',
+          studentAnnualPriceInr: 0,
+          studentTrialDays: 15,
         });
         setEditRoleAccess(defaultSchoolRoleAccess());
         setEditRoleTab('admin');

@@ -28,7 +28,7 @@ function classLabel(entry: TimetableEntry): string {
   if (typeof entry.classId === 'object' && entry.classId) {
     const num = entry.classId.classNumber || '';
     const sec = entry.sectionId || entry.classId.section || '';
-    return [num, sec].filter(Boolean).join('-') || entry.classId.name || '';
+    return [num, sec].filter(Boolean).join('-');
   }
   return entry.sectionId || '';
 }

@@ -203,7 +203,8 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
     const subjectWiseScore = {
       maths: { correct: 0, total: 0, marks: 0 },
       physics: { correct: 0, total: 0, marks: 0 },
-      chemistry: { correct: 0, total: 0, marks: 0 }
+      chemistry: { correct: 0, total: 0, marks: 0 },
+      biology: { correct: 0, total: 0, marks: 0 }
     };
 
     // Safety check for exam.questions

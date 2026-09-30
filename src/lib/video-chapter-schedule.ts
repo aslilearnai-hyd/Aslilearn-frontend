@@ -8,12 +8,14 @@ export function videoNumberOnly(value: string | undefined): string {
 
 export function getContentSubjectId(content: {
   subject?: { _id?: string; id?: string } | string;
-  subjectId?: string;
+  subjectId?: { _id?: string; id?: string } | string;
 }): string {
   const s = content?.subject;
   if (s && typeof s === 'object') return String(s._id || s.id || '');
   if (typeof s === 'string') return s;
-  return String(content?.subjectId || '');
+  const subjectId = content?.subjectId;
+  if (subjectId && typeof subjectId === 'object') return String(subjectId._id || subjectId.id || '');
+  return String(subjectId || '');
 }
 
 /** Title Case each word (e.g. "introduction to chemistry" → "Introduction To Chemistry"). */
@@ -225,19 +227,19 @@ export function getActiveChapterNumber(
   return chapters[chapters.length - 1];
 }
 
-export function filterIncompleteVideosForTodaysTasks(
-  incompleteVideos: {
+export function filterIncompleteVideosForTodaysTasks<T extends {
     type?: string;
     chapter?: string;
     subject?: { _id?: string; id?: string } | string;
     subjectId?: string;
     _id?: string;
     id?: string;
-  }[],
-  allVideosForSchedule: typeof incompleteVideos,
+  }>(
+  incompleteVideos: T[],
+  allVideosForSchedule: T[],
   completedIds: Set<string>,
   progressBySubject: Record<string, ChapterCompletedDates>
-): typeof incompleteVideos {
+): T[] {
   const withoutChapter = incompleteVideos.filter(
     (c) => isVideoContentType(c.type) && !videoNumberOnly(c.chapter)
   );
@@ -246,7 +248,7 @@ export function filterIncompleteVideosForTodaysTasks(
     (c) => isVideoContentType(c.type) && videoNumberOnly(c.chapter)
   );
   const subjectIds = [...new Set(allWithChapter.map(getContentSubjectId).filter(Boolean))];
-  const visible: typeof incompleteVideos = [...withoutChapter];
+  const visible: T[] = [...withoutChapter];
 
   for (const subjectId of subjectIds) {
     const allSubjectVideos = allWithChapter.filter((v) => getContentSubjectId(v) === subjectId);
@@ -403,8 +405,8 @@ function pickSubjectWise<T extends { subject?: unknown; subjectId?: unknown }>(
  * using the best content type available in that subject (quiz → video → homework → …).
  */
 export function capTodaysTasksForDay<
-  T extends { _id?: string; id?: string; subject?: unknown; subjectId?: unknown },
-  U extends { type?: string; _id?: string; id?: string; subject?: unknown; subjectId?: unknown },
+  T extends { _id?: string; id?: string; subject?: { _id?: string; id?: string; name?: string } | string; subjectId?: { _id?: string; id?: string; name?: string } | string },
+  U extends { type?: string; _id?: string; id?: string; subject?: { _id?: string; id?: string; name?: string } | string; subjectId?: { _id?: string; id?: string; name?: string } | string },
 >(quizzes: T[], content: U[], limit = TODAYS_TASKS_DAILY_LIMIT): { quizzes: T[]; content: U[] } {
   const buckets = groupBySubject(
     [...quizzes],
@@ -509,7 +511,14 @@ export function buildTodaysTasksContentList(
 
 export function nextChapterCompletedDates(
   subjectId: string,
-  allVideos: { type?: string; chapter?: string; subject?: unknown; subjectId?: string }[],
+  allVideos: {
+    type?: string;
+    chapter?: string;
+    subject?: { _id?: string; id?: string } | string;
+    subjectId?: { _id?: string; id?: string } | string;
+    _id?: string;
+    id?: string;
+  }[],
   completedIds: Set<string>,
   currentDates: ChapterCompletedDates
 ): ChapterCompletedDates | null {

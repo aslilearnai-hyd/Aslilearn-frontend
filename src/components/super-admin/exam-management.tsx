@@ -79,6 +79,8 @@ interface Exam {
   duration: number;
   totalQuestions: number;
   totalMarks: number;
+  actualQuestionCount?: number;
+  actualMarksSum?: number;
   instructions: string;
   startDate: string;
   endDate: string;
@@ -1133,6 +1135,7 @@ type PdfQuestionRow = {
   option3: string;
   option4: string;
   correctAnswer: string;
+  integerAnswer?: string;
   explanation: string;
   questionImage?: string;
   hasFigure?: boolean;
@@ -5935,13 +5938,13 @@ export default function ExamManagement() {
                                                   t.toLowerCase() === answerStrs[0].toLowerCase(),
                                               )
                                             : -1;
-                                        const answerMatchesSomeOption = answerStrs.some((raw) =>
+                                        const answerMatchesSomeOption = answerStrs.some((raw: string) =>
                                           allTexts.some(
                                             (t: string) => t.toLowerCase() === raw.toLowerCase(),
                                           ),
                                         );
                                         const isCorrect = answerStrs.length
-                                          ? answerStrs.some((raw) => {
+                                          ? answerStrs.some((raw: string) => {
                                               if (raw.toLowerCase() === optText.toLowerCase()) {
                                                 if (!isMulti && firstTextMatchIdx >= 0) {
                                                   return optIdx === firstTextMatchIdx;

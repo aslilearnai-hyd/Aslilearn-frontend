@@ -53,6 +53,20 @@ interface DetailedAnalytics {
   aiInsights: AIInsight[];
 }
 
+interface GlobalAnalytics {
+  totalAdmins: number;
+  overallAverageScore?: number;
+  totalExams: number;
+  totalExamResults: number;
+  topPerformers: TopScorer[];
+  subjectWiseAnalysis: SubjectAnalysis[];
+  trendsAnalysis: { improving: number; declining: number; stable: number };
+}
+
+interface ExamHistory {
+  [key: string]: unknown;
+}
+
 interface AdminAnalytics {
   adminId: string;
   adminName: string;

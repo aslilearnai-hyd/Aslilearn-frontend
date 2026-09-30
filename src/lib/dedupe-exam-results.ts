@@ -13,7 +13,7 @@ export function dedupeStudentExamResults(
 ): any[] {
   if (!Array.isArray(rows) || rows.length === 0) return [];
 
-  const sorted = [...rows].sort(
+  const sorted: any[] = [...rows].sort(
     (a: any, b: any) =>
       new Date(b?.completedAt || 0).getTime() - new Date(a?.completedAt || 0).getTime()
   );

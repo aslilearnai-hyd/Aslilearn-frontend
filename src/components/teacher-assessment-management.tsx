@@ -184,7 +184,9 @@ const TeacherAssessmentManagement = () => {
           duration: 60,
           totalMarks: 100,
           passingMarks: 50,
-          questions: 20
+          questions: 20,
+          driveLink: '',
+          isDriveQuiz: false
         });
       }
     } catch (error) {

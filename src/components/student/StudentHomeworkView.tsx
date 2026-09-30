@@ -63,7 +63,7 @@ export function StudentHomeworkView() {
           const raw = json.data || json || [];
           items = filterContentsBySchoolProgram(
             Array.isArray(raw) ? raw : [],
-            resolveIsAsliPrepExclusive(authUser),
+            resolveIsAsliPrepExclusive(authUser as Parameters<typeof resolveIsAsliPrepExclusive>[0]),
           ).filter((c: any) => String(c.type || '').toLowerCase() === 'homework');
           items.sort((a, b) => {
             const aTime = a.deadline ? new Date(a.deadline).getTime() : 0;

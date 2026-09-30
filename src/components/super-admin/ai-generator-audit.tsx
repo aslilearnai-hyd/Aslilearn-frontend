@@ -34,6 +34,7 @@ type DuplicateAuditData = {
 };
 
 type AnalyticsData = {
+  recentSampleSize?: number;
   totalGenerations: number;
   totalFingerprints?: number;
   estimatedCostUsd: number;

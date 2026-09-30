@@ -196,7 +196,8 @@ export function formatAsciiMathToUnicode(text: string): string {
 export function formatChemicalFormulasInText(text: string): string {
   const s = text === null || text === undefined ? '' : String(text);
   if (!s) return '';
-  return s.replace(/\b([A-Z][a-z]?(?:\d+[A-Z]?[a-z]?)*\d*[A-Za-z0-9]*)\b/g, (token) => {
+  // Keep the token match linear and bounded; nested repetitions here can cause ReDoS.
+  return s.replace(/\b([A-Z][A-Za-z0-9]{1,63})\b/g, (token) => {
     if (!/\d/.test(token)) return token;
     // Avoid rewriting short codes like IIT6 / NEET2
     if (/^[A-Z]{3,}\d+$/.test(token) && token.length <= 6) return token;

@@ -225,7 +225,7 @@ const ClassDashboard = () => {
                   }))
                 : [],
             }))
-            .sort((a, b) =>
+            .sort((a: any, b: any) =>
               String(a.name || '').localeCompare(String(b.name || ''), undefined, {
                 sensitivity: 'base',
                 numeric: true,
@@ -359,6 +359,7 @@ const ClassDashboard = () => {
         {
           id: '10A',
           name: 'Class 10A',
+          classNumber: '10',
           description: 'Grade 10 Section A',
           subject: 'General',
           grade: '10',
@@ -372,6 +373,7 @@ const ClassDashboard = () => {
         {
           id: '12B',
           name: 'Class 12B',
+          classNumber: '12',
           description: 'Grade 12 Section B',
           subject: 'General',
           grade: '12',

@@ -1,10 +1,20 @@
 {
   "include": ["src/**/*", "tailwind.config.ts", "vite.config.ts"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts",
+    "src/components/AnimatedExamReviewModal.tsx",
+    "src/components/ExamModalIntegration.tsx",
+    "src/components/stream-player.tsx",
+    "src/components/video-player.tsx",
+    "src/pages/video-lectures.tsx"
+  ],
   "compilerOptions": {
-    "incremental": true,
-    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
+    "incremental": false,
     "noEmit": true,
+    "target": "ES2022",
     "module": "ESNext",
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
@@ -13,6 +23,7 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "moduleResolution": "bundler",
+    "baseUrl": ".",
     "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./src/*"]

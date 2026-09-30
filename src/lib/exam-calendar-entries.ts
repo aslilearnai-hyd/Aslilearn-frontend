@@ -47,8 +47,8 @@ export function examMarkerDays(start: Date, end: Date): Date[] {
 
 export function isDateWithinExamWindow(day: Date, exam: any): boolean {
   const start = parseCalendarDate(exam?.startDate);
-  const end = parseCalendarDate(exam?.endDate) || start;
   if (!start) return false;
+  const end = parseCalendarDate(exam?.endDate) || start;
   const key = formatCalendarDateKey(day);
   const startKey = formatCalendarDateKey(start);
   const endKey = formatCalendarDateKey(end);
@@ -58,8 +58,8 @@ export function isDateWithinExamWindow(day: Date, exam: any): boolean {
 /** True when day is the exam open or close date (calendar red-dot days). */
 export function isExamMarkerDate(day: Date, exam: any): boolean {
   const start = parseCalendarDate(exam?.startDate);
-  const end = parseCalendarDate(exam?.endDate) || start;
   if (!start) return false;
+  const end = parseCalendarDate(exam?.endDate) || start;
   const key = formatCalendarDateKey(day);
   const startKey = formatCalendarDateKey(start);
   const endKey = formatCalendarDateKey(end);

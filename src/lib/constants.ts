@@ -1,4 +1,5 @@
 import { getAuthToken } from '@/lib/auth-utils';
+import { API_BASE_URL } from './api-config';
 // API Configuration - Import from api-config for centralized management
 export { API_BASE_URL } from './api-config';
 

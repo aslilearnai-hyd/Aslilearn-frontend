@@ -1249,7 +1249,7 @@ export default function AIContentEngine() {
                           {sec.letter}. {sec.sectionName}
                         </p>
                         <ul className="text-xs sm:text-sm text-slate-800 space-y-1">
-                          {sec.entries.map((entry, eIdx) => (
+                          {(sec.entries || []).map((entry, eIdx) => (
                             <li key={`${item._id}-ws-ak-${aIdx}-${eIdx}`}>
                               <span className="font-medium text-slate-600">
                                 Q{entry.question_number ?? eIdx + 1}.
@@ -3554,7 +3554,7 @@ export default function AIContentEngine() {
     setPdfContentViewDetail(listRecord);
     setPdfContentViewLoading(true);
     try {
-      const endpoint = isPdfGenerationRecord(listRecord || { _id: id, originalName: "", fileUrl: "", subject: "", classLabel: "", chapter: "", chunkCount: 0, uploadDate: "" })
+      const endpoint = isPdfGenerationRecord(listRecord || { _id: id, originalName: "", fileUrl: "", subject: "", classLabel: "", chapter: "", chunkCount: 0, uploadDate: "", processingStatus: "pending" })
         ? `${API_BASE_URL}/api/generations/${id}`
         : `${API_BASE_URL}/api/pdf/${id}`;
       const res = await fetch(endpoint, { headers: authHeaders() });
@@ -4034,7 +4034,7 @@ export default function AIContentEngine() {
     const record = items.find((row) => row._id === id);
     setDeletingPdfId(id);
     try {
-      const endpoint = isPdfGenerationRecord(record || { _id: id, originalName: "", fileUrl: "", subject: "", classLabel: "", chapter: "", chunkCount: 0, uploadDate: "" })
+      const endpoint = isPdfGenerationRecord(record || { _id: id, originalName: "", fileUrl: "", subject: "", classLabel: "", chapter: "", chunkCount: 0, uploadDate: "", processingStatus: "pending" })
         ? `${API_BASE_URL}/api/generations/${id}`
         : `${API_BASE_URL}/api/pdf/${id}`;
       const res = await fetch(endpoint, {
@@ -4908,4 +4908,3 @@ export default function AIContentEngine() {
     </div>
   );
 }
-

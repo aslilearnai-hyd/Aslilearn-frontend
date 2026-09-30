@@ -95,7 +95,7 @@ interface Question {
   _id: string;
   questionText: string;
   questionImage?: string;
-  questionType: 'mcq' | 'multiple' | 'integer';
+  questionType: string;
   options?: QuestionOption[];
   correctAnswer: string | string[] | QuestionOption | QuestionOption[];
   marks: number;

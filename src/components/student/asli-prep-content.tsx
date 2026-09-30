@@ -29,7 +29,6 @@ interface Content {
     _id: string;
     name: string;
   };
-  topic?: string;
   fileUrl: string;
   thumbnailUrl?: string;
   duration?: number;
@@ -461,4 +460,3 @@ export default function AsliPrepContent() {
     </div>
   );
 }
-

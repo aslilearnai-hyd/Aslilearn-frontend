@@ -15,7 +15,7 @@ import {
   Lightbulb,
   BookOpen
 } from "lucide-react";
-import type { TestAttempt } from "@shared/schema";
+import type { TestAttempt } from "@/types/practice-tests";
 
 interface TestAnalysisProps {
   attempt: TestAttempt;

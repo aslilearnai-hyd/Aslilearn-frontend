@@ -48,6 +48,7 @@ interface Exam {
 }
 
 interface Question {
+  id?: string;
   _id: string;
   questionText: string;
   questionImage?: string;
@@ -827,7 +828,7 @@ const ExamManagement = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDeleteQuestion(question._id || question.id)}
+                               onClick={() => handleDeleteQuestion(question._id || question.id || '')}
                             >
                               <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                             </Button>

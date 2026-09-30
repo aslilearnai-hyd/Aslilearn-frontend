@@ -648,7 +648,7 @@ export default function AdminEduOTT() {
                         </div>
                         <EduOTTJoinSessionButton
                           session={session}
-                          onJoin={setSelectedLiveSession}
+                          onJoin={() => setSelectedLiveSession(session)}
                         />
                       </div>
                     </CardContent>
@@ -677,4 +677,3 @@ export default function AdminEduOTT() {
     </div>
   );
 }
-

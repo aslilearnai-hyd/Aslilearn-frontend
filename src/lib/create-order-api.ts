@@ -119,7 +119,7 @@ export async function fetchOrders(status?: 'draft' | 'confirmed'): Promise<Saved
     throw new Error(parseApiError(json, res.status, 'Failed to load orders'));
   }
   const rows = Array.isArray(json.data) ? json.data : [];
-  return rows.map((row) => normalizeSavedOrder(row as Record<string, unknown>));
+  return rows.map((row: unknown) => normalizeSavedOrder(row as Record<string, unknown>));
 }
 
 export async function fetchOrderById(id: string): Promise<SavedOrder> {

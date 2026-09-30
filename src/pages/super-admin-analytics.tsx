@@ -29,7 +29,7 @@ type SuperAdminAnalyticsDashboardProps = {
 
 export default function SuperAdminAnalyticsDashboard({ onSelectSchool }: SuperAdminAnalyticsDashboardProps) {
   const { toast } = useToast();
-  const [analytics, setAnalytics] = useState(null);
+  const [analytics, setAnalytics] = useState<any[]>([]);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [platformAnalytics, setPlatformAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);

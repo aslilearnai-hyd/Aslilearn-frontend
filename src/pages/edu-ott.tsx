@@ -939,7 +939,7 @@ export default function EduOTT() {
                         </div>
                         <EduOTTJoinSessionButton
                           session={session}
-                          onJoin={setSelectedLiveSession}
+                          onJoin={() => setSelectedLiveSession(session)}
                           className="h-12 shrink-0 bg-red-600 text-base text-white hover:bg-red-700"
                         />
                       </div>

@@ -92,9 +92,10 @@ const LearningPathManagement = () => {
         estimatedHours: parseInt(formData.estimatedHours)
       };
 
+      let response: Response;
       if (editingPath) {
         // Update existing path
-        const response = await fetch(`/api/admin/learning-paths/${editingPath.id}`, {
+        response = await fetch(`/api/admin/learning-paths/${editingPath.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -102,7 +103,7 @@ const LearningPathManagement = () => {
         });
       } else {
         // Create new path
-        const response = await fetch('/api/admin/learning-paths', {
+        response = await fetch('/api/admin/learning-paths', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

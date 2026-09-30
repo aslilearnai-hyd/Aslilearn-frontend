@@ -26,7 +26,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { PracticeTest, Question, TestAttempt } from "@shared/schema";
+import type { PracticeTest, Question, TestAttempt } from "@/types/practice-tests";
 
 // Mock user ID - in a real app, this would come from authentication
 const MOCK_USER_ID = "user-1";
@@ -371,7 +371,7 @@ export default function PracticeTests() {
                               <Badge className="text-xs">New</Badge>
                               <Badge 
                                 variant="outline" 
-                                className={`text-xs ${getDifficultyColor(test.difficulty)}`}
+                                className={`text-xs ${getDifficultyColor(test.difficulty || 'Medium')}`}
                               >
                                 {test.difficulty}
                               </Badge>

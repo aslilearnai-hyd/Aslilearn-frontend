@@ -34,7 +34,7 @@ export async function fetchOrderCatalog(): Promise<ProductBundle[]> {
     throw new Error(parseMessage(json, res.status, 'Failed to load catalog'));
   }
   const rows = Array.isArray(json.data) ? json.data : [];
-  return rows.map((row) => normalizeBundle(row as Record<string, unknown>));
+  return rows.map((row: unknown) => normalizeBundle(row as Record<string, unknown>));
 }
 
 export async function createCatalogProduct(

@@ -42,23 +42,22 @@ export function normalizeMatchPairs(entry: Record<string, unknown> | null | unde
     entry.columnPairs;
 
   if (Array.isArray(rawPairs) && rawPairs.length) {
-    return rawPairs
-      .map((row, i) => {
-        if (!row || typeof row !== 'object') return null;
+    return rawPairs.reduce<MatchPair[]>((pairs, row, i) => {
+        if (!row || typeof row !== 'object') return pairs;
         const r = row as Record<string, unknown>;
         const left = cleanItem(r.left || r.a || r.columnA || r.term || r.item || r.key || '');
         const right = cleanItem(
           r.right || r.b || r.columnB || r.match || r.value || r.definition || r.answer || '',
         );
-        if (!left || !right) return null;
-        return {
+        if (!left || !right) return pairs;
+        pairs.push({
           left,
           right,
           leftKey: String(r.leftKey || i + 1),
           rightKey: String(r.rightKey || String.fromCharCode(97 + i)),
-        };
-      })
-      .filter((p): p is MatchPair => p != null);
+        });
+        return pairs;
+      }, []);
   }
 
   const columnA = asStringList(entry.columnA || entry.column_a || entry.leftItems || entry.listA);

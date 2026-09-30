@@ -197,6 +197,7 @@ export default function TrialMembersManagement() {
     subscriptionStatus: 'trial',
     trialAllowedContentTypes: [] as string[],
     trialAllowedAiTools: [] as string[],
+    trialAssignedExams: [] as string[],
     trialAdminNotes: '',
     trialPaymentAmount: '',
     trialPaidAt: '',

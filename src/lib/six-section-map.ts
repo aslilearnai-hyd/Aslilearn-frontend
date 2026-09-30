@@ -310,7 +310,7 @@ function legacyQuestionsToV2(sc: Dict, content: string): Dict {
       commonErrors: list(sc.common_mistakes_to_avoid),
     },
     teacher: {
-      timing: str(sc.teacher_instructions?.[0] || sc.closure_exit_ticket),
+      timing: str(list(sc.teacher_instructions)[0] || sc.closure_exit_ticket),
       tlm: list(sc.teaching_aids_required || sc.materials_required),
       tips: list(sc.teacher_instructions),
     },
@@ -323,7 +323,7 @@ function legacyQuestionsToV2(sc: Dict, content: string): Dict {
 
 function legacyPlanToV2(slug: string, sc: Dict, content: string): Dict {
   const toolKind = slug === 'study-schedule-maker' ? 'study-schedule-maker' : 'lesson-planner';
-  const { lessons } = resolveLessonsFromPayload(content, sc, toolKind);
+  const { lessons } = resolveLessonsFromPayload(content, sc, { toolKind });
   const lesson = lessons[0];
   const steps = lesson
     ? [
