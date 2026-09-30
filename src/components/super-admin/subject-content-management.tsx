@@ -815,13 +815,21 @@ export default function SubjectContentManagement() {
   const { codes: iitCategoryCodes, labelMap: iitLabelMap } = useProductCategories();
   const { catalogOptions } = useBoards();
 
-  const SYLLABUS_OPTIONS = useMemo(
-    () =>
-      catalogOptions
-        .filter((b) => b.code !== 'ASLI_EXCLUSIVE_SCHOOLS')
-        .map((b) => ({ value: b.code as SyllabusBoard, label: b.name })),
-    [catalogOptions]
-  );
+  const SYLLABUS_OPTIONS = useMemo(() => {
+    const options = catalogOptions
+      .filter((b) => b.code !== 'ASLI_EXCLUSIVE_SCHOOLS')
+      .map((b) => ({ value: b.code as SyllabusBoard, label: b.name }));
+
+    // CBSE and IIT are built-in content scopes. Keep them available even when
+    // an older board catalog has not created explicit rows yet.
+    if (!options.some((option) => boardsMatch(option.value, 'CBSE'))) {
+      options.unshift({ value: 'CBSE', label: 'CBSE' });
+    }
+    if (!options.some((option) => boardsMatch(option.value, 'IIT'))) {
+      options.push({ value: 'IIT', label: 'IIT' });
+    }
+    return options;
+  }, [catalogOptions]);
 
   const CONTENT_FETCH_BOARDS = useMemo(() => {
     const codes = catalogOptions.map((b) => b.code);
@@ -1018,12 +1026,28 @@ export default function SubjectContentManagement() {
 
   const displayClassOptions = useMemo(() => {
     const merged = new Set([...classOptions, ...manualClassLabels]);
-    return Array.from(merged)
-      .filter((label) => {
-        const { board } = parseClassBoardLabel(label);
-        if (!board) return true;
-        return boardsMatch(board, selectedFilterBoard);
-      })
+    const byClassNumber = new Map<string, string>();
+
+    Array.from(merged).forEach((label) => {
+      const parsed = parseClassBoardLabel(label);
+      if (!parsed.classNum) return;
+      if (parsed.board && !boardsMatch(parsed.board, selectedFilterBoard)) return;
+
+      const classNumber = normalizeClassNumber(parsed.classNum);
+      const existing = byClassNumber.get(classNumber);
+      if (!existing) {
+        byClassNumber.set(classNumber, label);
+        return;
+      }
+
+      // A legacy unscoped "Class 6" and a board-scoped "Class 6 (CBSE)"
+      // represent one visible class inside the selected board. Prefer the
+      // scoped label so subsequent subject/content operations retain the board.
+      const existingBoard = parseClassBoardLabel(existing).board;
+      if (!existingBoard && parsed.board) byClassNumber.set(classNumber, label);
+    });
+
+    return Array.from(byClassNumber.values())
       .sort((a, b) => {
         const pa = parseClassBoardLabel(a);
         const pb = parseClassBoardLabel(b);
@@ -2142,6 +2166,33 @@ export default function SubjectContentManagement() {
       return;
     }
 
+    if (!editingContentId) {
+      const expectedBoard = normalizeIitCategory(selectedProductCategory)
+        ? 'IIT'
+        : selectedBoard;
+      const selectedCategory = normalizeIitCategory(selectedProductCategory) || '';
+      const subjectCategory = resolveSubjectProductCategory(subj);
+
+      if (!boardsMatch(subj.board, expectedBoard)) {
+        toast({
+          title: 'Board mismatch',
+          description: `This subject belongs to ${syllabusLabel(subj.board, SYLLABUS_OPTIONS)}, not ${syllabusLabel(expectedBoard, SYLLABUS_OPTIONS)}. Select or create the subject under the correct board before saving.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (subjectCategory !== selectedCategory) {
+        toast({
+          title: 'Track mismatch',
+          description: selectedCategory
+            ? `Select or create this subject under IIT ${formatIitCategoryLabel(selectedCategory, iitLabelMap)} before saving.`
+            : 'This is an IIT-track subject. Select its Alpha, Beta, Gamma, or Delta track before saving.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     const subBoard = (subj.board || editingItem?.board || BOARD_CODE).toUpperCase() as SyllabusBoard;
     const knownCodes = new Set([
       ...CONTENT_FETCH_BOARDS.map((c) => String(c).toUpperCase()),
@@ -2385,13 +2436,20 @@ export default function SubjectContentManagement() {
             : 'File uploaded successfully. You can now save the content.',
         });
       } else {
-        const nginxHint =
-          response.status === 413
-            ? ' Request too large for reverse proxy (nginx: raise client_max_body_size).'
-            : '';
+        const serverMessage = data.message || response.statusText || 'Failed to upload file';
+        const statusHint =
+          response.status === 401
+            ? ' Your session has expired. Sign in again and retry.'
+            : response.status === 403
+              ? ' Your account does not have permission to upload this file.'
+              : response.status === 413
+                ? ' The file exceeds the server or reverse-proxy upload limit.'
+                : response.status >= 500
+                  ? ' The upload service could not save the file. Check server storage and logs, then retry.'
+                  : '';
         toast({
           title: 'Upload failed',
-          description: (data.message || response.statusText || 'Failed to upload file') + nginxHint,
+          description: `${serverMessage}${statusHint} (HTTP ${response.status})`,
           variant: 'destructive',
         });
       }
@@ -2408,8 +2466,8 @@ export default function SubjectContentManagement() {
       toast({
         title: 'Upload failed',
         description: looksLikeDroppedConnection
-          ? 'The request never got a normal response—usually nginx default 1MB body limit or a short proxy timeout. On the server that serves api.aslilearn.ai: set client_max_body_size 100m; proxy_read_timeout 300s; reload nginx. Redeploy the frontend after git pull if you still see an old message.'
-          : `Upload error: ${msg}. If this only happens in production with large files, raise nginx client_max_body_size (see server docs).`,
+          ? 'The server did not return a response. Check the internet connection and API availability. For large files, also verify the reverse-proxy size and timeout settings.'
+          : `Upload error: ${msg}`,
         variant: 'destructive',
       });
     } finally {
@@ -2554,7 +2612,7 @@ export default function SubjectContentManagement() {
                   const iitOpt = SYLLABUS_OPTIONS.find((o) =>
                     boardsMatch(o.value, 'IIT')
                   );
-                  if (iitOpt) setSelectedFilterBoard(iitOpt.value);
+                  setSelectedFilterBoard(iitOpt?.value || 'IIT');
                 }}
               >
                 {formatIitCategoryLabel(code, iitLabelMap)}
