@@ -3581,7 +3581,7 @@ const TeacherDashboard = () => {
                                   const classOpen = expandedSubmissionClasses.has(classNum);
                                   const sections = submissionClassSectionMap.get(classNum);
                                   const sectionList = sections
-                                    ? Array.from(sections).sort()
+                                    ? Array.from(sections).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
                                     : [];
 
                                   return (

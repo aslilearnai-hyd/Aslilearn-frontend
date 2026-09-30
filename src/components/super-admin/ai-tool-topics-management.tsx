@@ -226,7 +226,7 @@ export default function AiToolTopicsManagement() {
             ...prev,
             ...mapped.map((b: { code: string }) => b.code.toUpperCase()),
           ]);
-          return Array.from(merged).sort();
+          return Array.from(merged).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
         });
       }
     } catch {

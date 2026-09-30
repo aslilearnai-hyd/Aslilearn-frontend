@@ -202,7 +202,7 @@ export default function SubjectManagement() {
   // Get unique subject names and class numbers from subjects
   const getUniqueSubjectNames = (): string[] => {
     const names = subjects.map(s => extractSubjectName(s.name));
-    return Array.from(new Set(names)).sort();
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   };
 
   const getUniqueClassNumbers = (): string[] => {

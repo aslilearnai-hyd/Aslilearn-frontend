@@ -960,8 +960,8 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
   };
 
   const compareAnswers = (question: Question, userAnswer: any, correctAnswer: any): boolean => {
-    const userTexts = resolveAnswerTexts(question, userAnswer).sort();
-    const correctTexts = resolveAnswerTexts(question, correctAnswer).sort();
+    const userTexts = resolveAnswerTexts(question, userAnswer).sort((a, b) => a.localeCompare(b));
+    const correctTexts = resolveAnswerTexts(question, correctAnswer).sort((a, b) => a.localeCompare(b));
     if (userTexts.length === 0 || correctTexts.length === 0) return false;
     if (userTexts.length !== correctTexts.length) return false;
     return JSON.stringify(userTexts) === JSON.stringify(correctTexts);
@@ -1374,11 +1374,11 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
 
     const subjects = Object.entries(result.subjectWiseScore);
     if (subjects.length > 0) {
-      const best = subjects.reduce((a, b) => {
+      const best = subjects.slice(1).reduce((a, b) => {
         const pa = a[1].total > 0 ? a[1].correct / a[1].total : 0;
         const pb = b[1].total > 0 ? b[1].correct / b[1].total : 0;
         return pb > pa ? b : a;
-      });
+      }, subjects[0]);
       const bestPct = best[1].total > 0 ? (best[1].correct / best[1].total) * 100 : 0;
       if (bestPct >= 50) {
         insights.push({

@@ -52,8 +52,8 @@ export default function DetailedExamViewModal({
     const correctText = getOptionText(correctAnswer);
     
     if (Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
-      const userTexts = userAnswer.map(getOptionText).sort();
-      const correctTexts = correctAnswer.map(getOptionText).sort();
+      const userTexts = userAnswer.map(getOptionText).sort((a, b) => a.localeCompare(b));
+      const correctTexts = correctAnswer.map(getOptionText).sort((a, b) => a.localeCompare(b));
       return JSON.stringify(userTexts) === JSON.stringify(correctTexts);
     }
     

@@ -498,7 +498,7 @@ export default function SubjectContent() {
                 <div className="flex items-center space-x-2">
                   {/* Get unique content types from contents */}
                   {(() => {
-                    const uniqueTypes = Array.from(new Set(contents.map(c => c.type))).sort();
+                    const uniqueTypes = Array.from(new Set(contents.map(c => c.type))).sort((a, b) => a.localeCompare(b));
                     return (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

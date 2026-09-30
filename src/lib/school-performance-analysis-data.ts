@@ -449,7 +449,7 @@ const orderedSubjects = (bySubject: Map<string, SubjectAgg>): string[] => {
   const ordered = SUBJECT_ORDER.filter((s) => keys.includes(s));
   const rest = keys
     .filter((k) => !SUBJECT_ORDER.includes(k as (typeof SUBJECT_ORDER)[number]))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
   return [...ordered, ...rest];
 };
 

@@ -582,7 +582,7 @@ export default function ContentManagement() {
     const names = contents
       .map(c => c.subject?.name ? extractSubjectName(c.subject.name) : null)
       .filter((name): name is string => name !== null);
-    return Array.from(new Set(names)).sort();
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   };
 
   // Get unique class numbers from contents
@@ -600,7 +600,7 @@ export default function ContentManagement() {
   // Get unique content types from contents
   const getUniqueContentTypes = (): string[] => {
     const types = contents.map(c => c.type);
-    return Array.from(new Set(types)).sort();
+    return Array.from(new Set(types)).sort((a, b) => a.localeCompare(b));
   };
 
   // Filter contents based on selected filters
@@ -1411,25 +1411,6 @@ export default function ContentManagement() {
             <div>
               <Label htmlFor="file">Content File *</Label>
               <div className="space-y-3">
-                {false && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-xs text-green-600 mb-2">
-                      Selected File: (removed)
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        // File upload removed
-                      }}
-                      className="text-xs"
-                    >
-                      Remove File
-                    </Button>
-                  </div>
-                )}
-                
               <div className="space-y-2">
                   {/* File upload (PDF / document). If a file is uploaded we use that instead of URLs */}
                   <div className="flex items-center gap-3">
@@ -1758,7 +1739,8 @@ export default function ContentManagement() {
                                   // Force reload by updating key
                                   const iframe = document.querySelector('iframe[title="' + viewingContent.title + '"]') as HTMLIFrameElement;
                                   if (iframe) {
-                                    iframe.src = iframe.src;
+                                    const currentSrc = iframe.getAttribute('src');
+                                    if (currentSrc) iframe.setAttribute('src', currentSrc);
                                   }
                                 }}
                                 className="mr-2"

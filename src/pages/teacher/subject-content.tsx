@@ -204,7 +204,7 @@ export default function TeacherSubjectContent() {
   }, [classFilteredContents, selectedContentType]);
 
   const uniqueContentTypes = useMemo(
-    () => Array.from(new Set(classFilteredContents.map((c) => c.type))).sort(),
+    () => Array.from(new Set(classFilteredContents.map((c) => c.type))).sort((a, b) => a.localeCompare(b)),
     [classFilteredContents],
   );
 

@@ -71,4 +71,4 @@ for (const file of files) {
 }
 
 console.log(`Updated ${changed} files`);
-for (const r of report.sort()) console.log(' -', r);
+for (const r of report.sort((a, b) => a.localeCompare(b))) console.log(' -', r);

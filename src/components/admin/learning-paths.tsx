@@ -584,7 +584,7 @@ export default function AdminLearningPaths() {
 
                       return (
                         <Card
-                          key={mergedIds.slice().sort().join('-')}
+                          key={mergedIds.slice().sort((a, b) => String(a).localeCompare(String(b))).join('-')}
                           className="border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 h-full"
                         >
                           <CardContent className="p-4 h-full flex flex-col gap-3">

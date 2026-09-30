@@ -705,7 +705,7 @@ const UserManagement = () => {
           .filter((s) => getClassSectionMeta(s).classKey === classKey)
           .map((s) => getClassSectionMeta(s).sectionKey)
       )
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     acc[classKey] = sections;
     return acc;
   }, {});
@@ -1347,7 +1347,7 @@ const UserManagement = () => {
 
                         {!isClassCollapsed && (
                           <div className="px-4 pb-4 space-y-3">
-                            {Object.keys(classSectionGroups[classKey]).sort().map((sectionKey) => {
+                            {Object.keys(classSectionGroups[classKey]).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((sectionKey) => {
                               const sectionScopeKey = `${classKey}::${sectionKey}`;
                               const isSectionCollapsed = collapsedSections[sectionScopeKey] ?? false;
                               return (
@@ -1383,7 +1383,7 @@ const UserManagement = () => {
 
               {studentViewMode === 'section-wise' && (
                 <div className="space-y-4">
-                  {Object.keys(sectionClassGroups).sort().map((sectionKey) => {
+                  {Object.keys(sectionClassGroups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((sectionKey) => {
                     const isSectionCollapsed = collapsedSections[sectionKey] ?? false;
                     return (
                       <div key={sectionKey} className="rounded-xl border border-teal-200 bg-white/70 shadow-sm">

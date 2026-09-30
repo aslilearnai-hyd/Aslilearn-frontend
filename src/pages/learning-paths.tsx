@@ -407,10 +407,6 @@ export default function LearningPaths() {
               subjectsArray = subjectsData.data;
             } else if (Array.isArray(subjectsData)) {
               subjectsArray = subjectsData;
-            } else if (subjectsData.success && subjectsData.subjects && Array.isArray(subjectsData.subjects)) {
-              subjectsArray = subjectsData.subjects;
-            } else if (subjectsData.success && subjectsData.data && Array.isArray(subjectsData.data)) {
-              subjectsArray = subjectsData.data;
             }
             
             if (!Array.isArray(subjectsArray) || subjectsArray.length === 0) {

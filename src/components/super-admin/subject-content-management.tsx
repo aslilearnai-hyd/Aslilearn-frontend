@@ -424,6 +424,16 @@ const getUploadAcceptForContentType = (type: ContentType): string => {
   return '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
 };
 
+function uploadFailureHint(status: number): string {
+  if (status === 401) return ' Your session has expired. Sign in again and retry.';
+  if (status === 403) return ' Your account does not have permission to upload this file.';
+  if (status === 413) return ' The file exceeds the server or reverse-proxy upload limit.';
+  if (status >= 500) {
+    return ' The upload service could not save the file. Check server storage and logs, then retry.';
+  }
+  return '';
+}
+
 /** Normalize upload paths so validation and API always get `/uploads/...`. */
 function normalizeServerContentFileUrl(url: string): string {
   const trimmed = url.trim();
@@ -2437,16 +2447,7 @@ export default function SubjectContentManagement() {
         });
       } else {
         const serverMessage = data.message || response.statusText || 'Failed to upload file';
-        const statusHint =
-          response.status === 401
-            ? ' Your session has expired. Sign in again and retry.'
-            : response.status === 403
-              ? ' Your account does not have permission to upload this file.'
-              : response.status === 413
-                ? ' The file exceeds the server or reverse-proxy upload limit.'
-                : response.status >= 500
-                  ? ' The upload service could not save the file. Check server storage and logs, then retry.'
-                  : '';
+        const statusHint = uploadFailureHint(response.status);
         toast({
           title: 'Upload failed',
           description: `${serverMessage}${statusHint} (HTTP ${response.status})`,

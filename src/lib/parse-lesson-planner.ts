@@ -272,10 +272,6 @@ function unwrapRenderableLessonRecord(o: Record<string, unknown>): Record<string
     time_slots: o.time_slots ?? o.timeSlots,
   };
 
-  const kind = String(o.kind || '').trim();
-  if (kind === 'lessonPlan' || kind === 'lesson_plan') {
-    return mapped;
-  }
   return mapped;
 }
 

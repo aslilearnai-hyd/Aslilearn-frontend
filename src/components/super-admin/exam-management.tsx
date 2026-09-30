@@ -1232,13 +1232,13 @@ const examDisplayDedupKey = (exam: Exam) => {
   const classKey = getExamClassStrings(exam)
     .map((c) => String(c).trim())
     .filter(Boolean)
-    .sort()
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     .join('|');
   const targetSchoolsKey = (exam.targetSchools || [])
     .map((s: any) => (typeof s === 'string' ? s : s?._id))
     .filter(Boolean)
     .map((id: any) => String(id))
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .join('|');
 
   return [

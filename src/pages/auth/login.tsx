@@ -343,15 +343,22 @@ const Login = () => {
 
       {/* Floating Animated Shapes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(6)].map((_, i) => (
+        {[
+          { left: 8, top: 12 },
+          { left: 72, top: 18 },
+          { left: 24, top: 68 },
+          { left: 84, top: 76 },
+          { left: 46, top: 36 },
+          { left: 58, top: 88 },
+        ].map((position, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full bg-gradient-to-br from-sky-300/30 to-blue-300/30 blur-3xl"
             style={{
               width: `${100 + i * 50}px`,
               height: `${100 + i * 50}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${position.left}%`,
+              top: `${position.top}%`,
             }}
             animate={{
               x: [0, 30, 0],
