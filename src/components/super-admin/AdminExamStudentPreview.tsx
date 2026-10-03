@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AuthenticatedUploadImage } from '@/components/AuthenticatedUploadImage';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { MatchColumnsTable } from '@/components/exam/MatchColumnsTable';
 import { resolveAnswerAgainstOptions } from '@/lib/exam-answer-resolve';
 import {
@@ -566,7 +567,9 @@ export function AdminExamStudentPreview({
                                     ? 'Case / Passage'
                                     : 'Shared matter'}
                             </div>
-                            <p className="whitespace-pre-wrap leading-relaxed">{fmt(matterText)}</p>
+                            <p className="whitespace-pre-wrap leading-relaxed">
+                              <ExamMathText text={fmt(matterText)} />
+                            </p>
                           </div>
                         ) : null}
 
@@ -574,12 +577,14 @@ export function AdminExamStudentPreview({
                           <div className="mb-4 space-y-2 rounded-lg border border-violet-100 bg-violet-50/70 p-3 text-sm text-gray-900">
                             {arDisplay.assertion ? (
                               <p>
-                                <span className="font-semibold">A:</span> {fmt(arDisplay.assertion)}
+                                <span className="font-semibold">A:</span>{' '}
+                                <ExamMathText text={fmt(arDisplay.assertion)} />
                               </p>
                             ) : null}
                             {arDisplay.reason ? (
                               <p>
-                                <span className="font-semibold">R:</span> {fmt(arDisplay.reason)}
+                                <span className="font-semibold">R:</span>{' '}
+                                <ExamMathText text={fmt(arDisplay.reason)} />
                               </p>
                             ) : null}
                           </div>
@@ -607,7 +612,7 @@ export function AdminExamStudentPreview({
 
                         {arDisplay.showQuestionText && arDisplay.questionText ? (
                           <p className="mb-4 text-sm leading-relaxed text-gray-900 sm:text-base">
-                            {fmt(arDisplay.questionText)}
+                            <ExamMathText text={fmt(arDisplay.questionText)} />
                           </p>
                         ) : null}
                       </div>
@@ -645,7 +650,7 @@ export function AdminExamStudentPreview({
                                 htmlFor={`preview-${currentId}-${oi}`}
                                 className="flex-1 cursor-pointer text-xs text-gray-700 sm:text-sm"
                               >
-                                {fmt(value)}
+                                <ExamMathText text={fmt(value)} />
                                 {correct ? (
                                   <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-700">
                                     Correct
@@ -699,7 +704,7 @@ export function AdminExamStudentPreview({
                                 htmlFor={`preview-msq-${currentId}-${oi}`}
                                 className="flex-1 cursor-pointer text-xs sm:text-sm"
                               >
-                                {fmt(value)}
+                                <ExamMathText text={fmt(value)} />
                                 {correct ? (
                                   <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-700">
                                     Correct
@@ -736,7 +741,7 @@ export function AdminExamStudentPreview({
                     {showKey && current?.explanation ? (
                       <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950 sm:text-sm">
                         <span className="font-semibold">Explanation: </span>
-                        {fmt(current.explanation)}
+                        <ExamMathText text={fmt(current.explanation)} />
                       </div>
                     ) : null}
 
