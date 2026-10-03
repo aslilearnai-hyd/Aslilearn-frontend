@@ -24,6 +24,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { normalizeAndFormatExamDisplayText } from '@/lib/exam-text-normalize';
 import { AuthenticatedUploadImage } from '@/components/AuthenticatedUploadImage';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 interface Question {
   _id: string;
@@ -656,10 +657,12 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
                     <div className="flex-1">
                       {currentQuestion.questionText && (
                         <p className="text-base sm:text-lg text-gray-900 mb-4">
-                          {normalizeAndFormatExamDisplayText(
-                            currentQuestion.questionText,
-                            currentQuestion.subject
-                          )}
+                          <ExamMathText
+                            text={normalizeAndFormatExamDisplayText(
+                              currentQuestion.questionText,
+                              currentQuestion.subject
+                            )}
+                          />
                         </p>
                       )}
                       
@@ -705,7 +708,7 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
                           <div key={index} className="flex items-center space-x-3">
                             <RadioGroupItem value={optionValue} id={`option-${index}`} />
                             <Label htmlFor={`option-${index}`} className="text-sm sm:text-base cursor-pointer">
-                              {optionText}
+                              <ExamMathText text={optionText} />
                             </Label>
                           </div>
                         );
@@ -737,7 +740,7 @@ export default function StudentExam({ examId, onComplete, onExit }: StudentExamP
                               }}
                             />
                             <Label htmlFor={`option-${index}`} className="text-sm sm:text-base cursor-pointer">
-                              {optionText}
+                              <ExamMathText text={optionText} />
                             </Label>
                           </div>
                         );
