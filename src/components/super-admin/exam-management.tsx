@@ -43,6 +43,7 @@ import {
   resolveAssertionReasonDisplay,
 } from '@/lib/exam-text-normalize';
 import { AuthenticatedUploadImage } from '@/components/AuthenticatedUploadImage';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { MatchColumnsTable } from '@/components/exam/MatchColumnsTable';
 import {
   AdminExamPreviewTriggerButton,
@@ -5877,7 +5878,9 @@ export default function ExamManagement() {
                                   const arPrev = resolveAssertionReasonDisplay(q);
                                   return arPrev.showQuestionText && arPrev.questionText ? (
                                   <p className="mb-4 text-base text-gray-900 sm:text-lg">
-                                    {formatChemistryText(arPrev.questionText, q.subject)}
+                                    <ExamMathText
+                                      text={formatChemistryText(arPrev.questionText, q.subject)}
+                                    />
                                   </p>
                                   ) : null;
                                 })()}
@@ -5998,7 +6001,9 @@ export default function ExamManagement() {
                                               {letter}
                                             </span>
                                             <span className="text-sm text-gray-900 sm:text-base">
-                                              {formatChemistryText(optText, q.subject)}
+                                              <ExamMathText
+                                                text={formatChemistryText(optText, q.subject)}
+                                              />
                                             </span>
                                             {isCorrect ? (
                                               <Badge className="ml-auto shrink-0 bg-emerald-600 text-[10px] text-white">
@@ -6017,7 +6022,9 @@ export default function ExamManagement() {
                                       Correct answer
                                     </p>
                                     <p className="mt-1 text-base font-semibold text-emerald-950">
-                                      {formatChemistryText(q.correctAnswer, q.subject)}
+                                      <ExamMathText
+                                        text={formatChemistryText(q.correctAnswer, q.subject)}
+                                      />
                                     </p>
                                   </div>
                                 )}
@@ -6027,7 +6034,11 @@ export default function ExamManagement() {
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-800">
                                       Explanation
                                     </p>
-                                    <p className="mt-1 text-sm text-gray-700">{q.explanation}</p>
+                                    <p className="mt-1 text-sm text-gray-700">
+                                      <ExamMathText
+                                        text={formatChemistryText(q.explanation, q.subject)}
+                                      />
+                                    </p>
                                   </div>
                                 ) : null}
                               </div>
