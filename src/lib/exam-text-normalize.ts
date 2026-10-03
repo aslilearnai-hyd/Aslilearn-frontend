@@ -179,6 +179,10 @@ export function formatAsciiMathToUnicode(text: string): string {
       let out = part;
       for (const [re, sym] of GREEK_WORD_MAP) out = out.replace(re, sym);
 
+      // Fractional powers must be handled before integer powers (x^1/2 -> x¹⁄₂).
+      out = out.replace(/\^(-?\d+)\/(\d+)/g, (_m, numerator: string, denominator: string) =>
+        `${toSuperscriptRun(numerator)}⁄${toSubscriptRun(denominator)}`,
+      );
       out = out.replace(/\^\{([^{}]+)\}/g, (_m, body: string) => toSuperscriptRun(body));
       out = out.replace(/\^(-?\d+)/g, (_m, digits: string) => toSuperscriptRun(digits));
       out = out.replace(/\^([A-Za-z])/g, (_m, letter: string) => {
@@ -188,6 +192,13 @@ export function formatAsciiMathToUnicode(text: string): string {
 
       out = out.replace(/_\{([^{}]+)\}/g, (_m, body: string) => toSubscriptRun(body));
       out = out.replace(/_(\d+)/g, (_m, digits: string) => toSubscriptRun(digits));
+
+      // Preserve simple fractions extracted from exam PDFs as recognisable maths.
+      out = out.replace(
+        /(?<![\w/])(-?\d{1,3})\/(\d{1,3})(?![\w/])/g,
+        (_m, numerator: string, denominator: string) =>
+          `${toSuperscriptRun(numerator)}⁄${toSubscriptRun(denominator)}`,
+      );
 
       return out;
     })

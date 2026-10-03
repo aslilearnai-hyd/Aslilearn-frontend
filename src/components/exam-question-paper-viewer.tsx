@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ExpandableText, SelfCheckList } from '@/components/ai-tool-interactive';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { cn } from '@/lib/utils';
+import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 import { displaySubtopicLabel } from '@/lib/curriculum-subtopic-display';
 import { displayQuestionSerial } from '@/lib/renumber-questions';
 import { renderMarkdown } from '@/lib/render-teacher-markdown';
@@ -104,16 +105,17 @@ function extractMockTestMeta(rawContent?: unknown): MockTestMeta | null {
 }
 
 function RichTextBlock({ text, className }: { text: string; className?: string }) {
-  if (!text.trim()) return null;
+  const displayText = formatClassroomScienceText(text);
+  if (!displayText.trim()) return null;
   const hasMarkdown =
-    text.includes('|') ||
-    text.includes('$') ||
-    text.includes('\\sqrt') ||
-    /^\s*#{1,6}\s/m.test(text) ||
-    /\*\*[^*]+\*\*/.test(text) ||
-    /^\s*[-*•]\s/m.test(text) ||
-    /^\s*\d+\.\s/m.test(text);
-  if (hasMarkdown || /\\[a-zA-Z]+/.test(text)) {
+    displayText.includes('|') ||
+    displayText.includes('$') ||
+    displayText.includes('\\sqrt') ||
+    /^\s*#{1,6}\s/m.test(displayText) ||
+    /\*\*[^*]+\*\*/.test(displayText) ||
+    /^\s*[-*•]\s/m.test(displayText) ||
+    /^\s*\d+\.\s/m.test(displayText);
+  if (hasMarkdown || /\\[a-zA-Z]+/.test(displayText)) {
     return (
       <div
         className={cn(
@@ -122,11 +124,15 @@ function RichTextBlock({ text, className }: { text: string; className?: string }
           'prose-td:border prose-td:border-indigo-100 prose-td:px-2 prose-td:py-1.5 prose-td:text-base prose-td:align-top',
           className,
         )}
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(displayText) }}
       />
     );
   }
-  return <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800">{text}</p>;
+  return (
+    <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800">
+      {displayText}
+    </p>
+  );
 }
 
 function OverviewStat({ label, value }: { label: string; value: string }) {
