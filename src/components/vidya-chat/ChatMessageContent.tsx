@@ -6,6 +6,30 @@ import "katex/dist/katex.min.css";
 const SECTION_LABELS =
   "Shape|Uses|Rays|Type|Definition|Example|Examples|Worked example|Working|Check|Practice|Try this|Common mistake|Mistake|Recap|Image|Nature|Focus|Tip|Remember|Note|Key point|Key points|Real life|Real-life|Analogy";
 
+function flattenMarkdownTables(raw: string): string {
+  const lines = raw.split("\n");
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const header = lines[i];
+    const divider = lines[i + 1] || "";
+    if (/^\s*\|.*\|\s*$/.test(header) && /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(divider)) {
+      const headings = header.split("|").slice(1, -1).map((cell) => cell.trim().replace(/\*\*/g, ""));
+      i += 1;
+      while (i + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[i + 1])) {
+        const cells = lines[i + 1].split("|").slice(1, -1).map((cell) => cell.trim().replace(/\*\*/g, ""));
+        const values = cells
+          .map((cell, index) => cell ? `${headings[index] || `Field ${index + 1}`}: ${cell}` : "")
+          .filter(Boolean);
+        if (values.length) out.push(`• ${values.join(" · ")}`);
+        i += 1;
+      }
+      continue;
+    }
+    out.push(header);
+  }
+  return out.join("\n");
+}
+
 /**
  * Turn flat Vidya replies (content is fine, markers buried mid-line) into
  * readable sections with real newlines — without changing the meaning.
@@ -19,6 +43,7 @@ export function normalizeChatStructure(raw: string): string {
   text = text.replace(/\s*\[B\d+\](?=[\s.,;:!?)]|$)/gi, "");
   // Platform evidence IDs belong to the server audit payload, not the visible chat.
   text = text.replace(/\s*\[Q:[^\]\r\n]{1,100}\](?=[\s.,;:!?)]|$)/gi, "");
+  text = flattenMarkdownTables(text);
   // Models sometimes wrap a display equation over several lines. Keep the
   // delimited expression together so the line-oriented renderer can parse it.
   text = text.replace(/\$([^$]*?(?:\\[A-Za-z]+|[_^])[^$]*?)\$/gs, (_m, formula) =>
