@@ -240,6 +240,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     tokenUsage: TokenTotals;
     cost: GeminiCostEstimate;
     failures: string[];
+    trackingMissing: boolean;
   } | null>(null);
   const [recordsReloadNonce, setRecordsReloadNonce] = useState(0);
 
@@ -615,6 +616,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     const ragChunkCount = Number(data.ragChunkCount) || 0;
     const resultBatchSize = Number(data.batchSize) || parseGenerationRecordCount(generationRecordCount) || 0;
     const batchFailures = Array.isArray(data.failures) ? (data.failures as string[]) : [];
+    const trackingMissing = savedCount > 0 && tokenUsage.callCount === 0;
     setLastBatchSummary({
       successCount: savedCount,
       failedCount,
@@ -622,9 +624,12 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
       tokenUsage,
       cost,
       failures: batchFailures,
+      trackingMissing,
     });
 
-    const tokenNote = `${formatTokenCount(tokenUsage.totalTokens)} tokens · Est. ${formatInr(cost.inr)}`;
+    const tokenNote = trackingMissing
+      ? "Saved successfully, but token/cost tracking was unavailable for this batch"
+      : `${formatTokenCount(tokenUsage.totalTokens)} tokens · Est. ${formatInr(cost.inr)}`;
     if (savedCount > 0) {
       setRecordsReloadNonce((n) => n + 1);
       toast({
@@ -1422,19 +1427,28 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                   </ul>
                 </div>
               ) : null}
-              <p>
-                Tokens:{" "}
-                <span className="font-medium">{formatTokenCount(lastBatchSummary.tokenUsage.totalTokens)}</span> total
-                {" "}({formatTokenCount(lastBatchSummary.tokenUsage.promptTokens)} prompt +{" "}
-                {formatTokenCount(lastBatchSummary.tokenUsage.completionTokens)} completion,{" "}
-                {lastBatchSummary.tokenUsage.callCount} LLM calls)
-              </p>
-              <p>
-                Estimated Gemini cost:{" "}
-                <span className="font-semibold text-emerald-900">{formatInr(lastBatchSummary.cost.inr)}</span>
-                {" "}(~${lastBatchSummary.cost.usd.toFixed(4)} USD at ₹{lastBatchSummary.cost.exchangeRateInr}/$)
-              </p>
-              <p className="text-mini text-slate-500">{lastBatchSummary.cost.pricingNote}</p>
+              {lastBatchSummary.trackingMissing ? (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 font-medium text-amber-900">
+                  Token tracking was unavailable for this completed batch. ₹0.00 is not being reported as the real cost.
+                  Deploy/restart the latest backend, then run a small test batch to verify live token and cost totals.
+                </p>
+              ) : (
+                <>
+                  <p>
+                    Tokens:{" "}
+                    <span className="font-medium">{formatTokenCount(lastBatchSummary.tokenUsage.totalTokens)}</span> total
+                    {" "}({formatTokenCount(lastBatchSummary.tokenUsage.promptTokens)} prompt +{" "}
+                    {formatTokenCount(lastBatchSummary.tokenUsage.completionTokens)} completion,{" "}
+                    {lastBatchSummary.tokenUsage.callCount} LLM calls)
+                  </p>
+                  <p>
+                    Estimated Gemini cost:{" "}
+                    <span className="font-semibold text-emerald-900">{formatInr(lastBatchSummary.cost.inr)}</span>
+                    {" "}(~${lastBatchSummary.cost.usd.toFixed(4)} USD at ₹{lastBatchSummary.cost.exchangeRateInr}/$)
+                  </p>
+                  <p className="text-mini text-slate-500">{lastBatchSummary.cost.pricingNote}</p>
+                </>
+              )}
             </div>
           ) : null}
         </CardContent>
