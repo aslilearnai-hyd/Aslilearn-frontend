@@ -268,6 +268,7 @@ type GeneratorRecord = {
     structuredContent?: unknown;
     extraParams?: { generationVariant?: number; variantAngle?: string };
     cost?: StoredRecordCost;
+    tokenUsage?: TokenUsageSnapshot;
   };
   generationVariant?: number | null;
   variantAngle?: string;
@@ -1877,6 +1878,17 @@ export default function SuperAdminAiGenerator() {
                                                                 {row.metadata?.cost?.inr != null && Number(row.metadata.cost.inr) > 0 ? (
                                                                   <Badge variant="outline" className="text-micro h-5 border-emerald-200 text-emerald-800 bg-emerald-50 shrink-0">
                                                                     {formatCostInr(Number(row.metadata.cost.inr))}
+                                                                  </Badge>
+                                                                ) : null}
+                                                                {Number(row.metadata?.tokenUsage?.totals?.totalTokens || 0) > 0 ? (
+                                                                  <Badge
+                                                                    variant="outline"
+                                                                    className="text-micro h-5 border-sky-200 bg-sky-50 text-sky-800 shrink-0"
+                                                                    title={`${formatTokenCount(Number(row.metadata?.tokenUsage?.totals?.promptTokens || 0))} input + ${formatTokenCount(Number(row.metadata?.tokenUsage?.totals?.completionTokens || 0))} output · ${Number(row.metadata?.tokenUsage?.totals?.callCount || 0)} LLM call(s)`}
+                                                                  >
+                                                                    {formatTokenCount(Number(row.metadata?.tokenUsage?.totals?.promptTokens || 0))} in /{' '}
+                                                                    {formatTokenCount(Number(row.metadata?.tokenUsage?.totals?.completionTokens || 0))} out ·{' '}
+                                                                    {Number(row.metadata?.tokenUsage?.totals?.callCount || 0)} call(s)
                                                                   </Badge>
                                                                 ) : null}
                                                               </div>
