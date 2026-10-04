@@ -17,6 +17,8 @@ export function normalizeChatStructure(raw: string): string {
   // the student-facing lesson should not end with a long technical appendix.
   text = text.replace(/\n\s*(?:#{1,4}\s*)?(?:sources?|retrieved sources?|textbook sections retrieved)\s*:?[ \t]*\n[\s\S]*$/i, "");
   text = text.replace(/\s*\[B\d+\](?=[\s.,;:!?)]|$)/gi, "");
+  // Platform evidence IDs belong to the server audit payload, not the visible chat.
+  text = text.replace(/\s*\[Q:[^\]\r\n]{1,100}\](?=[\s.,;:!?)]|$)/gi, "");
   // Models sometimes wrap a display equation over several lines. Keep the
   // delimited expression together so the line-oriented renderer can parse it.
   text = text.replace(/\$([^$]*?(?:\\[A-Za-z]+|[_^])[^$]*?)\$/gs, (_m, formula) =>
