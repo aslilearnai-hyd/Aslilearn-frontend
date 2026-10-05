@@ -15,6 +15,7 @@ import { formatAiToolText } from '@/lib/title-case';
 import { displaySubtopicLabel } from '@/lib/curriculum-subtopic-display';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 /**
  * SixSectionViewer — one reusable, premium card shell for all 21 AsliLearn tools.
@@ -189,7 +190,7 @@ function InteractiveFlashcards({
           {flipped ? 'Back · Answer' : 'Front · Prompt'} · Card {idx + 1}/{cards.length}
         </div>
         <p className="text-[1.02rem] font-semibold leading-relaxed text-slate-900 whitespace-pre-wrap">
-          {flipped ? card.back : card.front}
+          <ExamMathText text={flipped ? card.back : card.front} />
         </p>
         <span className="mt-4 inline-flex items-center gap-1.5 text-micro font-semibold text-slate-400 group-hover:text-slate-600">
           <RotateCcw className="h-3.5 w-3.5" /> Tap to flip
@@ -250,7 +251,7 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
           >
             <div className="flex gap-2.5 text-[0.92rem] font-semibold leading-snug text-slate-800 dark:text-slate-200">
               <span className={cn('font-extrabold', accent.text)}>{q.n}.</span>
-              <span className="flex-1">{q.stem}</span>
+              <span className="flex-1"><ExamMathText text={q.stem} /></span>
               {q.marks && (
                 <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-micro font-bold text-slate-400 ring-1 ring-slate-200">
                   {q.marks}
@@ -295,7 +296,7 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
                     >
                       {o.label}
                     </span>
-                    <span className="flex-1 text-slate-700">{o.text}</span>
+                    <span className="flex-1 text-slate-700"><ExamMathText text={o.text} /></span>
                     {rightShow ? <Check className="ml-auto h-4 w-4 shrink-0 text-emerald-500" strokeWidth={3} /> : null}
                   </button>
                 );
@@ -336,9 +337,9 @@ function RevealAnswerKey({
                 {a.n}
               </span>
               <div className="text-[0.9rem]">
-                <span className="font-semibold text-slate-900">{a.answer}</span>
+                <span className="font-semibold text-slate-900"><ExamMathText text={a.answer} /></span>
                 {a.work ? (
-                  <div className="mt-1 text-mini leading-relaxed text-slate-500">{a.work}</div>
+                  <div className="mt-1 text-mini leading-relaxed text-slate-500"><ExamMathText text={a.work} /></div>
                 ) : null}
               </div>
             </div>
@@ -382,7 +383,7 @@ function CheckableSteps({ items, accent }: { items: string[]; accent: Accent }) 
                 >
                   {checked ? <Check className="h-4 w-4" strokeWidth={3} /> : j + 1}
                 </span>
-                <span className={cn('pt-1', checked && 'line-through decoration-emerald-400/80')}>{it}</span>
+                <span className={cn('pt-1', checked && 'line-through decoration-emerald-400/80')}><ExamMathText text={it} /></span>
               </button>
             </li>
           );
@@ -400,7 +401,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
           case 'lead':
             return (
               <p key={i} className="text-[0.92rem] leading-relaxed text-slate-600 dark:text-slate-300">
-                {b.text}
+                <ExamMathText text={b.text} />
               </p>
             );
           case 'titleLine':
@@ -410,7 +411,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                 className="flex items-center gap-2 pt-1 text-[0.95rem] font-bold tracking-tight text-slate-900 dark:text-slate-100"
               >
                 <span className={cn('h-4 w-1.5 rounded-full bg-gradient-to-b', accent.bar)} />
-                {b.text}
+                <ExamMathText text={b.text} />
               </p>
             );
           case 'bullets':
@@ -430,7 +431,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                     >
                       <Check className={cn('h-3 w-3', accent.text)} strokeWidth={3} />
                     </span>
-                    <span>{it}</span>
+                    <span><ExamMathText text={it} /></span>
                   </li>
                 ))}
               </ul>
@@ -456,7 +457,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                         {r.label}
                       </div>
                       <div className="mt-1.5 text-mini leading-relaxed text-slate-700 dark:text-slate-300">
-                        {r.value}
+                        <ExamMathText text={r.value} />
                       </div>
                     </div>
                   );
@@ -475,7 +476,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                   >
                     <div className="flex gap-3 text-[0.92rem] leading-snug text-slate-800 dark:text-slate-200">
                       <span className={cn('font-extrabold', accent.text)}>{q.n}.</span>
-                      <span className="flex-1 font-medium">{q.stem}</span>
+                      <span className="flex-1 font-medium"><ExamMathText text={q.stem} /></span>
                       {q.marks && (
                         <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-slate-50 px-2 py-0.5 text-micro font-bold text-slate-400 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
                           {q.marks}
@@ -516,7 +517,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                             accent.text,
                           )}
                         >
-                          {h}
+                          <ExamMathText text={h} />
                         </th>
                       ))}
                     </tr>
@@ -537,7 +538,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                                 : 'text-slate-600 dark:text-slate-300',
                             )}
                           >
-                            {cell}
+                            <ExamMathText text={cell} />
                           </td>
                         ))}
                       </tr>
@@ -566,7 +567,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                         {c.level}
                       </div>
                       <div className="mt-1 text-mini leading-snug text-slate-500 dark:text-slate-400">
-                        {c.desc}
+                        <ExamMathText text={c.desc} />
                       </div>
                     </div>
                   );
@@ -590,7 +591,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                     >
                       <Check className={cn('h-3 w-3', accent.text)} strokeWidth={3} />
                     </span>
-                    <span>{it}</span>
+                    <span><ExamMathText text={it} /></span>
                   </div>
                 ))}
               </div>
@@ -702,7 +703,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
                     <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/50 dark:ring-emerald-800">
                       <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-300" strokeWidth={3} />
                     </span>
-                    <span>{it}</span>
+                    <span><ExamMathText text={it} /></span>
                   </li>
                 ))}
               </ul>
