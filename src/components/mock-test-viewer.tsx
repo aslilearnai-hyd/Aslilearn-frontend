@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { displayQuestionSerial } from '@/lib/renumber-questions';
 import { renderMarkdown } from '@/lib/render-teacher-markdown';
 import { renderMockTestMarkdown } from '@/lib/render-mock-test-markdown';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { stripStructuredAiToolMetadata } from '@/lib/strip-ai-tool-metadata';
 import {
   extractInlineMcqFromQuestionText,
@@ -75,6 +76,7 @@ function RichTextBlock({ text, className }: { text: string; className?: string }
   if (!text.trim()) return null;
   const hasMarkdown =
     text.includes('|') ||
+    text.includes('$') ||
     /^\s*#{1,6}\s/m.test(text) ||
     /\*\*[^*]+\*\*/.test(text) ||
     /^\s*[-*•]\s/m.test(text) ||
@@ -141,7 +143,7 @@ function QuestionCard({
           <span className="mr-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded bg-rose-600 px-1 text-micro font-bold text-white">
             {qNo}
           </span>
-          {questionText}
+          <ExamMathText text={questionText} />
         </p>
         {question.marks != null ? (
           <Badge className="shrink-0 border-0 bg-rose-100 text-rose-800 hover:bg-rose-100">
@@ -162,7 +164,7 @@ function QuestionCard({
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-bold text-rose-800">
                   {label}
                 </span>
-                <span className="min-w-0 flex-1 pt-0.5">{text}</span>
+                <span className="min-w-0 flex-1 pt-0.5"><ExamMathText text={text} /></span>
               </li>
             );
           })}
@@ -170,12 +172,12 @@ function QuestionCard({
       ) : null}
       {showAnswer && question.answer ? (
         <p className="mt-2 rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
-          <span className="font-semibold">Answer:</span> {question.answer}
+          <span className="font-semibold">Answer:</span> <ExamMathText text={question.answer} />
         </p>
       ) : null}
       {question.internalChoiceGroup ? (
         <p className="mt-1.5 text-mini text-indigo-700">
-          <span className="font-semibold">OR / Choice:</span> {question.internalChoiceGroup}
+          <span className="font-semibold">OR / Choice:</span> <ExamMathText text={question.internalChoiceGroup} />
         </p>
       ) : null}
     </article>
