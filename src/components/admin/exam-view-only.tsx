@@ -883,13 +883,12 @@ export default function ExamViewOnly() {
               <div>Loading results...</div>
             ) : studentAttemptRows.length > 0 ? (
               <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="w-full min-w-[1100px] text-sm">
+                <table className="w-full min-w-[960px] text-sm">
                   <thead className="bg-slate-50">
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">#</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">Student</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">Class</th>
-                      <th className="text-left py-3 px-3 font-semibold text-slate-700">Attempt</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">Questions</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">Marks</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-700">Accuracy</th>
@@ -910,7 +909,6 @@ export default function ExamViewOnly() {
                             (Number(result.wrongAnswers) || 0) +
                             (Number(result.unattempted) || 0)
                         );
-                      const selectedAttemptId = String(result._id);
                       return (
                         <tr key={studentId} className="border-b border-gray-100 hover:bg-slate-50/80 align-top">
                           <td className="py-3 px-3">
@@ -949,43 +947,6 @@ export default function ExamViewOnly() {
                           </td>
                           <td className="py-3 px-3 text-slate-800">
                             {normalizeClassNumberForDisplay(result.userId.classNumber)}
-                          </td>
-                          <td className="py-3 px-3 text-slate-700 min-w-[140px]">
-                            {attemptView === 'all' && attempts.length > 1 ? (
-                              <Select
-                                value={selectedAttemptId}
-                                onValueChange={(value) =>
-                                  setSelectedAttemptByStudent((prev) => ({
-                                    ...prev,
-                                    [studentId]: value,
-                                  }))
-                                }
-                              >
-                                <SelectTrigger className="h-8 w-[130px] text-xs">
-                                  <SelectValue placeholder="Select attempt" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {attempts.map((att) => {
-                                    const n =
-                                      Number(att.attemptNumber) >= 1
-                                        ? Number(att.attemptNumber)
-                                        : 1;
-                                    return (
-                                      <SelectItem key={att._id} value={String(att._id)}>
-                                        Attempt {n}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                Attempt{' '}
-                                {Number(result.attemptNumber) >= 1
-                                  ? Number(result.attemptNumber)
-                                  : 1}
-                              </Badge>
-                            )}
                           </td>
                           <td className="py-3 px-3">
                             <div className="flex flex-wrap gap-1.5 text-xs">
