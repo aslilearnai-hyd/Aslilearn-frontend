@@ -285,6 +285,7 @@ export function StudentExamHandoffModal({
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-3 py-2 text-left">Subject</th>
+                      <th className="px-3 py-2 text-left">Marks</th>
                       <th className="px-3 py-2 text-left">Student</th>
                       <th className="px-3 py-2 text-left">Class</th>
                       <th className="px-3 py-2 text-left">Gap</th>
@@ -296,6 +297,7 @@ export function StudentExamHandoffModal({
                     {subjectDiagnostics.map((row) => (
                       <tr key={row.subjectKey} className="border-t">
                         <td className="px-3 py-2 font-medium">{row.label}</td>
+                        <td className="px-3 py-2">{formatHandoffNumber(row.studentMarks)}</td>
                         <td className="px-3 py-2">{formatHandoffPct(row.studentAccuracy)}</td>
                         <td className="px-3 py-2">{formatHandoffPct(row.classAccuracy)}</td>
                         <td className="px-3 py-2">{formatHandoffPct(row.gap)}</td>

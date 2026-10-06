@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { API_BASE_URL, openProtectedFile } from '@/lib/api-config';
 import { getAuthToken, getUser as getStoredUser, getTeacherDisplayName, setUser as persistUser } from '@/lib/auth-utils';
 import TeacherShell from '@/components/layout/TeacherShell';
@@ -426,6 +426,7 @@ const TeacherDashboard = () => {
   const [trackProgressRemarks, setTrackProgressRemarks] = useState<any[]>([]);
   const [aiProgressInsights, setAiProgressInsights] = useState('');
   const [isLoadingAiInsights, setIsLoadingAiInsights] = useState(false);
+  const aiRefreshSeedRef = useRef(0);
   const [filterByClass, setFilterByClass] = useState<string>('all');
   const [filterByStudent, setFilterByStudent] = useState<string>('all');
   const [progressDetailStudentId, setProgressDetailStudentId] = useState<string | null>(null);
@@ -1690,7 +1691,7 @@ const TeacherDashboard = () => {
   );
 
   const fetchAiProgressInsights = useCallback(
-    async (filtered: Student[], options?: { updateGlobal?: boolean }) => {
+    async (filtered: Student[], options?: { updateGlobal?: boolean; refreshSeed?: number }) => {
       const updateGlobal = options?.updateGlobal !== false;
       if (!filtered.length) {
         if (updateGlobal) setAiProgressInsights('');
@@ -1790,6 +1791,7 @@ const TeacherDashboard = () => {
             text: r.remark,
             isPositive: r.isPositive,
           })),
+          refreshSeed: options?.refreshSeed || 0,
         };
 
         const token = getAuthToken();
@@ -3322,7 +3324,11 @@ const TeacherDashboard = () => {
                           remarks={trackProgressRemarks}
                           aiInsights={aiProgressInsights}
                           isLoadingAi={isLoadingAiInsights}
-                          onRefreshAi={() => fetchAiProgressInsights(trackProgressFilteredStudents)}
+                          onRefreshAi={() =>
+                            fetchAiProgressInsights(trackProgressFilteredStudents, {
+                              refreshSeed: ++aiRefreshSeedRef.current,
+                            })
+                          }
                           onFetchStudentInsights={(student) =>
                             fetchAiProgressInsights([student], { updateGlobal: false })
                           }
@@ -3623,7 +3629,17 @@ const TeacherDashboard = () => {
                                                 students,
                                                 classNum,
                                                 section
-                                              );
+                                              ).filter((student) => {
+                                                const studentId = String(
+                                                  student.id || (student as { _id?: string })._id || ''
+                                                );
+                                                const submissionGroup = homeworkSubmissions.students?.find(
+                                                  (item: any) =>
+                                                    String(item.student?._id || item.student?.id || '') === studentId
+                                                );
+                                                return Array.isArray(submissionGroup?.submissions) &&
+                                                  submissionGroup.submissions.length > 0;
+                                              });
 
                                               return (
                                                 <div
@@ -3664,7 +3680,8 @@ const TeacherDashboard = () => {
                                   const isExpanded = expandedStudent.has(String(studentId));
 
                                   const studentSubmissions = homeworkSubmissions.students?.find(
-                                    (item: any) => (item.student?._id || item.student?.id) === studentId
+                                    (item: any) =>
+                                      String(item.student?._id || item.student?.id || '') === String(studentId || '')
                                   )?.submissions || [];
                                   
                                   return (
@@ -3760,7 +3777,7 @@ const TeacherDashboard = () => {
                                                       ) : (
                                                         <div className="py-6 text-center text-sm text-gray-500">
                                                           <Users className="mx-auto mb-2 h-10 w-10 text-gray-400" />
-                                                          <p>No students in this section</p>
+                                                          <p>No homework submissions in this section</p>
                                                         </div>
                                                       )}
                                                     </div>

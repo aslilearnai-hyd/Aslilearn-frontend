@@ -526,10 +526,11 @@ function buildIndividualSheet(
   );
   row += 2;
 
-  mergeBanner(sheet, row, 'SUBJECT DIAGNOSTIC', 6);
+  mergeBanner(sheet, row, 'SUBJECT DIAGNOSTIC', 7);
   row += 1;
   writeHeaderRow(sheet, row, [
     'Subject',
+    'Student Marks',
     'Student Accuracy',
     'Class Accuracy',
     'Gap',
@@ -543,6 +544,7 @@ function buildIndividualSheet(
       row,
       [
         diag.label,
+        formatHandoffNumber(diag.studentMarks),
         formatHandoffPct(diag.studentAccuracy),
         formatHandoffPct(diag.classAccuracy),
         formatHandoffPct(diag.gap),
@@ -551,8 +553,8 @@ function buildIndividualSheet(
       ],
       {
         zebra: row % 2 === 0,
-        accuracyCols: { 2: diag.studentAccuracy },
-        leftAlignCols: [1, 6],
+        accuracyCols: { 3: diag.studentAccuracy },
+        leftAlignCols: [1, 7],
       },
     );
     row += 1;

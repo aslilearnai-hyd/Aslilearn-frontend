@@ -52,6 +52,13 @@ export function normalizeExamDisplayText(value: unknown): string {
 
   text = repairLossyMathSymbols(text);
 
+  // Recover a multiplication operator commonly dropped by PDF OCR between
+  // numeric factors, e.g. "486 = 2 3^5" -> "486 = 2 × 3^5".
+  text = text.replace(
+    /([=+\-×*/(]\s*\d+)\s+(?=\d+\s*(?:\^|[²³⁴⁵⁶⁷⁸⁹]))/g,
+    '$1 × ',
+  );
+
   // Gemini / OCR often verbalizes roots — show classroom symbols (do not rewrite LaTeX \sqrt)
   text = text.replace(/\bcube\s*roots?\s+of\s*\(/gi, '∛(');
   text = text.replace(/\bcuberoot\s*\(/gi, '∛(');

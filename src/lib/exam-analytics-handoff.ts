@@ -228,6 +228,7 @@ export type HandoffShowcaseRow = {
 export type HandoffSubjectDiagnostic = {
   subjectKey: string;
   label: string;
+  studentMarks: number;
   studentAccuracy: number;
   classAccuracy: number;
   gap: number;
@@ -576,6 +577,7 @@ function subjectDiagnosticsForStudent(
     return {
       subjectKey: subj.subjectKey,
       label: subj.label,
+      studentMarks: student.subjectMarks.get(subj.subjectKey) ?? 0,
       studentAccuracy,
       classAccuracy: subj.accuracy,
       gap,

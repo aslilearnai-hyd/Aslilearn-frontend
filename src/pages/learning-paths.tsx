@@ -246,9 +246,37 @@ export default function LearningPaths() {
     return subjects.filter((subject: any) => {
       const name = learningPathDisplayName(subject.name || '').toLowerCase();
       const raw = String(subject.name || '').toLowerCase();
-      return name.includes(searchQuery) || raw.includes(searchQuery);
+      if (name.includes(searchQuery) || raw.includes(searchQuery)) return true;
+
+      const subjectIds = new Set(
+        [subject._id, subject.id, ...(subject.mergedSubjectIds || [])]
+          .map((value) => String(value || ''))
+          .filter(Boolean),
+      );
+      const subjectKey = normalizeSubjectDisplayKey(subject.name || '');
+      return scopedLibraryContent.some((content: any) => {
+        const contentSubjectId = getLibraryContentSubjectId(content);
+        const contentSubjectKey = getLibraryContentSubjectKey(content);
+        const belongsToSubject =
+          (contentSubjectId && subjectIds.has(contentSubjectId)) ||
+          (contentSubjectKey && contentSubjectKey === subjectKey);
+        if (!belongsToSubject) return false;
+        const haystack = [
+          content.title,
+          content.description,
+          content.type,
+          content.chapter,
+          content.chapterName,
+          content.topic,
+          content.subtopic,
+          content.subTopic,
+        ]
+          .map((value) => String(value || '').toLowerCase())
+          .join(' ');
+        return haystack.includes(searchQuery);
+      });
     });
-  }, [subjects, searchQuery]);
+  }, [subjects, scopedLibraryContent, searchQuery]);
 
   const [previewContent, setPreviewContent] = useState<any | null>(() => readStoredPreview());
   const [isPreviewOpen, setIsPreviewOpen] = useState(() => Boolean(readStoredPreview()));
@@ -548,7 +576,20 @@ export default function LearningPaths() {
           typeof content.subject === 'object'
             ? String(content.subject?.name || '').toLowerCase()
             : String(content.subject || '').toLowerCase();
-        return title.includes(searchQuery) || subjectName.includes(searchQuery);
+        const haystack = [
+          title,
+          subjectName,
+          content.description,
+          content.type,
+          content.chapter,
+          content.chapterName,
+          content.topic,
+          content.subtopic,
+          content.subTopic,
+        ]
+          .map((value) => String(value || '').toLowerCase())
+          .join(' ');
+        return haystack.includes(searchQuery);
       });
     }
     setFilteredContent(filtered);

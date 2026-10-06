@@ -13,6 +13,7 @@ import {
   Send,
   Sparkles,
   Target,
+  Trash2,
 } from "lucide-react";
 import type { UseVidyaChatResult } from "./types";
 
@@ -82,6 +83,20 @@ export function StudentChatUI({ model, className }: StudentChatUIProps) {
                 <ChevronDown className="h-3 w-3" />
               )}
             </button>
+          ) : null}
+          {hasMessages ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 rounded-full border-slate-200 bg-white px-2.5 text-[11px] text-slate-600 hover:bg-slate-50"
+              onClick={model.clearChat}
+              disabled={model.isPending || model.isClearingChat}
+              aria-label="Clear chat"
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              {model.isClearingChat ? "Clearing..." : "Clear Chat"}
+            </Button>
           ) : null}
         </div>
       </div>
