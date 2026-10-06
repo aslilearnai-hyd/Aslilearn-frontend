@@ -39,6 +39,7 @@ export type HandoffStudentRow = {
   paceAccuracyProfile: string;
   cohortBand: string;
   subjectAcc: Map<string, number>;
+  subjectMarks: Map<string, number>;
 };
 
 export type HandoffQuestionRow = {
@@ -385,6 +386,34 @@ function buildStudentSubjectAcc(result: SchoolAnalysisExamResult): Map<string, n
   return subjectAcc;
 }
 
+function buildStudentSubjectMarks(result: SchoolAnalysisExamResult): Map<string, number> {
+  const subjectMarks = new Map<string, number>();
+  const subjectEntries = result.subjectWiseScore ? Object.entries(result.subjectWiseScore) : [];
+  if (subjectEntries.length > 0) {
+    for (const [subject, stats] of subjectEntries) {
+      const key = normalizeSubjectKey(subject);
+      const rawMarksValue: unknown = stats?.marks;
+      const rawMarks =
+        rawMarksValue === null || rawMarksValue === undefined || rawMarksValue === ''
+          ? Number.NaN
+          : Number(rawMarksValue);
+      subjectMarks.set(
+        key,
+        Number.isFinite(rawMarks) ? rawMarks : toNum(stats?.correct, 0),
+      );
+    }
+    return subjectMarks;
+  }
+  if (Array.isArray(result.questionAnalytics)) {
+    for (const row of result.questionAnalytics) {
+      const key = normalizeSubjectKey(row.subject || '');
+      const earned = row.status === 'correct' || row.isCorrect === true ? 1 : 0;
+      subjectMarks.set(key, (subjectMarks.get(key) || 0) + earned);
+    }
+  }
+  return subjectMarks;
+}
+
 function strongestWeakest(subjectAcc: Map<string, number>): {
   strongest: string;
   weakest: string;
@@ -593,6 +622,7 @@ export function buildExamAnalyticsHandoffReport(
     const avgTimeSec = total > 0 ? Math.max(0, toNum(result.timeTaken, 0)) / total : 0;
     const activeMin = Math.max(0, toNum(result.timeTaken, 0)) / 60;
     const subjectAcc = buildStudentSubjectAcc(result);
+    const subjectMarks = buildStudentSubjectMarks(result);
     const { strongest, weakest, spread } = strongestWeakest(subjectAcc);
     const attemptNumber = Number(result.attemptNumber) >= 1 ? Number(result.attemptNumber) : 1;
 
@@ -617,6 +647,7 @@ export function buildExamAnalyticsHandoffReport(
       avgTimeSec,
       correctPerActiveMin: activeMin > 0 ? correct / activeMin : 0,
       subjectAcc,
+      subjectMarks,
       strongestSubject: strongest,
       weakestSubject: weakest,
       subjectSpread: spread,

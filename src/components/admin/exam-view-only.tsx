@@ -207,10 +207,21 @@ export default function ExamViewOnly() {
   const [selectedAttemptByStudent, setSelectedAttemptByStudent] = useState<Record<string, string>>(
     {},
   );
+  const [attemptView, setAttemptView] = useState<string>('all');
 
   const enrichedExamResults = useMemo(
     () => enrichExamResultsWithAttempts(examResults),
     [examResults],
+  );
+
+  const availableAttemptNumbers = useMemo(
+    () =>
+      [...new Set(
+        enrichedExamResults.map((result) =>
+          Number(result.attemptNumber) >= 1 ? Math.round(Number(result.attemptNumber)) : 1,
+        ),
+      )].sort((a, b) => a - b),
+    [enrichedExamResults],
   );
 
   /** One table row per student; attempts available via dropdown. */
@@ -223,35 +234,41 @@ export default function ExamViewOnly() {
       byStudent.set(sid, list);
     }
 
-    const rows = Array.from(byStudent.entries()).map(([studentId, attempts]) => {
+    const rows = Array.from(byStudent.entries()).flatMap(([studentId, attempts]) => {
       const sorted = [...attempts].sort(
         (a, b) =>
           (Number(a.attemptNumber) || 0) - (Number(b.attemptNumber) || 0) ||
           new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime(),
       );
       const preferredId = selectedAttemptByStudent[studentId];
-      const selected =
-        sorted.find((r) => String(r._id) === preferredId) ||
-        [...sorted].sort(
-          (a, b) =>
-            getResultPercentage(b) - getResultPercentage(a) ||
-            (b.obtainedMarks || 0) - (a.obtainedMarks || 0),
-        )[0] ||
-        sorted[sorted.length - 1];
-      return {
+      const selected = attemptView === 'all'
+        ? sorted.find((r) => String(r._id) === preferredId) ||
+          [...sorted].sort(
+            (a, b) =>
+              getResultPercentage(b) - getResultPercentage(a) ||
+              (b.obtainedMarks || 0) - (a.obtainedMarks || 0),
+          )[0] ||
+          sorted[sorted.length - 1]
+        : sorted.find(
+            (result) =>
+              Math.round(Number(result.attemptNumber) >= 1 ? Number(result.attemptNumber) : 1) ===
+              Number(attemptView),
+          );
+      if (!selected) return [];
+      return [{
         studentId,
         attempts: sorted,
         result: selected,
         marksPct: getResultPercentage(selected),
         questionAcc: getQuestionAccuracy(selected),
-      };
+      }];
     });
 
     rows.sort(
       (a, b) => b.marksPct - a.marksPct || b.result.obtainedMarks - a.result.obtainedMarks,
     );
     return rows;
-  }, [enrichedExamResults, selectedAttemptByStudent]);
+  }, [attemptView, enrichedExamResults, selectedAttemptByStudent]);
 
   const getExamSortTime = (exam: Exam) => {
     const candidates = [exam.updatedAt, exam.createdAt, exam.startDate, exam.endDate];
@@ -337,6 +354,7 @@ export default function ExamViewOnly() {
         if (data.success) {
           setExamResults(enrichExamResultsWithAttempts(data.data || []));
           setSelectedAttemptByStudent({});
+          setAttemptView('all');
         }
       }
     } catch (error) {
@@ -443,9 +461,11 @@ export default function ExamViewOnly() {
       if (resultsRes.ok && resultsData.success) {
         setExamResults(enrichExamResultsWithAttempts(resultsData.data || []));
         setSelectedAttemptByStudent({});
+        setAttemptView('all');
       } else {
         setExamResults([]);
         setSelectedAttemptByStudent({});
+        setAttemptView('all');
       }
       if (analyticsRes.ok && analyticsData.success && analyticsData.data) {
         setAnalytics(analyticsData.data);
@@ -522,17 +542,18 @@ export default function ExamViewOnly() {
   };
 
   const exportToExcel = async () => {
-    if (!selectedExam || enrichedExamResults.length === 0) {
+    const exportResults = studentAttemptRows.map(({ result }) => result);
+    if (!selectedExam || exportResults.length === 0) {
       notify('No results to export');
       return;
     }
 
     setIsExporting(true);
     try {
-      // Export every attempt as its own row (Attempt 1, Attempt 2, …).
+      // Export exactly the attempt view currently selected above the table.
       const ok = await downloadSchoolPerformanceAnalysisExcel(
         selectedExam.title,
-        enrichedExamResults,
+        exportResults,
       );
       if (!ok) notify('No results to export');
     } catch (error) {
@@ -815,22 +836,45 @@ export default function ExamViewOnly() {
           <CardHeader>
             <CardTitle className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span className="break-words">Attempt details</span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="w-full sm:w-auto shrink-0"
-                disabled={isExporting || enrichedExamResults.length === 0}
-                onClick={() => void exportToExcel()}
-              >
-                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                {isExporting ? 'Exporting…' : 'Export analytics Excel'}
-              </Button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <Label className="shrink-0 text-xs font-medium text-slate-600">Show</Label>
+                    <Select
+                      value={attemptView}
+                      onValueChange={(value) => {
+                        setAttemptView(value);
+                        setSelectedAttemptByStudent({});
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full bg-white text-xs sm:w-[170px]">
+                        <SelectValue placeholder="Select attempt" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Best attempt / student</SelectItem>
+                        {availableAttemptNumbers.map((attempt) => (
+                          <SelectItem key={attempt} value={String(attempt)}>
+                            Attempt {attempt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full shrink-0 sm:w-auto"
+                    disabled={isExporting || studentAttemptRows.length === 0}
+                    onClick={() => void exportToExcel()}
+                  >
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                    {isExporting ? 'Exporting…' : 'Export analytics Excel'}
+                  </Button>
+                </div>
             </CardTitle>
             {handoffReport ? (
               <p className="text-xs text-slate-500 font-normal mt-1">
-                One row per student — use the <span className="font-semibold text-slate-700">Attempt</span>{' '}
-                dropdown to switch attempts and open <span className="font-semibold text-slate-700">View analysis</span>.
-                Excel export includes every attempt as a separate row (Attempt 1, Attempt 2, …).
+                Use <span className="font-semibold text-slate-700">Show</span> to compare one
+                attempt across students. The Excel export follows the same selection.
               </p>
             ) : null}
           </CardHeader>
@@ -897,7 +941,7 @@ export default function ExamViewOnly() {
                                   .join(' · ')}
                               </p>
                             ) : null}
-                            {attempts.length > 1 ? (
+                            {attemptView === 'all' && attempts.length > 1 ? (
                               <p className="text-mini text-indigo-600 mt-1 font-medium">
                                 {attempts.length} attempts recorded
                               </p>
@@ -907,7 +951,7 @@ export default function ExamViewOnly() {
                             {normalizeClassNumberForDisplay(result.userId.classNumber)}
                           </td>
                           <td className="py-3 px-3 text-slate-700 min-w-[140px]">
-                            {attempts.length > 1 ? (
+                            {attemptView === 'all' && attempts.length > 1 ? (
                               <Select
                                 value={selectedAttemptId}
                                 onValueChange={(value) =>
