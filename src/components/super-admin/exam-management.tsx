@@ -585,6 +585,20 @@ function resolveArStemFields(form: typeof EMPTY_QUESTION_FORM): {
   return { assertionText, reasonText };
 }
 
+const HAS_LATEX_MATH = /(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/;
+
+function MathEditorPreview({ text }: { text: string }) {
+  if (!HAS_LATEX_MATH.test(String(text || ''))) return null;
+  return (
+    <div className="mt-1.5 rounded-md border border-violet-200 bg-violet-50/70 px-2.5 py-2 text-sm text-slate-900">
+      <span className="mr-2 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+        Rendered preview
+      </span>
+      <ExamMathText text={text} />
+    </div>
+  );
+}
+
 function InlineQuestionEditor({
   form,
   setForm,
@@ -795,6 +809,7 @@ function InlineQuestionEditor({
           }
           onChange={(e) => patch({ questionText: e.target.value })}
         />
+        <MathEditorPreview text={form.questionText} />
       </div>
 
       <div>
@@ -939,29 +954,32 @@ function InlineQuestionEditor({
                 >
                   {letter}
                 </button>
-                <Input
-                  className="h-9 bg-white"
-                  value={opt}
-                  placeholder={`Option ${letter}`}
-                  onChange={(e) => {
-                    const nextOptions = form.options.map((o, j) => (j === i ? e.target.value : o));
-                    const nextPatch: Partial<typeof EMPTY_QUESTION_FORM> = { options: nextOptions };
-                    if (form.questionType === 'multiple') {
-                      if (form.correctAnswers.includes(opt)) {
-                        nextPatch.correctAnswers = form.correctAnswers.map((a) =>
-                          a === opt ? e.target.value : a,
-                        );
+                <div className="min-w-0 flex-1">
+                  <Input
+                    className="h-9 bg-white"
+                    value={opt}
+                    placeholder={`Option ${letter}`}
+                    onChange={(e) => {
+                      const nextOptions = form.options.map((o, j) => (j === i ? e.target.value : o));
+                      const nextPatch: Partial<typeof EMPTY_QUESTION_FORM> = { options: nextOptions };
+                      if (form.questionType === 'multiple') {
+                        if (form.correctAnswers.includes(opt)) {
+                          nextPatch.correctAnswers = form.correctAnswers.map((a) =>
+                            a === opt ? e.target.value : a,
+                          );
+                        }
+                      } else if (
+                        form.correctOptionIndex === i ||
+                        (form.correctOptionIndex < 0 && form.correctAnswer === opt)
+                      ) {
+                        nextPatch.correctAnswer = e.target.value;
+                        nextPatch.correctOptionIndex = i;
                       }
-                    } else if (
-                      form.correctOptionIndex === i ||
-                      (form.correctOptionIndex < 0 && form.correctAnswer === opt)
-                    ) {
-                      nextPatch.correctAnswer = e.target.value;
-                      nextPatch.correctOptionIndex = i;
-                    }
-                    patch(nextPatch);
-                  }}
-                />
+                      patch(nextPatch);
+                    }}
+                  />
+                  <MathEditorPreview text={opt} />
+                </div>
               </div>
             );
           })}
@@ -985,6 +1003,7 @@ function InlineQuestionEditor({
           value={form.explanation}
           onChange={(e) => patch({ explanation: e.target.value })}
         />
+        <MathEditorPreview text={form.explanation} />
       </div>
     </div>
   );
@@ -6256,6 +6275,7 @@ export default function ExamManagement() {
                   }
                   rows={4}
                 />
+                <MathEditorPreview text={questionFormData.questionText} />
                 <p className="text-xs text-gray-500 mt-1">
                   {questionFormData.questionType === 'assertion_reason'
                     ? 'For Assertion–Reason, fill Assertion (A) and Reason (R) above; question text is optional.'
@@ -6328,16 +6348,19 @@ export default function ExamManagement() {
                 <div className="space-y-3">
                   <Label>Options</Label>
                   {questionFormData.options.map((option, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        value={option}
-                        onChange={(e) => {
-                          const newOptions = [...questionFormData.options];
-                          newOptions[index] = e.target.value;
-                          setQuestionFormData({ ...questionFormData, options: newOptions });
-                        }}
-                        placeholder={`Option ${index + 1}`}
-                      />
+                    <div key={index} className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Input
+                          value={option}
+                          onChange={(e) => {
+                            const newOptions = [...questionFormData.options];
+                            newOptions[index] = e.target.value;
+                            setQuestionFormData({ ...questionFormData, options: newOptions });
+                          }}
+                          placeholder={`Option ${index + 1}`}
+                        />
+                        <MathEditorPreview text={option} />
+                      </div>
                       {(questionFormData.questionType === 'mcq' ||
                         questionFormData.questionType === 'assertion_reason' ||
                         questionFormData.questionType === 'match_following') && (
@@ -6457,6 +6480,7 @@ export default function ExamManagement() {
                   placeholder="Explain the correct answer..."
                   rows={3}
                 />
+                <MathEditorPreview text={questionFormData.explanation} />
               </div>
               </>
               ) : null}
