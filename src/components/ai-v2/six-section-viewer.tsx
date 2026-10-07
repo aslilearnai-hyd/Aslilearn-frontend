@@ -440,7 +440,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
             return <CheckableSteps key={i} items={b.items} accent={accent} />;
           case 'keyValue':
             return (
-              <div key={i} className="grid gap-3 sm:grid-cols-3">
+              <div key={i} className="grid min-w-0 grid-cols-1 gap-3">
                 {b.rows.map((r, j) => {
                   const tone = ACCENTS[TIER_TONE[String(r.label || '').trim().toLowerCase()] || accentKey(accent)];
                   return (
@@ -456,7 +456,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                       <div className={cn('text-micro font-black uppercase tracking-widest', tone.text)}>
                         {r.label}
                       </div>
-                      <div className="mt-1.5 text-mini leading-relaxed text-slate-700 dark:text-slate-300">
+                      <div className="mt-1.5 min-w-0 break-words [overflow-wrap:anywhere] text-mini leading-relaxed text-slate-700 dark:text-slate-300">
                         <ExamMathText text={r.value} />
                       </div>
                     </div>
@@ -476,7 +476,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                   >
                     <div className="flex gap-3 text-[0.92rem] leading-snug text-slate-800 dark:text-slate-200">
                       <span className={cn('font-extrabold', accent.text)}>{q.n}.</span>
-                      <span className="flex-1 font-medium"><ExamMathText text={q.stem} /></span>
+                      <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] font-medium"><ExamMathText text={q.stem} /></span>
                       {q.marks && (
                         <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-slate-50 px-2 py-0.5 text-micro font-bold text-slate-400 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
                           {q.marks}
@@ -550,7 +550,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
           }
           case 'bloom':
             return (
-              <div key={i} className="grid grid-cols-2 gap-3">
+              <div key={i} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 {b.chips.map((c, j) => {
                   const tone = ACCENTS[BLOOM_TONE[j % BLOOM_TONE.length]];
                   return (
@@ -566,7 +566,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                       <div className={cn('mt-1 text-[0.92rem] font-black leading-tight tracking-tight', tone.text)}>
                         {c.level}
                       </div>
-                      <div className="mt-1 text-mini leading-snug text-slate-500 dark:text-slate-400">
+                      <div className="mt-1 min-w-0 break-words [overflow-wrap:anywhere] text-mini leading-snug text-slate-500 dark:text-slate-400">
                         <ExamMathText text={c.desc} />
                       </div>
                     </div>
@@ -576,7 +576,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
             );
           case 'tips':
             return (
-              <div key={i} className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              <div key={i} className="grid min-w-0 grid-cols-1 gap-y-3">
                 {b.items.map((it, j) => (
                   <div
                     key={j}
@@ -591,7 +591,7 @@ function Blocks({ blocks, accent }: { blocks: ContentBlock[]; accent: Accent }) 
                     >
                       <Check className={cn('h-3 w-3', accent.text)} strokeWidth={3} />
                     </span>
-                    <span><ExamMathText text={it} /></span>
+                    <span className="min-w-0 break-words [overflow-wrap:anywhere]"><ExamMathText text={it} /></span>
                   </div>
                 ))}
               </div>
@@ -767,7 +767,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
       )}
 
       {/* six sections — the primary (worksheet/core) dominates; all collapsible */}
-      <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2">
         {visibleSections.map((s) => {
           const idx = sections.indexOf(s);
           const accent = ACCENTS[s.accent];
@@ -781,7 +781,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
               className={cn(
                 'group relative flex h-auto flex-col overflow-hidden rounded-[1.5rem] border bg-white transition-all duration-300 dark:bg-slate-900',
                 accent.ring,
-                (s.full || isPrimary || soloView) && 'md:col-span-2',
+                (s.full || isPrimary || soloView) && 'xl:col-span-2',
                 isCollapsed && 'self-start',
                 isPrimary
                   ? 'shadow-[0_8px_30px_-8px_rgba(0,0,0,0.16)] ring-1 ring-slate-900/5 dark:ring-white/10'
@@ -843,7 +843,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
                   </span>
                 )}
                 {emoji && !s.tag && !isPrimary && (
-                  <span className="shrink-0 text-2xl opacity-90">{emoji}</span>
+                  <span className="hidden shrink-0 text-2xl opacity-90 sm:inline">{emoji}</span>
                 )}
                 <ChevronDown
                   className={cn(

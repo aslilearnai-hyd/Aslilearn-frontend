@@ -14,11 +14,7 @@ import type { RecordRow } from "./api";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirm } from "@/hooks/use-confirm";
 import {
-  displayMcqQuestionSerial,
   extractMcqQuestionsFromRecord,
-  isMcqTool,
-  isStructuredPaperTool,
-  isWorksheetMcqTool,
   type McqQuestion,
 } from "@/lib/mcq-record-utils";
 import {
@@ -489,12 +485,13 @@ export function GenerationRecordsList({
           setViewDetail(null);
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border-slate-200">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(92vh,920px)] w-[min(96vw,1400px)] max-w-[min(96vw,1400px)] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 p-0 sm:max-w-[min(96vw,1400px)] lg:max-w-[min(96vw,1400px)]">
+          <DialogHeader className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-6">
             <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
               Generated content
             </DialogTitle>
           </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-slate-50/80 px-2 py-2 sm:px-4 sm:py-4">
           {fullText == null ? (
             <div className="flex justify-center py-12">
               <Loader2 className="animate-spin w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-orange-500" />
@@ -502,70 +499,14 @@ export function GenerationRecordsList({
           ) : (
             (() => {
               const viewRecord = buildViewRecord(view, viewDetail, fullText, defaultToolName);
-              const resolvedTool = normalizeAiToolSlug(
-                String(viewRecord.toolName || viewRecord.toolSlug || defaultToolName || ""),
-              );
-              const dialogQs = extractMcqQuestionsFromRecord({
-                toolName: resolvedTool,
-                content: String(viewRecord.content || ""),
-                generatedContent: String(viewRecord.generatedContent || ""),
-                metadata: viewRecord.metadata as RecordRow["metadata"],
-              });
-              const isPlainMcq =
-                dialogQs.length > 0 &&
-                isMcqTool(resolvedTool) &&
-                !isWorksheetMcqTool(resolvedTool) &&
-                normalizeAiToolSlug(resolvedTool) !== "smart-qa-practice-generator" &&
-                !isStructuredPaperTool(resolvedTool);
-
-              if (isPlainMcq) {
-                return (
-                  <div className="space-y-4 max-h-[min(70vh,620px)] overflow-y-auto pr-1">
-                    {dialogQs.map((q, idx) => (
-                      <div
-                        key={`dlg-q-${idx}`}
-                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3"
-                      >
-                        <p className="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed pr-2">
-                          Q{displayMcqQuestionSerial(q, idx)}. {q.question}
-                        </p>
-                        {q.options.length > 0 ? (
-                          <ul className="space-y-2.5 pl-0.5">
-                            {q.options.map((opt, j) => (
-                              <li
-                                key={j}
-                                className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700"
-                              >
-                                <span
-                                  className="mt-1.5 h-3.5 w-3.5 rounded-full border border-slate-400 shrink-0 bg-white"
-                                  aria-hidden
-                                />
-                                <span>{opt}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        {q.answer ? (
-                          <p className="text-xs text-slate-500 pt-1 border-t border-slate-100">
-                            Answer: {q.answer}
-                          </p>
-                        ) : null}
-                        {q.explanation ? (
-                          <p className="text-xs text-slate-500">Explanation: {q.explanation}</p>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-
               return (
-                <div className="max-h-[min(70vh,620px)] overflow-y-auto pr-1">
+                <div className="min-w-0">
                   <GeneratorRecordViewer record={viewRecord} />
                 </div>
               );
             })()
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -48,9 +48,9 @@ export async function fetchBranch(params: Record<string, string>) {
 
 export async function fetchBootstrap(params: Record<string, string> = {}) {
   const qs = new URLSearchParams(params);
-  const res = await fetch(
+  const res = await resilientFetch(
     `${API_BASE_URL}/api/super-admin/ai-tool-generations/bootstrap?${qs.toString()}`,
-    { headers: authHeaders() },
+    { headers: authHeaders(), timeoutMs: BRANCH_FETCH_TIMEOUT_MS, retries: 1 },
   );
   if (!res.ok) throw new Error(`Bootstrap fetch failed: ${res.status}`);
   return res.json() as Promise<{
@@ -70,9 +70,9 @@ export async function fetchBootstrap(params: Record<string, string> = {}) {
  */
 export async function fetchProductCategories(params: Record<string, string> = {}) {
   const qs = new URLSearchParams(params);
-  const res = await fetch(
+  const res = await resilientFetch(
     `${API_BASE_URL}/api/super-admin/ai-tool-generations/product-categories?${qs.toString()}`,
-    { headers: authHeaders() },
+    { headers: authHeaders(), timeoutMs: BRANCH_FETCH_TIMEOUT_MS, retries: 1 },
   );
   if (!res.ok) throw new Error(`Product categories fetch failed: ${res.status}`);
   return res.json() as Promise<{
