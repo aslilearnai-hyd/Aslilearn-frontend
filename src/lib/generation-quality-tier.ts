@@ -18,4 +18,4 @@ export const GENERATION_QUALITY_TIERS = [
 
 export type GenerationQualityTierId = (typeof GENERATION_QUALITY_TIERS)[number]["id"];
 
-export const DEFAULT_GENERATION_QUALITY_TIER: GenerationQualityTierId = "balanced";
+export const DEFAULT_GENERATION_QUALITY_TIER: GenerationQualityTierId = "premium";
