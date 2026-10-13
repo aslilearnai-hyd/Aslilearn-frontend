@@ -4,7 +4,7 @@
  *
  * Handles:
  * - Repeated Mongo _id in the payload
- * - Multiple DB rows for the same (exam, attemptNumber)
+ * - Historical rows whose attempt number was never populated
  * - Near-identical rows (same score breakdown + time) within a short window — typical double-submit
  */
 export function dedupeStudentExamResults(
@@ -26,17 +26,6 @@ export function dedupeStudentExamResults(
     if (!id) return true;
     if (idSeen.has(id)) return false;
     idSeen.add(id);
-    return true;
-  });
-
-  const attemptSeen = new Set<string>();
-  list = list.filter((r: any) => {
-    const eid = getExamIdFromResult(r);
-    if (!eid) return true;
-    const att = Number(r.attemptNumber) >= 1 ? Number(r.attemptNumber) : 1;
-    const k = `${eid}::${att}`;
-    if (attemptSeen.has(k)) return false;
-    attemptSeen.add(k);
     return true;
   });
 
@@ -71,6 +60,31 @@ export function dedupeStudentExamResults(
     });
     if (nearDup) continue;
     out.push(r);
+  }
+
+  const groups = new Map<string, any[]>();
+  for (const row of out) {
+    const examId = getExamIdFromResult(row) || `row:${String(row?._id || '')}`;
+    const rawUserId = row?.userId?._id ?? row?.userId ?? '';
+    const key = `${String(rawUserId)}::${examId}`;
+    const group = groups.get(key) || [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    group.sort(
+      (a, b) =>
+        new Date(a?.completedAt || 0).getTime() - new Date(b?.completedAt || 0).getTime()
+    );
+    const stored = group.map((row) => Number(row?.attemptNumber));
+    if (
+      !stored.every((n) => Number.isFinite(n) && n >= 1) ||
+      new Set(stored).size !== stored.length
+    ) {
+      group.forEach((row, index) => {
+        row.attemptNumber = index + 1;
+      });
+    }
   }
 
   return out.sort(
