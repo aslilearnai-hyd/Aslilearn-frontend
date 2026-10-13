@@ -106,7 +106,7 @@ function reconcileDisplayedInstructionMarks(value: unknown, totalMarks: number):
     .replace(/(\btotal\s*[:=\-]?\s*)\d+(?:\.\d+)?(\s*marks?\b)/gi, `$1${totalMarks}$2`);
 }
 
-function questionsCore(core: Dict): ContentBlock[] {
+function questionsCore(core: Dict, toolSlug = ''): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   const totalMarks = actualQuestionMarks(core);
   if (core.instructions) {
@@ -138,20 +138,36 @@ function questionsCore(core: Dict): ContentBlock[] {
       })),
     });
   }
+  const smartQa = toolSlug === 'smart-qa-practice-generator';
   for (const { title, key } of [
     { title: 'Section B — Fill in the Blanks', key: 'sectionB_fib' },
-    { title: 'Section C — Short Answer', key: 'sectionC_short' },
-    { title: 'Section D — Application', key: 'sectionD_application' },
-    { title: 'Section E — Long Answer', key: 'sectionE_long' },
+    { title: smartQa ? 'Section C — True / False' : 'Section C — Short Answer', key: 'sectionC_short' },
+    { title: smartQa ? 'Section D — Very Short Answer' : 'Section D — Application', key: 'sectionD_application' },
+    { title: smartQa ? 'Section E — Short Answer' : 'Section E — Long Answer', key: 'sectionE_long' },
     { title: 'Section F — Application / Case-based', key: 'sectionF_case' },
     { title: 'Section G — HOTS / Analytical', key: 'sectionG_hots' },
   ]) {
     const qs = arr(core[key]);
     if (!qs.length) continue;
     blocks.push({ kind: 'titleLine', text: title });
-    blocks.push({
+    const matches = qs.filter((q) => Array.isArray(q.matchPairs) && q.matchPairs.length >= 2);
+    if (matches.length) {
+      blocks.push({
+        kind: 'mcq',
+        questions: matches.map((q) => ({
+          n: String(++n),
+          stem: str(q.question),
+          marks: marks(q.marks),
+          imageUrl: str(q.imageUrl || q.image_url || q.questionImage) || undefined,
+          matchPairs: q.matchPairs as { left: string; right: string; leftKey?: string; rightKey?: string }[],
+          options: [],
+        })),
+      });
+    }
+    const regular = qs.filter((q) => !(Array.isArray(q.matchPairs) && q.matchPairs.length >= 2));
+    if (regular.length) blocks.push({
       kind: 'shortAnswer',
-      questions: qs.map((q) => ({
+      questions: regular.map((q) => ({
         n: String(++n),
         stem: str(q.question),
         marks: marks(q.marks),
@@ -546,7 +562,7 @@ export function mapV2ToViewer(
   // education-specific icons. Only the primary worksheet is full-width so it
   // dominates; the rest are secondary cards in the 2-col grid.
   const sections: SixSection[] = [
-    { id: 'core', label: str(core.title) || str(core.worksheetTitle) || 'Core — Classroom Ready', accent: 'blue', icon: FileText, full: true, blocks: buildCore(core) },
+    { id: 'core', label: str(core.title) || str(core.worksheetTitle) || 'Core — Classroom Ready', accent: 'blue', icon: FileText, full: true, blocks: family === 'questions' ? questionsCore(core, toolSlug) : buildCore(core) },
     {
       id: 'objectives', label: 'Objectives & Curriculum Alignment', accent: 'teal', icon: Target,
       blocks: [
