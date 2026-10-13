@@ -912,7 +912,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
           rates. A text-based PDF costs ₹0. The exact tokens and ₹ for every run are shown below.
         </p>
         <p>
-          <strong>Content generation</strong> (this page): choose how many records to generate per batch ({GENERATION_RECORD_COUNT_MIN}–{BOOK_GENERATOR_MAX_BATCH_SIZE}) with Gemini.
+          <strong>Content generation</strong> (this page): choose the total number of records to generate ({GENERATION_RECORD_COUNT_MIN}–{BOOK_GENERATOR_MAX_BATCH_SIZE}) with Gemini.
           <strong> Premium</strong>, <strong>Balanced</strong>, and <strong>Fast</strong> all use Gemini 3.1 Flash-Lite (Premium adds stricter validation and more retries).
           Token count and estimated ₹ cost appear below after each run.
         </p>
@@ -1246,7 +1246,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
               />
               <span>
                 Also generate <strong>separately for each of the {subtopics.length} subtopic(s)</strong>,
-                plus Whole chapter. Keeps content under the correct SUBTOPIC cards (not all under Whole chapter).
+                plus Whole chapter. The record count is shared across these scopes and is never multiplied.
               </span>
             </label>
           ) : null}

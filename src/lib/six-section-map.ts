@@ -81,9 +81,40 @@ const FAMILY_OF: Record<string, 'questions' | 'explain' | 'plan' | 'reading' | '
   'flashcard-generator': 'cards', 'my-study-decks': 'cards',
 };
 
+const QUESTION_SECTION_KEYS = [
+  'sectionA_mcq',
+  'sectionB_fib',
+  'sectionC_short',
+  'sectionD_application',
+  'sectionE_long',
+  'sectionF_case',
+  'sectionG_hots',
+] as const;
+
+function actualQuestionMarks(core: Dict): number {
+  return QUESTION_SECTION_KEYS.reduce(
+    (total, key) => total + arr(core[key]).reduce((sum, question) => sum + (Number(question.marks) || 0), 0),
+    0,
+  );
+}
+
+function reconcileDisplayedInstructionMarks(value: unknown, totalMarks: number): string {
+  const instruction = str(value);
+  if (!instruction || totalMarks <= 0) return instruction;
+  return instruction
+    .replace(/((?:total|max(?:imum)?)\s+marks?\s*[:=\-]?\s*)\d+(?:\.\d+)?/gi, `$1${totalMarks}`)
+    .replace(/(\btotal\s*[:=\-]?\s*)\d+(?:\.\d+)?(\s*marks?\b)/gi, `$1${totalMarks}$2`);
+}
+
 function questionsCore(core: Dict): ContentBlock[] {
   const blocks: ContentBlock[] = [];
-  if (core.instructions) blocks.push({ kind: 'lead', text: str(core.instructions) });
+  const totalMarks = actualQuestionMarks(core);
+  if (core.instructions) {
+    blocks.push({
+      kind: 'lead',
+      text: reconcileDisplayedInstructionMarks(core.instructions, totalMarks),
+    });
+  }
   let n = 0;
   const mcq = arr(core.sectionA_mcq);
   if (mcq.length) {
@@ -112,6 +143,8 @@ function questionsCore(core: Dict): ContentBlock[] {
     { title: 'Section C — Short Answer', key: 'sectionC_short' },
     { title: 'Section D — Application', key: 'sectionD_application' },
     { title: 'Section E — Long Answer', key: 'sectionE_long' },
+    { title: 'Section F — Application / Case-based', key: 'sectionF_case' },
+    { title: 'Section G — HOTS / Analytical', key: 'sectionG_hots' },
   ]) {
     const qs = arr(core[key]);
     if (!qs.length) continue;
@@ -551,10 +584,9 @@ export function mapV2ToViewer(
   const learn = list(objectives.items).slice(0, 6);
   const stats: { label: string; value: string }[] = [];
   if (family === 'questions') {
-    const qKeys = ['sectionA_mcq', 'sectionB_fib', 'sectionC_short', 'sectionD_application', 'sectionE_long'];
-    const qCount = qKeys.reduce((n, k) => n + arr(core[k]).length, 0);
+    const qCount = QUESTION_SECTION_KEYS.reduce((n, k) => n + arr(core[k]).length, 0);
     if (qCount) stats.push({ label: 'Questions', value: String(qCount) });
-    const totalMarks = qKeys.reduce((n, k) => n + arr(core[k]).reduce((s, q) => s + (Number(q.marks) || 0), 0), 0);
+    const totalMarks = actualQuestionMarks(core);
     if (totalMarks) stats.push({ label: 'Total Marks', value: String(totalMarks) });
   }
   const durMatch = `${str(core.instructions)} ${str(teacher.timing)}`.match(/(\d+)\s*(?:min|minute)/i);
