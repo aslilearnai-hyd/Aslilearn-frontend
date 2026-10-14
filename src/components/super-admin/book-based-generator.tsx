@@ -43,6 +43,7 @@ import {
   emptyTokenTotals,
   formatInr,
   formatTokenCount,
+  resolveGeminiPricing,
   type GeminiCostEstimate,
   type TokenCall,
   type TokenTotals,
@@ -1446,6 +1447,22 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                     <span className="font-semibold text-emerald-900">{formatInr(lastBatchSummary.cost.inr)}</span>
                     {" "}(~${lastBatchSummary.cost.usd.toFixed(4)} USD at ₹{lastBatchSummary.cost.exchangeRateInr}/$)
                   </p>
+                  <p>
+                    Input: {formatInr((lastBatchSummary.cost.inputUsd || 0) * lastBatchSummary.cost.exchangeRateInr)}
+                    {" · "}Output: {formatInr((lastBatchSummary.cost.outputUsd || 0) * lastBatchSummary.cost.exchangeRateInr)}
+                  </p>
+                  {(() => {
+                    const pricing = resolveGeminiPricing(lastBatchSummary.cost.model);
+                    const input10k = (pricing.inputUsdPerM / 100) * lastBatchSummary.cost.exchangeRateInr;
+                    const output10k = (pricing.outputUsdPerM / 100) * lastBatchSummary.cost.exchangeRateInr;
+                    return (
+                      <p className="text-mini text-slate-600">
+                        Rate per 10k tokens: input {formatInr(input10k)} · output {formatInr(output10k)} ·
+                        10k input + 10k output {formatInr(input10k + output10k)}. The rate is identical for
+                        every subject; only token volume and LLM call count change.
+                      </p>
+                    );
+                  })()}
                   <p className="text-mini text-slate-500">{lastBatchSummary.cost.pricingNote}</p>
                 </>
               )}
