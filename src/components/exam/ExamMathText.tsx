@@ -1,13 +1,19 @@
 import { Fragment } from 'react';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
+import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 
 type Props = { text: string; className?: string };
 
 const MATH_SEGMENTS = /(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/g;
 
 export default function ExamMathText({ text, className }: Props) {
-  const parts = String(text || '').split(MATH_SEGMENTS).filter(Boolean);
+  // V2/six-section records frequently contain classroom ASCII such as
+  // `sqrt(144)` and `x^2` outside LaTeX delimiters.  The legacy exam viewer
+  // already normalises that text, but this shared renderer previously did not,
+  // so the same saved question rendered differently depending on its viewer.
+  const displayText = formatClassroomScienceText(text);
+  const parts = displayText.split(MATH_SEGMENTS).filter(Boolean);
   return (
     <span className={className}>
       {parts.map((part, index) => {

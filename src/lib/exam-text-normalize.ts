@@ -63,7 +63,11 @@ export function normalizeExamDisplayText(value: unknown): string {
   text = text.replace(/\bcube\s*roots?\s+of\s*\(/gi, '∛(');
   text = text.replace(/\bcuberoot\s*\(/gi, '∛(');
   text = text.replace(/\bsquare\s*roots?\s+of\s*\(/gi, '√(');
+  // Repair malformed LaTeX emitted by models (`\sqrt(144)` instead of
+  // `\sqrt{144}`). Standard braced LaTeX remains intact for KaTeX.
+  text = text.replace(/\\sqrt\s*\(([^)]+)\)/gi, '√($1)');
   text = text.replace(/(?<!\\)\bsqrt\s*\(/gi, '√(');
+  text = text.replace(/(?<!\\)\bsqrt\s*\{([^{}]+)\}/gi, '√($1)');
   text = text.replace(/(?<!\\)\bsqrt\s+(\d+)/gi, '√$1');
 
   const monthToNumber: Record<string, string> = {

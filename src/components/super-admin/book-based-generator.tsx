@@ -1191,12 +1191,27 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
               <Label className="text-xs">Topic</Label>
               <Select value={topic} onValueChange={handleTopicChange} disabled={!subject || loadingTopics}>
                 <SelectTrigger>
-                  <SelectValue placeholder={!subject ? "Subject first" : loadingTopics ? "Loading…" : "Topic"} />
+                  <SelectValue
+                    placeholder={
+                      !subject
+                        ? "Subject first"
+                        : loadingTopics
+                          ? "Loading…"
+                          : topicOptionsForSelect.length === 0
+                            ? `No topics for ${classNumber} ${subject}`
+                            : "Topic"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {topicOptionsForSelect.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {subject && !loadingTopics && topicOptionsForSelect.length === 0 ? (
+                <p className="text-xs text-amber-700">
+                  No AI Tool Topic is configured for this exact class and subject. Add it in AI Tool Topics or choose the class where it was configured.
+                </p>
+              ) : null}
             </div>
             <div className="min-w-0 space-y-1 sm:col-span-2 xl:col-span-full">
               <Label className="text-xs">Sub topic</Label>
