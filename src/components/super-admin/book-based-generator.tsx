@@ -915,6 +915,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
         <p>
           <strong>Content generation</strong> (this page): choose the total number of records to generate ({GENERATION_RECORD_COUNT_MIN}–{BOOK_GENERATOR_MAX_BATCH_SIZE}) with Gemini.
           <strong> Premium</strong>, <strong>Balanced</strong>, and <strong>Fast</strong> all use Gemini 3.1 Flash-Lite (Premium adds stricter validation and more retries).
+          The safety allowance is <strong>₹1 per requested record</strong> (for example, up to ₹5 for five records), so one record cannot consume the whole batch allowance and block the remaining records.
           Token count and estimated ₹ cost appear below after each run.
         </p>
       </div>
