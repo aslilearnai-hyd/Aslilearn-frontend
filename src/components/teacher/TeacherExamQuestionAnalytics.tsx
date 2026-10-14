@@ -125,6 +125,20 @@ interface TeacherExamQuestionAnalyticsProps {
 
 type ReviewMode = 'idle' | 'inline' | 'discuss';
 
+function formatMarkValue(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+}
+
+function studentMarksLabel(report: StudentReport): string {
+  const totalMarks = report.totalMarks == null ? Number.NaN : Number(report.totalMarks);
+  let obtainedMarks = report.score == null ? Number.NaN : Number(report.score);
+  if (!Number.isFinite(obtainedMarks) && Number.isFinite(totalMarks) && report.percentage != null) {
+    obtainedMarks = (Number(report.percentage) / 100) * totalMarks;
+  }
+  if (!Number.isFinite(obtainedMarks) || !Number.isFinite(totalMarks)) return 'Marks unavailable';
+  return `${formatMarkValue(obtainedMarks)} / ${formatMarkValue(totalMarks)} marks`;
+}
+
 function authHeaders(): HeadersInit {
   const token = getAuthToken();
   return {
@@ -383,7 +397,7 @@ function StudentReportDialog({
           {report.attempted ? (
             <>
               <Badge className="rounded-lg bg-indigo-600">
-                {report.percentage != null ? `${Number(report.percentage).toFixed(1)}%` : '—'}
+                {studentMarksLabel(report)}
               </Badge>
               <Badge variant="secondary" className="rounded-lg">
                 {report.correctAnswers} correct
@@ -604,7 +618,7 @@ export function TeacherExamQuestionAnalytics({
                           </div>
                           <p className="text-[11px] text-gray-500 mt-1 pl-6">
                             {s.attempted
-                              ? `${s.percentage != null ? Number(s.percentage).toFixed(1) : '—'}% · ${s.correctAnswers} correct ${s.wrongAnswers} incorrect`
+                              ? `${studentMarksLabel(s)} · ${s.correctAnswers} correct ${s.wrongAnswers} incorrect`
                               : 'Not attempted'}
                           </p>
                         </button>
@@ -810,7 +824,7 @@ export function TeacherExamQuestionAnalytics({
                     </div>
                     <p className="text-[11px] text-gray-500 mt-1 pl-6">
                       {s.attempted
-                        ? `${s.percentage != null ? Number(s.percentage).toFixed(1) : '—'}% · ${s.correctAnswers} correct · ${s.wrongAnswers} wrong`
+                        ? `${studentMarksLabel(s)} · ${s.correctAnswers} correct · ${s.wrongAnswers} wrong`
                         : 'Not attempted'}
                     </p>
                   </button>
