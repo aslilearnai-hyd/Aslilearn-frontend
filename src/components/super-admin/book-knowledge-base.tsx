@@ -403,12 +403,13 @@ export default function BookKnowledgeBase() {
     }
   };
 
-  const handleReindex = async (id: string) => {
-    setReindexingId(id);
+  const handleReindex = async (book: BookRow) => {
+    setReindexingId(book._id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/book-knowledge/books/${id}/reindex`, {
+      const res = await fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/reindex`, {
         method: "POST",
-        headers: { ...authHeaders() },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ contentId: book.contentId || undefined }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message || "Reindex failed");
@@ -454,12 +455,19 @@ export default function BookKnowledgeBase() {
     setTextPreview("");
     setChunksPreview([]);
     try {
-      const [textRes, chunkRes] = await Promise.all([
+      const [chapterRes, textRes, chunkRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/chapters`, { headers: { ...authHeaders() } }),
         fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/text`, { headers: { ...authHeaders() } }),
         fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/chunks`, { headers: { ...authHeaders() } }),
       ]);
+      const chapterJson = await chapterRes.json();
       const textJson = await textRes.json();
       const chunkJson = await chunkRes.json();
+      if (chapterJson.success) {
+        setViewBook((current) => current?._id === book._id
+          ? { ...current, chapters: Array.isArray(chapterJson.data) ? chapterJson.data : [] }
+          : current);
+      }
       if (textJson.success) setTextPreview(String(textJson.data?.preview || ""));
       if (chunkJson.success) setChunksPreview(Array.isArray(chunkJson.data) ? chunkJson.data : []);
     } catch {
@@ -918,7 +926,7 @@ export default function BookKnowledgeBase() {
                     variant="outline"
                     title="Re-index"
                     aria-label="Re-index"
-                    onClick={() => void handleReindex(book._id)}
+                    onClick={() => void handleReindex(book)}
                     disabled={reindexingId === book._id}
                   >
                     {reindexingId === book._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
