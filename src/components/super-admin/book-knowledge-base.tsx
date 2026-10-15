@@ -81,6 +81,7 @@ export default function BookKnowledgeBase() {
   const [viewBook, setViewBook] = useState<BookRow | null>(null);
   const [textPreview, setTextPreview] = useState("");
   const [chunksPreview, setChunksPreview] = useState<Array<{ chunkIndex: number; chapter: string; contentPreview: string }>>([]);
+  const [chunksTotal, setChunksTotal] = useState(0);
 
   const [importableContent, setImportableContent] = useState<ImportableContentRow[]>([]);
   const [importLoading, setImportLoading] = useState(false);
@@ -455,11 +456,12 @@ export default function BookKnowledgeBase() {
     setViewBook(book);
     setTextPreview("");
     setChunksPreview([]);
+    setChunksTotal(0);
     try {
       const [chapterRes, textRes, chunkRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/chapters`, { headers: { ...authHeaders() } }),
         fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/text`, { headers: { ...authHeaders() } }),
-        fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/chunks`, { headers: { ...authHeaders() } }),
+        fetch(`${API_BASE_URL}/api/book-knowledge/books/${book._id}/chunks?limit=2000`, { headers: { ...authHeaders() } }),
       ]);
       const chapterJson = await chapterRes.json();
       const textJson = await textRes.json();
@@ -470,7 +472,11 @@ export default function BookKnowledgeBase() {
           : current);
       }
       if (textJson.success) setTextPreview(String(textJson.data?.preview || ""));
-      if (chunkJson.success) setChunksPreview(Array.isArray(chunkJson.data) ? chunkJson.data : []);
+      if (chunkJson.success) {
+        const loadedChunks = Array.isArray(chunkJson.data) ? chunkJson.data : [];
+        setChunksPreview(loadedChunks);
+        setChunksTotal(Number(chunkJson.total) || loadedChunks.length);
+      }
     } catch {
       /* non-fatal */
     }
@@ -975,7 +981,11 @@ export default function BookKnowledgeBase() {
               <Textarea readOnly className="min-h-[160px] text-xs font-mono" value={textPreview} />
             </div>
             <div>
-              <p className="text-sm font-medium mb-2">Chunks ({chunksPreview.length} shown)</p>
+              <p className="text-sm font-medium mb-2">
+                Chunks ({chunksPreview.length === chunksTotal
+                  ? chunksTotal
+                  : `${chunksPreview.length} of ${chunksTotal}`})
+              </p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {chunksPreview.map((c) => (
                   <div key={c.chunkIndex} className="rounded border p-2 text-xs text-slate-600">
