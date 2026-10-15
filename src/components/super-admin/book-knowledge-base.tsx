@@ -43,6 +43,7 @@ type BookRow = {
   subtopic?: string;
   source: string;
   processingStatus: string;
+  processingError?: string;
   chunkCount?: number;
   extractedTextLength?: number;
   embeddingsCreated?: boolean;
@@ -916,6 +917,9 @@ export default function BookKnowledgeBase() {
                     <Badge variant="outline">{book.chunkCount || 0} chunks</Badge>
                     <Badge variant="outline">{book.generationStats?.totalGenerations || 0} generations</Badge>
                   </div>
+                  {book.processingStatus === 'failed' && book.processingError ? (
+                    <p className="mt-2 text-xs font-medium text-red-700">{book.processingError}</p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => void openBookDetails(book)}>

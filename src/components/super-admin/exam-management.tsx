@@ -291,6 +291,34 @@ function stripDuplicateMatterFromStemClient(stem: string, matter: string) {
   return s;
 }
 
+function splitInlineCaseStudyClient(stem: string) {
+  const text = String(stem || '').replace(/\s+/g, ' ').trim();
+  if (!/^(?:Case\s*Study|Case\s*(?:I{1,3}|IV|\d+))\s*[:.\-]/i.test(text) || text.length < 120 || !text.includes('?')) {
+    return null;
+  }
+  const cueRe = /(?:^|[.!?]\s+)((?:Using|According|Which|What|Calculate|Find|Based\s+on|From\s+the|In\s+[^?.!]{0,90}\bwhich)\b[^?]{6,220}\?)/gi;
+  let chosen: { start: number; question: string } | null = null;
+  let match: RegExpExecArray | null;
+  while ((match = cueRe.exec(text))) {
+    const start = match.index + match[0].indexOf(match[1]);
+    if (start >= 80) chosen = { start, question: match[1].trim() };
+  }
+  if (!chosen) return null;
+  const passage = text.slice(0, chosen.start).replace(/[\s;:,-]+$/, '').trim();
+  return passage.length >= 80 ? { passage, question: chosen.question } : null;
+}
+
+function stripInlineMatchColumnsClient(stem: string, columnI: unknown, columnII: unknown) {
+  const text = String(stem || '').replace(/\s+/g, ' ').trim();
+  if (!Array.isArray(columnI) || !Array.isArray(columnII) || columnI.length < 2 || columnII.length < 2) return text;
+  const occurrences = [...text.matchAll(/\bColumn\s*I\b/gi)];
+  if (occurrences.length >= 2 && (occurrences[1].index || 0) > 20) {
+    return text.slice(0, occurrences[1].index).trim();
+  }
+  const inlineRows = text.search(/\s+[A-D]\s*[.):]\s*[^?]{2,80}\s+[B-D]\s*[.):]/i);
+  return inlineRows > 20 ? text.slice(0, inlineRows).trim() : text;
+}
+
 function stripPaperDirectionsClient(stem: string) {
   let s = String(stem || '').trim();
   if (!s) return s;
@@ -322,6 +350,25 @@ function normalizeExtractedPdfRows(rows: any[]): any[] {
 
     // Drop false Match matter / flags stamped onto normal MCQs
     let next = { ...row, row: row.row || idx + 1, questionText: stemRaw };
+    const inlineCase = splitInlineCaseStudyClient(next.questionText);
+    if (inlineCase && !String(next.sharedMatterText || next.passageText || '').trim()) {
+      next = {
+        ...next,
+        questionText: inlineCase.question,
+        sharedMatterText: inlineCase.passage,
+        passageText: inlineCase.passage,
+        sharedMatterKind: 'case',
+        sharedMatterId: next.sharedMatterId || next.passageId || `CASE-${idx + 1}`,
+        passageId: next.passageId || next.sharedMatterId || `CASE-${idx + 1}`,
+      };
+    }
+    if (next.questionType === 'match_following') {
+      next.questionText = stripInlineMatchColumnsClient(
+        next.questionText,
+        next.matchColumnI,
+        next.matchColumnII,
+      );
+    }
     if (!isRealMatch && (next.sharedMatterKind === 'match_following' || /Match table columns missing/i.test(String(next.validationNote || '')))) {
       const flags = (next.validationFlags || []).filter((f: string) => f !== 'needs_figure');
       next = {
@@ -2156,6 +2203,10 @@ export default function ExamManagement() {
       ...(Number.isFinite(Number(row.questionNumber))
         ? { displayOrder: Math.floor(Number(row.questionNumber)) }
         : {}),
+      // A printed paper may intentionally repeat a stem at a different number.
+      // displayOrder is the identity during PDF import; text-only dedupe used to
+      // reject valid rows and turn 120-question papers into partial uploads.
+      allowDuplicate: true,
     } as any;
 
     if (type === 'integer') {
@@ -2435,6 +2486,7 @@ export default function ExamManagement() {
       // mcq/multiple/integer and drops sharedMatter / assertion / match / images.
       const rows = normalizeExtractedPdfRows(pdfQuestionRows);
       const errors: string[] = [];
+      const failedIndexes = new Set<number>();
       let created = 0;
       let skippedDuplicates = 0;
       const headers = {
@@ -2462,6 +2514,7 @@ export default function ExamManagement() {
               ) {
                 return {
                   ok: false,
+                  idx,
                   error: `Row ${idx + 1}: questionText, image, or Assertion+Reason required`,
                 };
               }
@@ -2490,6 +2543,7 @@ export default function ExamManagement() {
               if (!res.ok || !data?.success) {
                 return {
                   ok: false,
+                  idx,
                   error: `Row ${idx + 1}: ${data?.message || `failed (${res.status})`}`,
                 };
               }
@@ -2498,9 +2552,9 @@ export default function ExamManagement() {
                 /Integer answer needs review/i.test(String(payload?.explanation || ''))
                   ? `Row ${idx + 1}: Integer answer missing/invalid — saved as 0 (needs review)`
                   : undefined;
-              return { ok: true, warn };
+              return { ok: true, idx, warn };
             } catch (e: any) {
-              return { ok: false, error: `Row ${idx + 1}: ${e?.message || 'network error'}` };
+              return { ok: false, idx, error: `Row ${idx + 1}: ${e?.message || 'network error'}` };
             }
           }),
         );
@@ -2510,6 +2564,7 @@ export default function ExamManagement() {
             else created += 1;
             if (r.warn) errors.push(r.warn);
           } else if (r.error) {
+            failedIndexes.add(r.idx);
             errors.push(r.error);
           }
         }
@@ -2517,9 +2572,11 @@ export default function ExamManagement() {
 
       setQuestionCsvUploadResults({ success: created, skippedDuplicates, errors });
       let remainingPoolCount = 0;
+      const failedRows = rows.filter((_, index) => failedIndexes.has(index));
+      const savedRows = rows.filter((_, index) => !failedIndexes.has(index));
       if (created + skippedDuplicates > 0) {
         const assignedUrls = new Set(
-          pdfQuestionRows
+          savedRows
             .map((r) => String(r.questionImage || '').trim())
             .filter(Boolean),
         );
@@ -2533,8 +2590,10 @@ export default function ExamManagement() {
           console.warn('figure pool save failed', poolErr);
           setExamFigurePool(remainingPool);
         }
-        setPdfQuestionRows([]);
-        setPdfPaperImages([]);
+        // Never discard failed rows after a partial upload. They stay in the
+        // preview with their row-level errors so the admin can correct/retry.
+        setPdfQuestionRows(failedRows);
+        if (failedRows.length === 0) setPdfPaperImages([]);
         setPdfAssignTargetIdx(null);
       }
       await fetchQuestions(selectedExam._id);
@@ -2545,6 +2604,7 @@ export default function ExamManagement() {
           `Created ${created} question(s)` +
           (skippedDuplicates ? `, skipped ${skippedDuplicates} already uploaded duplicate(s)` : '') +
           (errors.length ? `, ${errors.length} error(s)` : '') + '.' +
+          (failedIndexes.size ? ` ${failedIndexes.size} failed row(s) remain in the preview for retry.` : '') +
           (remainingPoolCount
             ? ` ${remainingPoolCount} figure(s) are at the top — click Select photo on a question, then pick an image.`
             : ''),

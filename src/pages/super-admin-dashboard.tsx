@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect, type FormEvent } from "react";
+import { Suspense, lazy, useState, useEffect, useMemo, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import SuperAdminSidebar from "@/components/dashboard/SuperAdminSidebar";
 import type { SuperAdminView } from "@/lib/super-admin-views";
@@ -120,6 +120,43 @@ export default function SuperAdminDashboard() {
     next: false,
     confirm: false,
   });
+
+  const dashboardRecommendations = useMemo(() => {
+    const activeRate = Number(stats.activeStudentsPercentage) || 0;
+    const passRate = Number(stats.passRate) || 0;
+    const contentVolume = Number(stats.contentVolume ?? stats.contentEngagement) || 0;
+    const totalStudents = Number(stats.totalStudents) || 0;
+    const rows: Array<{ title: string; detail: string; metric: string }> = [];
+    if (totalStudents > 0 && activeRate < 60) {
+      rows.push({
+        title: 'Improve student activation',
+        detail: 'Review inactive cohorts and ask school admins to schedule a guided learning or quiz session.',
+        metric: `${activeRate.toFixed(0)}% active`,
+      });
+    }
+    if (Number(stats.examResults) > 0 && passRate < 70) {
+      rows.push({
+        title: 'Target low-performing exam topics',
+        detail: 'Open Analytics to identify subjects with the largest correctness gap and assign focused practice.',
+        metric: `${passRate.toFixed(0)}% pass rate`,
+      });
+    }
+    if (contentVolume < Math.max(20, Math.ceil(totalStudents / 5))) {
+      rows.push({
+        title: 'Expand curriculum coverage',
+        detail: 'Add or index more textbook-aligned content for classes with limited learning material.',
+        metric: `${contentVolume.toLocaleString()} content items`,
+      });
+    }
+    if (rows.length === 0) {
+      rows.push({
+        title: 'Platform indicators are healthy',
+        detail: 'Continue monitoring engagement and exam outcomes; no urgent intervention is detected.',
+        metric: `${activeRate.toFixed(0)}% active`,
+      });
+    }
+    return rows.slice(0, 3);
+  }, [stats]);
 
   const VIDYA_PREFS_KEY = "superAdminVidyaPrefs";
 
@@ -581,10 +618,18 @@ export default function SuperAdminDashboard() {
         </div>
         <Card>
           <CardContent className="p-3 sm:p-4 lg:p-6">
-            <div className="text-center py-4 sm:py-6 lg:py-8">
-              <TargetIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">AI Recommendations</h3>
-              <p className="text-gray-600">AI-powered insights and recommendations will appear here</p>
+            <div className="grid gap-3 md:grid-cols-3">
+              {dashboardRecommendations.map((recommendation) => (
+                <div key={recommendation.title} className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-gray-900">{recommendation.title}</h3>
+                    <Badge variant="outline" className="shrink-0 border-orange-200 bg-white text-orange-700">
+                      {isLoadingStats ? 'Loading…' : recommendation.metric}
+                    </Badge>
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-600">{recommendation.detail}</p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

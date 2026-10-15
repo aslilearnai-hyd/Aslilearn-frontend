@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 export type MatchColumnCell = {
   key?: string;
@@ -55,7 +56,7 @@ export function MatchColumnsTable({
                   {a ? (
                     <>
                       <span className="font-semibold">{leftKey}.</span>
-                      {leftText ? ` ${leftText}` : null}
+                      {leftText ? <>{' '}<ExamMathText text={leftText} /></> : null}
                     </>
                   ) : null}
                 </td>
@@ -63,7 +64,7 @@ export function MatchColumnsTable({
                   {b ? (
                     <>
                       <span className="font-semibold">{rightKey}.</span>
-                      {rightText ? ` ${rightText}` : null}
+                      {rightText ? <>{' '}<ExamMathText text={rightText} /></> : null}
                     </>
                   ) : null}
                 </td>
