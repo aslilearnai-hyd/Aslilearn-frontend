@@ -363,8 +363,14 @@ export default function OmrResultsManagement({ variant = 'school-admin' }: OmrRe
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const classStudentIds = new Set(students.map((student) => student._id));
+    const hasClassFilter = classFilter !== 'all';
     return rows.filter((r) => {
       if (filterUnassigned && r.userId) return false;
+      if (hasClassFilter) {
+        const mappedStudentId = String(r.userId || r.suggestedUserId || r.student?._id || '');
+        if (!mappedStudentId || !classStudentIds.has(mappedStudentId)) return false;
+      }
       if (!q) return true;
       const studentLabel = r.student
         ? `${r.student.fullName} ${r.student.email}`.toLowerCase()
@@ -377,14 +383,11 @@ export default function OmrResultsManagement({ variant = 'school-admin' }: OmrRe
         studentLabel.includes(q)
       );
     });
-  }, [rows, search, filterUnassigned]);
+  }, [rows, search, filterUnassigned, classFilter, students]);
 
   const unassignedCount = useMemo(
-    () =>
-      batchMeta
-        ? Math.max(0, (batchMeta.rowCount || 0) - (batchMeta.assignedCount || 0))
-        : 0,
-    [batchMeta],
+    () => filteredRows.filter((row) => !row.userId).length,
+    [filteredRows],
   );
 
   const studentById = useMemo(() => {
@@ -823,7 +826,7 @@ export default function OmrResultsManagement({ variant = 'school-admin' }: OmrRe
         <Card className="rounded-xl border-slate-200 shadow-none">
           <CardContent className="p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Rows in view</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{batchMeta?.rowCount ?? 0}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{filteredRows.length}</p>
           </CardContent>
         </Card>
         {!readOnly ? (

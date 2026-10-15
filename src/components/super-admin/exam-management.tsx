@@ -1321,7 +1321,11 @@ export default function ExamManagement() {
   const [isExtractingPdfQuestions, setIsExtractingPdfQuestions] = useState(false);
   const [isUploadingExtractedQuestions, setIsUploadingExtractedQuestions] = useState(false);
   const [isDeletingAllQuestions, setIsDeletingAllQuestions] = useState(false);
-  const [questionCsvUploadResults, setQuestionCsvUploadResults] = useState<{ success: number; errors: string[] } | null>(null);
+  const [questionCsvUploadResults, setQuestionCsvUploadResults] = useState<{
+    success: number;
+    errors: string[];
+    skippedDuplicates?: number;
+  } | null>(null);
   const [pdfQuestionRows, setPdfQuestionRows] = useState<PdfQuestionRow[]>([]);
   const [pdfPaperImages, setPdfPaperImages] = useState<
     Array<{ url: string; name?: string; order?: number; key?: string }>
@@ -2432,6 +2436,7 @@ export default function ExamManagement() {
       const rows = normalizeExtractedPdfRows(pdfQuestionRows);
       const errors: string[] = [];
       let created = 0;
+      let skippedDuplicates = 0;
       const headers = {
         ...authBearerHeaders(),
         'Content-Type': 'application/json',
@@ -2479,6 +2484,9 @@ export default function ExamManagement() {
                 );
               }
               const data = await res.json().catch(() => null);
+              if (res.status === 409 && data?.duplicateQuestionId) {
+                return { ok: true, skippedDuplicate: true };
+              }
               if (!res.ok || !data?.success) {
                 return {
                   ok: false,
@@ -2498,7 +2506,8 @@ export default function ExamManagement() {
         );
         for (const r of results) {
           if (r.ok) {
-            created += 1;
+            if (r.skippedDuplicate) skippedDuplicates += 1;
+            else created += 1;
             if (r.warn) errors.push(r.warn);
           } else if (r.error) {
             errors.push(r.error);
@@ -2506,9 +2515,9 @@ export default function ExamManagement() {
         }
       }
 
-      setQuestionCsvUploadResults({ success: created, errors });
+      setQuestionCsvUploadResults({ success: created, skippedDuplicates, errors });
       let remainingPoolCount = 0;
-      if (created > 0) {
+      if (created + skippedDuplicates > 0) {
         const assignedUrls = new Set(
           pdfQuestionRows
             .map((r) => String(r.questionImage || '').trim())
@@ -2531,13 +2540,15 @@ export default function ExamManagement() {
       await fetchQuestions(selectedExam._id);
       await fetchExams();
       toast({
-        title: created > 0 ? 'Upload complete' : 'Upload failed',
+        title: created > 0 || skippedDuplicates > 0 ? 'Upload complete' : 'Upload failed',
         description:
-          `Created ${created} question(s)${errors.length ? `, ${errors.length} error(s)` : ''}.` +
+          `Created ${created} question(s)` +
+          (skippedDuplicates ? `, skipped ${skippedDuplicates} already uploaded duplicate(s)` : '') +
+          (errors.length ? `, ${errors.length} error(s)` : '') + '.' +
           (remainingPoolCount
             ? ` ${remainingPoolCount} figure(s) are at the top — click Select photo on a question, then pick an image.`
             : ''),
-        variant: created > 0 ? 'default' : 'destructive',
+        variant: created > 0 || skippedDuplicates > 0 ? 'default' : 'destructive',
       });
     } catch (error: any) {
       toast({
@@ -4935,7 +4946,11 @@ export default function ExamManagement() {
                 {questionCsvUploadResults && (
                   <div className={`p-3 rounded-lg ${questionCsvUploadResults.errors.length > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
                     <p className="font-semibold text-xs sm:text-sm mb-2">
-                      {questionCsvUploadResults.success > 0 ? `✅ Successfully created ${questionCsvUploadResults.success} question(s)` : '❌ No questions created'}
+                      {questionCsvUploadResults.success > 0
+                        ? `✅ Successfully created ${questionCsvUploadResults.success} question(s)`
+                        : questionCsvUploadResults.skippedDuplicates
+                          ? `✅ All ${questionCsvUploadResults.skippedDuplicates} question(s) were already uploaded`
+                          : '❌ No questions created'}
                     </p>
                     {questionCsvUploadResults.errors.length > 0 && (
                       <div className="mt-2">
@@ -5433,7 +5448,11 @@ export default function ExamManagement() {
                   {questionCsvUploadResults && (
                     <div className={`p-3 rounded-lg ${questionCsvUploadResults.errors.length > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
                       <p className="font-semibold text-xs sm:text-sm mb-2">
-                        {questionCsvUploadResults.success > 0 ? `✅ Successfully created ${questionCsvUploadResults.success} question(s)` : '❌ No questions created'}
+                        {questionCsvUploadResults.success > 0
+                          ? `✅ Successfully created ${questionCsvUploadResults.success} question(s)${questionCsvUploadResults.skippedDuplicates ? ` · ${questionCsvUploadResults.skippedDuplicates} already existed` : ''}`
+                          : questionCsvUploadResults.skippedDuplicates
+                            ? `✅ All ${questionCsvUploadResults.skippedDuplicates} question(s) were already uploaded`
+                            : '❌ No questions created'}
                       </p>
                       {questionCsvUploadResults.errors.length > 0 && (
                         <div className="mt-2">

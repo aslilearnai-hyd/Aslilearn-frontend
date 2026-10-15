@@ -413,11 +413,22 @@ function normalizeExam(record: Record<string, unknown>): NormalizedExamPaper {
   }
 
   const blueprint = sanitizeBlueprintText(record.blueprint || record.design_grid);
+  const computedTotalMarks = mergedSections.reduce(
+    (sum, section) =>
+      sum + section.questions.reduce((sectionSum, question) => sectionSum + (question.marks ?? 0), 0),
+    0,
+  );
+  const rawInstructions = cleanText(record.instructions);
+  const instructions = computedTotalMarks > 0
+    ? rawInstructions
+        .replace(/(total\s*(?:marks?)?\s*[:=-]?\s*)\d+(?:\.\d+)?(?=\s*(?:marks?)?\b)/gi, `$1${computedTotalMarks}`)
+        .replace(/(maximum\s+marks\s*[:=-]?\s*)\d+(?:\.\d+)?/gi, `$1${computedTotalMarks}`)
+    : rawInstructions;
   const paper: NormalizedExamPaper = {
     paperTitle: cleanText(
       record.paper_title || record.title || record.mock_test_title || record.mockTestTitle || 'Exam Question Paper',
     ),
-    instructions: cleanText(record.instructions),
+    instructions,
     blueprint,
     sections: mergedSections.map((s) => ({
       ...s,
