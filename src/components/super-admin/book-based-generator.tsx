@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCurriculumCascade } from "@/hooks/use-curriculum-cascade";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import { formatIitCategoryLabel, normalizeIitCategory } from "@/lib/products";
+import { bookMetaLine } from "@/lib/book-labels";
 import { cn } from "@/lib/utils";
 import { displayBoardShort } from "@/lib/board-label";
 import { getAuthToken } from '@/lib/auth-utils';
@@ -73,20 +74,19 @@ type BookOption = {
   chunkCount?: number;
   processingStatus?: string;
   embeddingsCreated?: boolean;
+  source?: string;
+  contentId?: string;
 };
 
+/** Same title as Book Knowledge Base shows. */
 function bookDisplayTitle(book: BookOption): string {
-  const cat = normalizeIitCategory(book.productCategory);
-  const title = String(book.title || "").trim() || "Untitled";
-  if (!cat) return title;
-  const label = formatIitCategoryLabel(cat);
-  if (new RegExp(`\\b${label}\\b`, "i").test(title) || new RegExp(`\\b${cat}\\b`, "i").test(title)) {
-    return title;
-  }
-  return `${title} · ${label}`;
+  return String(book.title || "").trim() || "Untitled";
 }
 
 function statusBadge(status?: string, indexed?: boolean) {
+  if (indexed && (status === "processing" || status === "pending")) {
+    return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Ready · re-indexing</Badge>;
+  }
   if (indexed || status === "indexed") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Ready</Badge>;
   if (status === "processing") return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Indexing…</Badge>;
   if (status === "needs_ocr") return <Badge variant="destructive">Needs OCR</Badge>;
@@ -310,7 +310,12 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     return topics;
   }, [topics, topic]);
   const selectedBook = useMemo(() => books.find((b) => b._id === bookId), [books, bookId]);
-  const bookReady = Boolean(selectedBook?.embeddingsCreated && selectedBook?.processingStatus === "indexed");
+  // A book being re-indexed keeps its previous chunks live, so it can generate.
+  const bookReady = Boolean(
+    selectedBook?.embeddingsCreated &&
+      (selectedBook?.processingStatus === "indexed" ||
+        (["processing", "pending"].includes(String(selectedBook?.processingStatus)) && (selectedBook?.chunkCount || 0) > 0)),
+  );
   const step1Done = Boolean(bookId && bookReady);
   const curriculumDone = Boolean(
     step1Done && classNumber && subject && topic && (subTopic === WHOLE_CHAPTER_VALUE || subTopic),
@@ -1027,17 +1032,9 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                                 {statusBadge(b.processingStatus, b.embeddingsCreated)}
                               </div>
                               <p className="text-xs text-slate-500 mt-1">
-                                {(() => {
-                                  const branch = scienceBranchDisplayLabel(b.subject);
-                                  const curriculumSubject = bookListSubjectGroupKey(b.board, b.subject);
-                                  const subjectLine =
-                                    branch && curriculumSubject === "Science"
-                                      ? `Science · ${branch}`
-                                      : b.subject || "Subject";
-                                  return bookGroupMode === "class"
-                                    ? `${subjectLine}${normalizeIitCategory(b.productCategory) ? ` · ${formatIitCategoryLabel(b.productCategory)}` : ""}${b.chunkCount ? ` · ${b.chunkCount} chunks` : ""}`
-                                    : `${normalizeClassLabel(b.class)}${branch ? ` · ${branch}` : ""}${normalizeIitCategory(b.productCategory) ? ` · ${formatIitCategoryLabel(b.productCategory)}` : ""}${b.chunkCount ? ` · ${b.chunkCount} chunks` : ""}`;
-                                })()}
+                                {/* Identical line to Book Knowledge Base. */}
+                                {bookMetaLine(b)}
+                                {b.chunkCount ? ` · ${b.chunkCount} chunks` : ""}
                               </p>
                             </button>
                           </li>
@@ -1055,14 +1052,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
               <FileText className="h-4 w-4 shrink-0" />
               <span>
                 Selected: <strong>{bookDisplayTitle(selectedBook)}</strong>
-                {(() => {
-                  const branch = scienceBranchDisplayLabel(selectedBook.subject);
-                  const mapped = curriculumSubjectForAiToolTopics(selectedBook.board, selectedBook.subject);
-                  if (branch && mapped === "Science") {
-                    return ` — CBSE curriculum subject: Science (${branch} textbook)`;
-                  }
-                  return "";
-                })()}
+                {` — ${bookMetaLine(selectedBook)}`}
                 {bookReady ? " — ready for generation" : " — still indexing; reindex from Book Knowledge Base"}
               </span>
             </div>

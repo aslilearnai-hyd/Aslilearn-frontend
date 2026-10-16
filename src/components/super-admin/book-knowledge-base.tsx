@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { getAuthToken } from '@/lib/auth-utils';
 import {
   Dialog,
@@ -24,6 +25,8 @@ import {
   Upload,
   BarChart3,
   Network,
+  Search,
+  X,
 } from "lucide-react";
 import {
   BookCurriculumMappingDialog,
@@ -37,6 +40,7 @@ import { useCurriculumCascade } from "@/hooks/use-curriculum-cascade";
 import { cn } from "@/lib/utils";
 import { formatIitCategoryLabel, isIitStyleBoard, normalizeIitCategory } from "@/lib/products";
 import { useProductCategories } from "@/hooks/use-product-categories";
+import { bookMetaLine } from "@/lib/book-labels";
 
 type BookRow = {
   _id: string;
@@ -57,6 +61,16 @@ type BookRow = {
   chapters?: Array<{ title: string; topic?: string; wordCount?: number }>;
   generationStats?: { totalGenerations?: number; toolBreakdown?: Record<string, number> };
   curriculumMapping?: CurriculumMappingSummary;
+  indexProgress?: {
+    stage?: string;
+    label?: string;
+    done?: number;
+    total?: number;
+    percent?: number;
+    startedAt?: string | null;
+    updatedAt?: string | null;
+  };
+  lastIndexedAt?: string | null;
   createdAt?: string;
 };
 
@@ -75,6 +89,105 @@ type ImportableContentRow = {
   bookStatus?: string | null;
   bookChunkCount?: number;
 };
+
+function isIndexing(book: BookRow) {
+  return book.processingStatus === "processing" || book.processingStatus === "pending";
+}
+
+function formatElapsed(fromIso?: string | null) {
+  if (!fromIso) return "";
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(fromIso).getTime()) / 1000));
+  if (!Number.isFinite(seconds)) return "";
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+/** Live (re)index progress; the previous index keeps serving until it finishes. */
+function IndexProgressBar({ book }: { book: BookRow }) {
+  const progress = book.indexProgress || {};
+  const percent = Math.max(0, Math.min(100, Number(progress.percent) || 0));
+  const label = progress.label || (book.processingStatus === "pending" ? "Queued" : "Starting…");
+  const keepsOld = (book.chunkCount || 0) > 0;
+  return (
+    <div className="mt-3 space-y-1.5" aria-live="polite">
+      <div className="flex items-center justify-between gap-2 text-xs text-slate-600">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-amber-600" />
+          <span className="truncate">{label}</span>
+        </span>
+        <span className="shrink-0 tabular-nums">
+          {percent}%{progress.startedAt ? ` · ${formatElapsed(progress.startedAt)}` : ""}
+        </span>
+      </div>
+      <Progress value={percent} className="h-2" />
+      {keepsOld ? (
+        <p className="text-[11px] text-slate-500">
+          Previous index ({book.chunkCount} chunks) stays live for generation until this finishes.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+type BookFilterKey = "board" | "class" | "subject" | "track" | "status" | "curriculum" | "source";
+type BookFilters = Record<BookFilterKey, string> & { search: string };
+
+const ALL = "__all__";
+const BOOK_FILTER_STORAGE_KEY = "bookKnowledgeBase.filters.v1";
+const EMPTY_BOOK_FILTERS: BookFilters = {
+  search: "",
+  board: "",
+  class: "",
+  subject: "",
+  track: "",
+  status: "",
+  curriculum: "",
+  source: "",
+};
+const BOOK_FILTER_FIELDS: Array<{ key: BookFilterKey; label: string; plural: string }> = [
+  { key: "board", label: "Board", plural: "boards" },
+  { key: "class", label: "Class", plural: "classes" },
+  { key: "subject", label: "Subject", plural: "subjects" },
+  { key: "track", label: "Track", plural: "tracks" },
+  { key: "status", label: "Indexing status", plural: "statuses" },
+  { key: "curriculum", label: "Curriculum mapping", plural: "mapping states" },
+  { key: "source", label: "Source", plural: "sources" },
+];
+const CURRICULUM_FILTER_LABELS: Record<string, string> = {
+  ready: "Mapped",
+  needs_review: "Needs review",
+  unmapped: "Unmapped",
+  no_curriculum: "No curriculum",
+  not_mapped: "Not mapped yet",
+};
+
+function bookFilterValue(book: BookRow, key: BookFilterKey): string {
+  switch (key) {
+    case "board":
+      return String(book.board || "").trim();
+    case "class":
+      return String(book.class || "").trim();
+    case "subject":
+      return String(book.subject || "").trim();
+    case "track":
+      return normalizeIitCategory(book.productCategory) || "GENERAL";
+    case "status":
+      return String(book.processingStatus || "pending");
+    case "curriculum":
+      return String(book.curriculumMapping?.status || "not_mapped");
+    case "source":
+      return book.contentId ? "learning_path" : "uploaded";
+    default:
+      return "";
+  }
+}
+
+function bookFilterLabel(key: BookFilterKey, value: string, iitLabelMap: Record<string, string>): string {
+  if (key === "track") return value === "GENERAL" ? "General" : formatIitCategoryLabel(value, iitLabelMap);
+  if (key === "curriculum") return CURRICULUM_FILTER_LABELS[value] || value;
+  if (key === "source") return value === "learning_path" ? "Learning path" : "Uploaded";
+  if (key === "status") return value.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  return value;
+}
 
 export default function BookKnowledgeBase() {
   const { toast } = useToast();
@@ -520,6 +633,55 @@ export default function BookKnowledgeBase() {
 
   const totalChunks = useMemo(() => books.reduce((n, b) => n + (b.chunkCount || 0), 0), [books]);
 
+  const [bookFilters, setBookFilters] = useState<BookFilters>(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(BOOK_FILTER_STORAGE_KEY) || "null");
+      return saved && typeof saved === "object" ? { ...EMPTY_BOOK_FILTERS, ...saved } : EMPTY_BOOK_FILTERS;
+    } catch {
+      return EMPTY_BOOK_FILTERS;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(BOOK_FILTER_STORAGE_KEY, JSON.stringify(bookFilters));
+    } catch {
+      /* storage unavailable: filters just reset on reload */
+    }
+  }, [bookFilters]);
+  const setBookFilter = (key: keyof BookFilters, value: string) =>
+    setBookFilters((prev) => ({ ...prev, [key]: value }));
+
+  const bookFilterOptions = useMemo(() => {
+    const options = {} as Record<BookFilterKey, Array<{ value: string; label: string }>>;
+    for (const field of BOOK_FILTER_FIELDS) {
+      const seen = new Map<string, string>();
+      for (const book of books) {
+        const value = bookFilterValue(book, field.key);
+        if (value && !seen.has(value)) seen.set(value, bookFilterLabel(field.key, value, iitLabelMap));
+      }
+      options[field.key] = [...seen.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, "en", { numeric: true }));
+    }
+    return options;
+  }, [books, iitLabelMap]);
+
+  const filteredBooks = useMemo(() => {
+    const term = bookFilters.search.trim().toLowerCase();
+    return books.filter((book) => {
+      for (const field of BOOK_FILTER_FIELDS) {
+        const wanted = bookFilters[field.key];
+        if (wanted && bookFilterValue(book, field.key) !== wanted) return false;
+      }
+      if (!term) return true;
+      return [book.title, book.subject, book.topic, book.subtopic, book.class]
+        .some((value) => String(value || "").toLowerCase().includes(term));
+    });
+  }, [books, bookFilters]);
+
+  const activeBookFilterCount = (Object.keys(bookFilters) as Array<keyof BookFilters>)
+    .filter((key) => String(bookFilters[key] || "").trim()).length;
+
   return (
     <div className="w-full max-w-[min(100%,1400px)] mx-auto space-y-6">
       {ConfirmDialog}
@@ -917,12 +1079,59 @@ export default function BookKnowledgeBase() {
           <CardTitle className="text-lg">Uploaded Books</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {books.length > 0 ? (
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative sm:col-span-2 lg:col-span-2">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={bookFilters.search}
+                    onChange={(e) => setBookFilter("search", e.target.value)}
+                    placeholder="Search title, subject or topic"
+                    className="pl-9"
+                    aria-label="Search books"
+                  />
+                </div>
+                {BOOK_FILTER_FIELDS.map((field) => (
+                  <Select
+                    key={field.key}
+                    value={bookFilters[field.key] || ALL}
+                    onValueChange={(value) => setBookFilter(field.key, value === ALL ? "" : value)}
+                  >
+                    <SelectTrigger aria-label={field.label}>
+                      <SelectValue placeholder={field.label} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-80">
+                      <SelectItem value={ALL}>All {field.plural}</SelectItem>
+                      {bookFilterOptions[field.key].map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <span>
+                  Showing {filteredBooks.length} of {books.length} books
+                </span>
+                {activeBookFilterCount > 0 ? (
+                  <Button size="sm" variant="ghost" onClick={() => setBookFilters(EMPTY_BOOK_FILTERS)}>
+                    <X className="mr-1 h-3.5 w-3.5" /> Clear filters ({activeBookFilterCount})
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin text-violet-500" /></div>
           ) : books.length === 0 ? (
             <p className="text-sm text-slate-500 py-8 text-center">No books uploaded yet.</p>
+          ) : filteredBooks.length === 0 ? (
+            <p className="text-sm text-slate-500 py-8 text-center">No books match these filters.</p>
           ) : (
-            books.map((book) => (
+            filteredBooks.map((book) => (
               <div
                 key={book._id}
                 className="flex flex-wrap items-center gap-3 justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -930,12 +1139,7 @@ export default function BookKnowledgeBase() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-900 break-words">{book.title}</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {book.board} · {book.class} · {book.subject}
-                    {normalizeIitCategory(book.productCategory)
-                      ? ` · ${formatIitCategoryLabel(book.productCategory, iitLabelMap)}`
-                      : ""}
-                    {book.topic ? ` · ${book.topic}` : ""}
-                    {book.subtopic ? ` / ${book.subtopic}` : ""} · {book.source}
+                    {bookMetaLine(book, iitLabelMap)}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge className={statusBadge(book.processingStatus)}>{book.processingStatus}</Badge>
@@ -963,10 +1167,20 @@ export default function BookKnowledgeBase() {
                     )}
                     <Badge variant="outline">{book.chunkCount || 0} chunks</Badge>
                     <Badge variant="outline">{book.generationStats?.totalGenerations || 0} generations</Badge>
-                    {book.processingStatus === "indexed" ? <CurriculumMappingBadge mapping={book.curriculumMapping} /> : null}
+                    {book.processingStatus === "indexed" || (book.chunkCount || 0) > 0 ? (
+                      <CurriculumMappingBadge mapping={book.curriculumMapping} />
+                    ) : null}
                   </div>
-                  {book.processingStatus === 'failed' && book.processingError ? (
-                    <p className="mt-2 text-xs font-medium text-red-700">{book.processingError}</p>
+                  {isIndexing(book) ? <IndexProgressBar book={book} /> : null}
+                  {book.processingError && (book.processingStatus === "failed" || book.processingStatus === "indexed") ? (
+                    <p
+                      className={cn(
+                        "mt-2 text-xs font-medium",
+                        book.processingStatus === "failed" ? "text-red-700" : "text-amber-700",
+                      )}
+                    >
+                      {book.processingError}
+                    </p>
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -977,7 +1191,7 @@ export default function BookKnowledgeBase() {
                     size="sm"
                     variant="outline"
                     onClick={() => setMappingBook(book)}
-                    disabled={book.processingStatus !== "indexed"}
+                    disabled={book.processingStatus !== "indexed" && !(book.chunkCount || 0)}
                     title="AI Tools topic/subtopic mapping"
                   >
                     <Network className="h-4 w-4 mr-1" /> Curriculum
