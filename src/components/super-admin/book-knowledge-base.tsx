@@ -23,7 +23,13 @@ import {
   Trash2,
   Upload,
   BarChart3,
+  Network,
 } from "lucide-react";
+import {
+  BookCurriculumMappingDialog,
+  CurriculumMappingBadge,
+  type CurriculumMappingSummary,
+} from "@/components/super-admin/book-curriculum-mapping-dialog";
 import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirm } from "@/hooks/use-confirm";
@@ -50,6 +56,7 @@ type BookRow = {
   contentId?: string;
   chapters?: Array<{ title: string; topic?: string; wordCount?: number }>;
   generationStats?: { totalGenerations?: number; toolBreakdown?: Record<string, number> };
+  curriculumMapping?: CurriculumMappingSummary;
   createdAt?: string;
 };
 
@@ -79,6 +86,7 @@ export default function BookKnowledgeBase() {
   const [reindexingId, setReindexingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewBook, setViewBook] = useState<BookRow | null>(null);
+  const [mappingBook, setMappingBook] = useState<BookRow | null>(null);
   const [textPreview, setTextPreview] = useState("");
   const [chunksPreview, setChunksPreview] = useState<Array<{ chunkIndex: number; chapter: string; contentPreview: string }>>([]);
   const [chunksTotal, setChunksTotal] = useState(0);
@@ -922,6 +930,7 @@ export default function BookKnowledgeBase() {
                     {book.contentId && <Badge variant="outline" className="border-emerald-300 text-emerald-700">Learning path</Badge>}
                     <Badge variant="outline">{book.chunkCount || 0} chunks</Badge>
                     <Badge variant="outline">{book.generationStats?.totalGenerations || 0} generations</Badge>
+                    {book.processingStatus === "indexed" ? <CurriculumMappingBadge mapping={book.curriculumMapping} /> : null}
                   </div>
                   {book.processingStatus === 'failed' && book.processingError ? (
                     <p className="mt-2 text-xs font-medium text-red-700">{book.processingError}</p>
@@ -930,6 +939,15 @@ export default function BookKnowledgeBase() {
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => void openBookDetails(book)}>
                     <FileText className="h-4 w-4 mr-1" /> View
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMappingBook(book)}
+                    disabled={book.processingStatus !== "indexed"}
+                    title="AI Tools topic/subtopic mapping"
+                  >
+                    <Network className="h-4 w-4 mr-1" /> Curriculum
                   </Button>
                   <Button
                     size="sm"
@@ -957,6 +975,17 @@ export default function BookKnowledgeBase() {
           )}
         </CardContent>
       </Card>
+
+      <BookCurriculumMappingDialog
+        bookId={mappingBook?._id || null}
+        bookTitle={mappingBook?.title}
+        open={!!mappingBook}
+        onOpenChange={(open) => {
+          if (!open) setMappingBook(null);
+        }}
+        authHeaders={authHeaders}
+        onChanged={() => void loadBooks()}
+      />
 
       <Dialog open={!!viewBook} onOpenChange={() => setViewBook(null)}>
         <DialogContent className="flex max-h-[min(92vh,900px)] w-[min(96vw,900px)] max-w-[min(96vw,900px)] flex-col overflow-hidden">
