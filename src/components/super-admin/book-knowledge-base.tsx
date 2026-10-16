@@ -435,7 +435,12 @@ export default function BookKnowledgeBase() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message || "Reindex failed");
-      toast({ title: "Reindexed", description: `${json.data?.chunkCount || 0} chunks indexed.` });
+      // The API only starts the job (re-read PDF, figures, mapping, embeddings);
+      // the list refreshes itself while the book shows "processing".
+      toast({
+        title: "Re-indexing started",
+        description: "The book is re-read, figures cropped and chunks rebuilt in the background (usually a few minutes). Status updates here automatically.",
+      });
       await loadBooks();
     } catch (e: any) {
       toast({ title: "Reindex failed", description: e.message, variant: "destructive" });
