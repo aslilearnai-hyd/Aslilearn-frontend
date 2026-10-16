@@ -148,8 +148,8 @@ export default function BookKnowledgeBase() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const loadBooks = async () => {
-    setLoading(true);
+  const loadBooks = async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/book-knowledge/books`, {
         headers: { ...authHeaders() },
@@ -159,12 +159,24 @@ export default function BookKnowledgeBase() {
       if (!res.ok || !json.success) throw new Error(json.message || "Failed to load books");
       setBooks(Array.isArray(json.data) ? json.data : []);
     } catch (e: any) {
-      toast({ title: "Load failed", description: e.message, variant: "destructive" });
-      setBooks([]);
+      if (!options?.silent) {
+        toast({ title: "Load failed", description: e.message, variant: "destructive" });
+        setBooks([]);
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
+
+  // Indexing/remapping runs in the background; keep statuses and chunk counts
+  // current without a manual Refresh while any book is still working.
+  const hasActiveIndexing = books.some((b) => ["processing", "pending"].includes(b.processingStatus));
+  useEffect(() => {
+    if (!hasActiveIndexing) return;
+    const timer = window.setInterval(() => void loadBooks({ silent: true }), 5000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasActiveIndexing]);
 
   useEffect(() => {
     void loadBooks();
@@ -927,7 +939,23 @@ export default function BookKnowledgeBase() {
                         {formatIitCategoryLabel(book.productCategory, iitLabelMap)}
                       </Badge>
                     ) : null}
-                    {book.contentId && <Badge variant="outline" className="border-emerald-300 text-emerald-700">Learning path</Badge>}
+                    {book.contentId ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-300 text-emerald-700"
+                        title="Imported from Subjects & Content (learning path); reuses that file."
+                      >
+                        Learning path
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-slate-300 text-slate-600"
+                        title="Uploaded directly on this page; not linked to a learning-path content item."
+                      >
+                        Uploaded
+                      </Badge>
+                    )}
                     <Badge variant="outline">{book.chunkCount || 0} chunks</Badge>
                     <Badge variant="outline">{book.generationStats?.totalGenerations || 0} generations</Badge>
                     {book.processingStatus === "indexed" ? <CurriculumMappingBadge mapping={book.curriculumMapping} /> : null}

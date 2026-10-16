@@ -49,6 +49,8 @@ type CurriculumTopic = {
 type MappedSection = {
   sectionKey: string;
   level: number;
+  /** "exercise" = end-of-chapter practice block, "synopsis" = chapter-level note. */
+  kind?: string;
   number?: string;
   title?: string;
   chapterTitle?: string;
@@ -199,7 +201,8 @@ export function BookCurriculumMappingDialog({
           s.mappingStatus === "unmapped" ||
           s.mappingStatus === "needs_review" ||
           // Numbered sub-sections that only reached topic level still need a subtopic.
-          (s.level >= 2 && !s.aiSubtopicId && s.mappingStatus !== "rejected"),
+          // Exercise blocks are chapter-level by design, not a gap to review.
+          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected"),
       ),
     [sections],
   );
@@ -397,9 +400,16 @@ export function BookCurriculumMappingDialog({
                               {section.mappingMethod ? <span>· {section.mappingMethod}</span> : null}
                               <span>· {Math.round((section.mappingConfidence || 0) * 100)}%</span>
                             </div>
-                            <Badge variant="outline" className={cn("text-[11px]", SECTION_STATUS_CLASS[section.mappingStatus || ""])}>
-                              {section.mappingStatus || "unmapped"}
-                            </Badge>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="outline" className={cn("text-[11px]", SECTION_STATUS_CLASS[section.mappingStatus || ""])}>
+                                {section.mappingStatus || "unmapped"}
+                              </Badge>
+                              {section.kind === "exercise" ? (
+                                <Badge variant="outline" className="border-violet-200 bg-violet-50 text-[11px] text-violet-700">
+                                  Exercises · whole chapter
+                                </Badge>
+                              ) : null}
+                            </div>
                             {section.preview ? (
                               <p className="line-clamp-2 text-xs text-slate-500">{section.preview}</p>
                             ) : null}
@@ -469,6 +479,9 @@ export function BookCurriculumMappingDialog({
                 </div>
                 <p className="mt-2 text-xs text-slate-500">
                   Highlighted subtopics have no mapped chunks — generation for them stops before calling Gemini.
+                  To fill one: open <strong>Review mappings</strong> → <strong>Show all sections</strong>, find the book
+                  section that teaches it and pick that subtopic in its dropdown. If the book never covers it, leave it empty.
+                  Books indexed before this update need <strong>Remap</strong> once.
                 </p>
               </TabsContent>
 
