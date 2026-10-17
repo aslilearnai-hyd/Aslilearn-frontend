@@ -26,6 +26,8 @@ export type CurriculumMappingSummary = {
   unmappedHighValueSections?: number;
   chunkCount?: number;
   chunksWithoutSubtopic?: number;
+  frontMatterChunks?: number;
+  exerciseChunks?: number;
   confidenceBands?: { high?: number; review?: number; low?: number };
   mappedAt?: string | null;
 };
@@ -119,11 +121,12 @@ export function CurriculumMappingBadge({ mapping }: { mapping?: CurriculumMappin
   );
 }
 
-function Stat({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
+function Stat({ label, value, warn, hint }: { label: string; value: string | number; warn?: boolean; hint?: string }) {
   return (
     <div className={cn("rounded-lg border p-3", warn ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white")}>
       <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
       <p className={cn("text-lg font-semibold", warn ? "text-amber-800" : "text-slate-900")}>{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{hint}</p> : null}
     </div>
   );
 }
@@ -331,11 +334,21 @@ export function BookCurriculumMappingDialog({
               <Stat label="Unmapped sections" value={mapping.unmappedSections || 0} warn={(mapping.unmappedSections || 0) > 0} />
               <Stat label="Needs review" value={mapping.needsReviewSections || 0} warn={(mapping.needsReviewSections || 0) > 0} />
               <Stat label="Chunks" value={mapping.chunkCount || 0} />
-              <Stat label="Chunks w/o subtopic" value={mapping.chunksWithoutSubtopic || 0} />
+              <Stat
+                label="Chunks w/o subtopic"
+                value={mapping.chunksWithoutSubtopic || 0}
+                hint={
+                  mapping.frontMatterChunks != null || mapping.exerciseChunks != null
+                    ? `${mapping.frontMatterChunks || 0} front matter (never used) · ${mapping.exerciseChunks || 0} chapter exercises`
+                    : undefined
+                }
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span>Confidence:</span>
+              <span>
+                Mapping confidence ({(mapping.confidenceBands?.high || 0) + (mapping.confidenceBands?.review || 0) + (mapping.confidenceBands?.low || 0)} book sections):
+              </span>
               <Badge variant="outline" className="border-emerald-300 text-emerald-700">high {mapping.confidenceBands?.high || 0}</Badge>
               <Badge variant="outline" className="border-amber-300 text-amber-700">review {mapping.confidenceBands?.review || 0}</Badge>
               <Badge variant="outline" className="border-red-300 text-red-700">low {mapping.confidenceBands?.low || 0}</Badge>
