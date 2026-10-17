@@ -152,6 +152,38 @@ function sanitizeWorksheetAnswerKey(text: string): string {
   return parts[0] || raw;
 }
 
+/**
+ * Some records carry a placeholder instead of an answer key
+ * ("All questions. See sections above. (Step-by-step logic provided in each
+ * section.)"). Teachers then see no answers at all.
+ */
+export function isPlaceholderAnswerKey(text: string): boolean {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return true;
+  return (
+    /\bsee\s+(?:the\s+)?(?:sections?|questions?|answers?)\s+above\b/i.test(t) ||
+    /\bprovided\s+in\s+each\s+section\b/i.test(t) ||
+    /^(?:q\s*)?all\s+questions\b/i.test(t) ||
+    /\bsee\s+(?:core|model\s+answer)\b/i.test(t)
+  ) && t.length < 400;
+}
+
+/** Answer key rebuilt from each question's own answer, section by section. */
+export function buildAnswerKeyFromQuestions(sections: WorksheetSection[]): string {
+  const blocks: string[] = [];
+  for (const section of sections) {
+    const lines = section.questions
+      .filter((q) => String(q.answer || '').trim())
+      .map((q, i) => {
+        const n = q.questionNumber ?? i + 1;
+        const why = String(q.explanation || '').trim();
+        return `${n}. ${String(q.answer).trim()}${why ? ` — ${why}` : ''}`;
+      });
+    if (lines.length) blocks.push([section.displayLabel || section.label, ...lines].filter(Boolean).join('\n'));
+  }
+  return blocks.join('\n\n');
+}
+
 function stripInlineMarkdown(text: string): string {
   let t = String(text || '');
   if (!t.trim()) return '';
@@ -210,9 +242,13 @@ function finalizeNormalizedWorksheet(worksheet: NormalizedWorksheet): Normalized
     learningObjectives: worksheet.learningObjectives.filter(filterWorksheetLearningObjectiveLine),
     instructions: isWorksheetHeadingLine(worksheet.instructions) ? '' : worksheet.instructions,
   };
+  const sections = renumberWorksheetSectionQuestions(polished.sections);
+  // Replace a placeholder answer key with the per-question answers we have.
+  const rebuilt = isPlaceholderAnswerKey(polished.answerKey) ? buildAnswerKeyFromQuestions(sections) : '';
   return {
     ...polished,
-    sections: renumberWorksheetSectionQuestions(polished.sections),
+    answerKey: rebuilt || polished.answerKey,
+    sections,
   };
 }
 

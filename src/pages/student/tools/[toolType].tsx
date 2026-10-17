@@ -30,7 +30,7 @@ import {
 } from '@/lib/ai-tool-response-payload';
 import { buildTeacherToolWordText } from '@/lib/ai-tool-teacher-export';
 import {
-  getAiToolBoardOptions,
+  getAiToolBoardOptions, aiToolBoardLabel,
   getDefaultAiToolBoard,
   mapGradeLevelForIitBoard,
   parseAiToolClassNumber,
@@ -1913,7 +1913,7 @@ export default function StudentToolPage() {
                     <SelectContent>
                       {boardOptions.map((option) => (
                         <SelectItem key={option} value={option}>
-                          {option}
+                          {aiToolBoardLabel(option)}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -34,7 +34,17 @@ import {
   formatLibraryContentContextLabel,
   isIitTrackContent,
   libraryContentBelongsToOpenedSubject,
+  formatLibraryContentClassLabel,
+  getLibraryContentProductCategory,
 } from '@/lib/library-content-labels';
+import { formatIitCategoryLabel } from '@/lib/products';
+
+const IIT_TRACK_ORDER = ['ALPHA', 'BETA', 'GAMMA', 'DELTA', 'OMEGA'];
+
+function classNumberOf(label: string): number {
+  const n = parseInt(String(label || '').replace(/\D+/g, ' ').trim().split(' ')[0] || '', 10);
+  return Number.isFinite(n) ? n : 999;
+}
 
 interface ContentItem {
   _id: string;
@@ -456,6 +466,37 @@ export default function CalendarView({
   const boardContents = sortedContents.filter((c) => !isIitTrackContent(c));
   const iitContents = sortedContents.filter((c) => isIitTrackContent(c));
 
+  // IIT material: one group per class + track ("Class 6 · IIT Alpha"), ordered
+  // by class then track; inside a group by content type, then chapter order.
+  const iitGroups = (() => {
+    const groups = new Map<string, { key: string; label: string; classNo: number; trackRank: number; items: ContentItem[] }>();
+    for (const content of iitContents) {
+      const classLabel = formatLibraryContentClassLabel(content) || 'Class —';
+      const track = getLibraryContentProductCategory(content);
+      const key = `${classLabel}|${track}`;
+      const group = groups.get(key) || {
+        key,
+        label: [classLabel, track ? `IIT ${formatIitCategoryLabel(track)}` : 'IIT'].join(' · '),
+        classNo: classNumberOf(classLabel),
+        trackRank: track ? (IIT_TRACK_ORDER.indexOf(track) + 1 || 50) : 0,
+        items: [],
+      };
+      group.items.push(content);
+      groups.set(key, group);
+    }
+    const typeRank = (type?: string) => {
+      const i = CONTENT_TYPE_ORDER.indexOf(type as ContentItem['type']);
+      return i === -1 ? 99 : i;
+    };
+    return [...groups.values()]
+      .sort((a, b) => a.classNo - b.classNo || a.trackRank - b.trackRank || a.label.localeCompare(b.label))
+      .map((group) => ({
+        ...group,
+        // Stable sort keeps the chapter-wise order within the same type.
+        items: [...group.items].sort((a, b) => typeRank(a.type) - typeRank(b.type)),
+      }));
+  })();
+
   const groupedByType = boardContents.reduce<Record<string, ContentItem[]>>((acc, content) => {
     const type = content.type || 'Content';
     if (!acc[type]) acc[type] = [];
@@ -486,12 +527,9 @@ export default function CalendarView({
     });
     const subtitleBits = opts?.iit
       ? [
-          contextLabel || null,
-          iitTrackLabel && iitTrackLabel !== title && iitTrackLabel !== contextLabel
-            ? iitTrackLabel
-            : null,
           content.chapter ? `Chapter ${content.chapter}` : null,
-          content.type || null,
+          content.module ? `Module ${content.module}` : null,
+          content.type ? getContentTypeLabel(content.type) : null,
         ].filter(Boolean)
       : [
           contextLabel || null,
@@ -511,12 +549,12 @@ export default function CalendarView({
             <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${opts?.iit ? 'text-amber-300' : 'text-blue-600'}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 text-xs sm:text-sm truncate">
+            <h4 className="font-medium text-gray-900 text-xs sm:text-sm line-clamp-2 break-words">
               {title}
             </h4>
             {subtitleBits.length > 0 && (
-              <p className="text-xs text-gray-500 mt-0.5 truncate">
-                {subtitleBits.join(' · ')}
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 break-words">
+                {[...new Set(subtitleBits)].join(' · ')}
               </p>
             )}
             {content.description && (
@@ -605,12 +643,19 @@ export default function CalendarView({
               </div>
             </section>
           ))}
-          {iitContents.length > 0 ? (
-            <section className="space-y-2">
-              <h3 className="text-sm sm:text-base font-semibold text-gray-900">IIT</h3>
-              <div className="space-y-2">
-                {iitContents.map((content) => renderContentCard(content, { iit: true }))}
-              </div>
+          {iitGroups.length > 0 ? (
+            <section className="space-y-4">
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900">IIT / NEET</h3>
+              {iitGroups.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {group.label} ({group.items.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {group.items.map((content) => renderContentCard(content, { iit: true }))}
+                  </div>
+                </div>
+              ))}
             </section>
           ) : null}
         </div>

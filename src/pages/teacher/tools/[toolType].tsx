@@ -25,7 +25,7 @@ import {
   resolveAiToolDisplayState,
 } from '@/lib/ai-tool-response-payload';
 import {
-  getAiToolBoardOptions,
+  getAiToolBoardOptions, aiToolBoardLabel,
   getDefaultAiToolBoard,
   mapGradeLevelForIitBoard,
   parseAiToolClassNumber,
@@ -1463,7 +1463,7 @@ export default function TeacherToolPage() {
                   <SelectContent>
                     {boardOptions.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {option}
+                        {aiToolBoardLabel(option)}
                       </SelectItem>
                     ))}
                   </SelectContent>

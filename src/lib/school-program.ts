@@ -106,6 +106,13 @@ export function getAiToolBoardOptions(
   return options;
 }
 
+/** Display name for an AI tool board value ("IIT" is the IIT / NEET track). */
+export function aiToolBoardLabel(board: string): string {
+  const compact = String(board || '').toUpperCase().replace(/[\s/\\-]+/g, '');
+  if (compact === 'IIT' || compact === 'IITNEET' || compact === 'NEET') return 'IIT / NEET';
+  return board;
+}
+
 /** Default AI tool board is always the school's curriculum board. */
 export function getDefaultAiToolBoard(
   _isAsliPrepExclusive: boolean,
