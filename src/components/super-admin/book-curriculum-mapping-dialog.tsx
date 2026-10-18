@@ -13,6 +13,18 @@ import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+export type SubtopicCoverageStatus = "mapped" | "not_covered_by_source" | "mapping_gap";
+
+const CHUNK_STATUS_LABEL: Record<string, string> = {
+  mapped: "Mapped to a subtopic",
+  chapter_general: "Chapter-general",
+  exercise_general: "Chapter exercises",
+  front_matter: "Front matter (never used)",
+  needs_review: "Waiting for review (not served)",
+  mapping_gap: "Teaching text without subtopic",
+  rejected: "Excluded",
+};
+
 export type CurriculumMappingStatus = "ready" | "needs_review" | "unmapped" | "no_curriculum" | "not_mapped";
 
 export type CurriculumMappingSummary = {
@@ -34,6 +46,19 @@ export type CurriculumMappingSummary = {
   frontMatterChunks?: number;
   exerciseChunks?: number;
   confidenceBands?: { high?: number; review?: number; low?: number };
+  notCoveredSubtopics?: number;
+  mappingGapSubtopics?: number;
+  /** Chunk counts per explicit retrieval status. */
+  chunkStatus?: Record<string, number>;
+  gates?: Array<{ key: string; label: string; pass: boolean; detail?: string }>;
+  mathQa?: {
+    applicable?: boolean;
+    flaggedSections?: number;
+    repairedExponents?: number;
+    repairedLetters?: number;
+    samples?: Array<{ sectionKey: string; title?: string; snippet?: string; hits?: Record<string, number> }>;
+  } | null;
+  subtopicCoverage?: Array<{ aiSubtopicId: string; aiTopicKey: string; status: SubtopicCoverageStatus; manual?: boolean }>;
   mappedAt?: string | null;
 };
 
@@ -161,7 +186,7 @@ function CurriculumTargetPicker({
   const label = useMemo(() => {
     if (!value) return "";
     for (const topic of curriculum) {
-      if (value === topicValue(topic.aiTopicKey)) return `${topic.topicName} (whole topic)`;
+      if (value === topicValue(topic.aiTopicKey)) return `${topic.topicName} (chapter-general)`;
       const sub = topic.subtopics.find((s) => value === subValue(s.aiSubtopicId));
       if (sub) return `${sub.number ? `${sub.number} ` : ""}${sub.name}`;
     }
@@ -201,7 +226,7 @@ function CurriculumTargetPicker({
                   className="font-semibold"
                 >
                   <Check className={cn("mr-2 h-4 w-4", value === topicValue(topic.aiTopicKey) ? "opacity-100" : "opacity-0")} />
-                  {topic.topicName} (whole topic)
+                  {topic.topicName} (chapter-general)
                 </CommandItem>
                 {topic.subtopics.map((sub) => (
                   <CommandItem
@@ -300,10 +325,42 @@ export function BookCurriculumMappingDialog({
     [sections],
   );
   const visibleSections = (showAllSections ? sections : reviewSections).slice(0, 300);
-  const emptySubtopics = curriculum.reduce(
-    (n, t) => n + t.subtopics.filter((s) => !s.chunkCount).length,
-    0,
+  const coverageById = useMemo(
+    () => new Map((mapping.subtopicCoverage || []).map((row) => [String(row.aiSubtopicId), row])),
+    [mapping.subtopicCoverage],
   );
+  // Topics this book teaches (others belong to another book, e.g. Part-2).
+  const bookTopicKeys = useMemo(() => {
+    const keys = new Set((mapping.subtopicCoverage || []).map((row) => row.aiTopicKey));
+    for (const t of curriculum) if (t.topicLevelChunks || t.subtopics.some((s) => s.chunkCount)) keys.add(t.aiTopicKey);
+    return keys;
+  }, [mapping.subtopicCoverage, curriculum]);
+  const bookCurriculum = bookTopicKeys.size ? curriculum.filter((t) => bookTopicKeys.has(t.aiTopicKey)) : curriculum;
+  const hiddenTopics = curriculum.length - bookCurriculum.length;
+  const emptySubtopics =
+    mapping.mappingGapSubtopics ??
+    bookCurriculum.reduce((n, t) => n + t.subtopics.filter((s) => !s.chunkCount).length, 0);
+  const [coverageSaving, setCoverageSaving] = useState<string | null>(null);
+
+  const setSubtopicCoverage = async (aiSubtopicId: string, notCovered: boolean) => {
+    setCoverageSaving(aiSubtopicId);
+    try {
+      const res = await fetch(`${base}/subtopics/${encodeURIComponent(aiSubtopicId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        credentials: "include",
+        body: JSON.stringify({ status: notCovered ? "not_covered_by_source" : null }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "Update failed");
+      toast({ title: notCovered ? "Marked: not in this book" : "Label cleared" });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Update failed", description: e.message, variant: "destructive" });
+    } finally {
+      setCoverageSaving(null);
+    }
+  };
   const testTopicRow = curriculum.find((t) => t.aiTopicKey === testTopic);
 
   const saveSection = async (section: MappedSection, body: Record<string, unknown>) => {
@@ -409,7 +466,7 @@ export function BookCurriculumMappingDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-600">
                 <span>Mapped section text</span>
-                <span>{coveragePct}% (ready at 95%)</span>
+                <span>{coveragePct}%</span>
               </div>
               <Progress value={coveragePct} className="h-2" />
             </div>
@@ -461,11 +518,18 @@ export function BookCurriculumMappingDialog({
               </div>
             </div>
 
+            <ReadinessPanel
+              mapping={mapping}
+              sections={sections}
+              savingKey={savingKey}
+              onExclude={(section) => void saveSection(section, { reject: true })}
+            />
+
             <Tabs defaultValue="review">
               <TabsList className="flex h-auto flex-wrap">
                 <TabsTrigger value="review">Review mappings ({reviewSections.length})</TabsTrigger>
                 <TabsTrigger value="subtopics">
-                  Subtopics{emptySubtopics ? ` (${emptySubtopics} empty)` : ""}
+                  Subtopics{emptySubtopics ? ` (${emptySubtopics} gaps)` : ""}
                 </TabsTrigger>
                 <TabsTrigger value="test">Test retrieval</TabsTrigger>
               </TabsList>
@@ -560,26 +624,29 @@ export function BookCurriculumMappingDialog({
                       <tr>
                         <th className="px-3 py-2">Topic / subtopic</th>
                         <th className="px-3 py-2 text-right">Chunks</th>
-                        <th className="px-3 py-2">Figures / equations / tables</th>
+                        <th className="px-3 py-2">Status / figures</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {curriculum.map((topic) => (
+                      {bookCurriculum.map((topic) => (
                         <FragmentRows
                           key={topic.aiTopicKey}
                           topic={topic}
                           sections={sections}
-                          savingKey={savingKey}
+                          savingKey={savingKey ?? coverageSaving}
+                          coverageById={coverageById}
                           onAssign={(section, aiSubtopicId) => void saveSection(section, { aiSubtopicId })}
+                          onNotCovered={(aiSubtopicId, notCovered) => void setSubtopicCoverage(aiSubtopicId, notCovered)}
                         />
                       ))}
                     </tbody>
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-slate-500">
-                  Highlighted subtopics have no book section of their own yet; generation for them uses the whole
-                  chapter. To fix one, press <strong>Assign book section</strong> on its row and pick the heading that
-                  teaches it. If the book never covers it, leave it empty.
+                  An empty subtopic is either a <strong>mapping gap</strong> (the book seems to teach it: press{" "}
+                  <strong>Assign book section</strong>) or <strong>not in this book</strong>. Generation for an empty
+                  subtopic stops before calling Gemini and says which of the two it is.
+                  {hiddenTopics > 0 ? ` ${hiddenTopics} class topic(s) taught in another book are hidden.` : ""}
                   Books indexed before this update need <strong>Remap</strong> once.
                 </p>
               </TabsContent>
@@ -675,6 +742,109 @@ export function BookCurriculumMappingDialog({
   );
 }
 
+/** Readiness gates, chunk statuses and the maths-notation QA list. */
+function ReadinessPanel({
+  mapping,
+  sections,
+  savingKey,
+  onExclude,
+}: {
+  mapping: CurriculumMappingSummary;
+  sections: MappedSection[];
+  savingKey: string | null;
+  onExclude: (section: MappedSection) => void;
+}) {
+  const gates = mapping.gates || [];
+  const chunkStatus = mapping.chunkStatus || {};
+  const qa = mapping.mathQa;
+  if (!gates.length) {
+    return (
+      <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+        Readiness gates appear after the next <strong>Remap</strong>.
+      </p>
+    );
+  }
+  const passed = gates.filter((g) => g.pass).length;
+  return (
+    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-800">
+          Readiness gates · {passed}/{gates.length} passed
+        </p>
+        <span className="text-xs text-slate-500">All must pass before the book counts as Ready.</span>
+      </div>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {gates.map((g) => (
+          <li
+            key={g.key}
+            className={cn(
+              "flex items-start gap-2 rounded-md border px-2.5 py-2 text-xs",
+              g.pass ? "border-emerald-200 bg-emerald-50/60" : "border-red-200 bg-red-50/60",
+            )}
+          >
+            {g.pass ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            ) : (
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            )}
+            <span className="min-w-0">
+              <span className="block font-semibold text-slate-800">{g.label}</span>
+              {g.detail ? <span className="block break-words text-slate-600">{g.detail}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {Object.keys(chunkStatus).length ? (
+        <div className="flex flex-wrap gap-1.5 text-[11px]">
+          {Object.entries(chunkStatus).map(([key, n]) => (
+            <Badge
+              key={key}
+              variant="outline"
+              className={cn(
+                key === "mapping_gap" || key === "needs_review" ? "border-amber-300 text-amber-800" : "border-slate-200 text-slate-600",
+              )}
+            >
+              {CHUNK_STATUS_LABEL[key] || key}: {n}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {qa?.applicable && (qa.samples || []).length ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-700">
+            Damaged formulas: fix the source PDF and reindex, or exclude the section from retrieval
+          </p>
+          {(qa.samples || []).map((sample) => {
+            const section = sections.find((s) => s.sectionKey === sample.sectionKey);
+            return (
+              <div key={sample.sectionKey} className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2 sm:flex-row sm:items-start">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-slate-800">{sample.title || "(untitled section)"}</p>
+                  {sample.snippet ? (
+                    <p data-no-title-case className="mt-0.5 break-words font-mono text-[11px] text-slate-600">{sample.snippet}</p>
+                  ) : null}
+                </div>
+                {section ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 shrink-0 px-2 text-xs"
+                    disabled={savingKey != null || section.mappingStatus === "rejected"}
+                    onClick={() => onExclude(section)}
+                  >
+                    {section.mappingStatus === "rejected" ? "Excluded" : "Exclude section"}
+                  </Button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Pick the book section that teaches an empty subtopic (reverse of the review list). */
 function SectionAssignPicker({
   topic,
@@ -742,12 +912,16 @@ function FragmentRows({
   topic,
   sections,
   savingKey,
+  coverageById,
   onAssign,
+  onNotCovered,
 }: {
   topic: CurriculumTopic;
   sections: MappedSection[];
   savingKey: string | null;
+  coverageById: Map<string, { status: SubtopicCoverageStatus; manual?: boolean }>;
   onAssign: (section: MappedSection, aiSubtopicId: string) => void;
+  onNotCovered: (aiSubtopicId: string, notCovered: boolean) => void;
 }) {
   const assetText = (assets: Record<string, number>) =>
     Object.entries(assets || {})
@@ -765,7 +939,10 @@ function FragmentRows({
       {topic.subtopics.map((sub) => (
         <tr
           key={sub.aiSubtopicId}
-          className={cn("border-t border-slate-100", !sub.chunkCount && "bg-amber-50")}
+          className={cn(
+            "border-t border-slate-100",
+            !sub.chunkCount && coverageById.get(sub.aiSubtopicId)?.status !== "not_covered_by_source" && "bg-amber-50",
+          )}
         >
           <td className="px-3 py-1.5 pl-8 text-slate-700">
             {sub.number ? `${sub.number} ` : ""}
@@ -777,13 +954,44 @@ function FragmentRows({
           <td className="px-3 py-1.5 text-xs text-slate-500">
             {sub.chunkCount ? (
               assetText(sub.assets)
+            ) : coverageById.get(sub.aiSubtopicId)?.status === "not_covered_by_source" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-slate-300 bg-slate-100 text-[11px] text-slate-700">
+                  Not in this book{coverageById.get(sub.aiSubtopicId)?.manual ? " (admin)" : ""}
+                </Badge>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  disabled={savingKey != null}
+                  onClick={() => onNotCovered(sub.aiSubtopicId, false)}
+                >
+                  Undo
+                </Button>
+              </div>
             ) : (
-              <SectionAssignPicker
-                topic={topic}
-                sections={sections}
-                disabled={savingKey != null}
-                onAssign={(section) => onAssign(section, sub.aiSubtopicId)}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-[11px] text-amber-800">
+                  Mapping gap
+                </Badge>
+                <SectionAssignPicker
+                  topic={topic}
+                  sections={sections}
+                  disabled={savingKey != null}
+                  onAssign={(section) => onAssign(section, sub.aiSubtopicId)}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  disabled={savingKey != null}
+                  onClick={() => onNotCovered(sub.aiSubtopicId, true)}
+                >
+                  Not in this book
+                </Button>
+              </div>
             )}
           </td>
         </tr>
