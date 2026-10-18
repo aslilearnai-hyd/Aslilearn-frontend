@@ -108,8 +108,9 @@ export function getAiToolBoardOptions(
 
 /** Display name for an AI tool board value ("IIT" is the IIT / NEET track). */
 export function aiToolBoardLabel(board: string): string {
-  const compact = String(board || '').toUpperCase().replace(/[\s/\\-]+/g, '');
-  if (compact === 'IIT' || compact === 'IITNEET' || compact === 'NEET') return 'IIT / NEET';
+  const compact = String(board || '').toUpperCase().replace(/[\s/\\_-]+/g, '');
+  // "IIT", "IIT/NEET", "IIT Alpha", "IIT-JEE", "NEET"… are all the IIT / NEET track.
+  if (compact.startsWith('IIT') || compact.includes('NEET') || compact.includes('JEE')) return 'IIT / NEET';
   return board;
 }
 

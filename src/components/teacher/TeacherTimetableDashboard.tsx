@@ -69,6 +69,16 @@ export default function TeacherTimetableDashboard() {
     }
   };
 
+  /** Drop a picked photo that has not been saved yet. */
+  const discardPending = () => {
+    setPendingFile(null);
+    setPreviewUrl((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleDelete = async () => {
     if (!photo) return;
     try {
@@ -127,6 +137,29 @@ export default function TeacherTimetableDashboard() {
               <Upload className="mr-2 h-4 w-4" />
               {uploadMutation.isPending ? 'Saving…' : 'Save timetable'}
             </Button>
+            {pendingFile ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+                disabled={uploadMutation.isPending}
+                onClick={discardPending}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove selected photo
+              </Button>
+            ) : photo ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => void handleDelete()}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove photo
+              </Button>
+            ) : null}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-inner">
@@ -179,22 +212,11 @@ export default function TeacherTimetableDashboard() {
           </div>
 
           {photo && !pendingFile ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/80 px-3 py-2.5">
+            <div className="rounded-xl border border-slate-100 bg-white/80 px-3 py-2.5">
               <p className="text-xs text-slate-500">
                 Last updated{' '}
                 {photo.updatedAt ? new Date(photo.updatedAt).toLocaleString() : '—'}
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50"
-                disabled={deleteMutation.isPending}
-                onClick={() => void handleDelete()}
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Remove photo
-              </Button>
             </div>
           ) : null}
         </CardContent>
@@ -203,6 +225,21 @@ export default function TeacherTimetableDashboard() {
         <DialogContent className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col gap-2 p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2 pr-8">
             <DialogTitle className="text-base">My timetable</DialogTitle>
+            {photo && !pendingFile ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto h-7 rounded-lg border-rose-200 px-2 text-xs text-rose-600 hover:bg-rose-50"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  setViewerOpen(false);
+                  void handleDelete();
+                }}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
+              </Button>
+            ) : null}
             {displayImage ? (
               <a
                 href={displayImage}

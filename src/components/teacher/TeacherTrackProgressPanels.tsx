@@ -23,7 +23,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { TeacherExamQuestionAnalytics } from '@/components/teacher/TeacherExamQuestionAnalytics';
 
 export interface TrackProgressStudent {
   id: string;
@@ -245,10 +244,6 @@ export function TeacherTrackProgressPanels({
         </div>
       </div>
 
-      {/* Paper review discusses a whole class; for one student it is noise. */}
-      {!studentFilter || studentFilter === 'all' ? (
-        <TeacherExamQuestionAnalytics classNumber={classNumberFilter} />
-      ) : null}
 
       {/* Single student list — View opens full detail */}
       <motion.section

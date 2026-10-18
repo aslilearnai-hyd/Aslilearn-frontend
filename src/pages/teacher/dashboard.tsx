@@ -70,6 +70,7 @@ import {
 } from 'lucide-react';
 import AIChat from '@/components/ai-chat';
 import { TeacherTrackProgressPanels } from '@/components/teacher/TeacherTrackProgressPanels';
+import { TeacherExamQuestionAnalytics } from '@/components/teacher/TeacherExamQuestionAnalytics';
 import { EduOTTVideoCard, EduOTTSubjectBadges } from '@/components/eduott/EduOTTVideoCard';
 import type { EduOTTVideoCardItem } from '@/components/eduott/EduOTTVideoCard';
 import { EduOTTVideoPlayerDialog } from '@/components/eduott/EduOTTVideoPlayerDialog';
@@ -93,6 +94,8 @@ import { useToast } from '@/hooks/use-toast';
 import {
   buildTeacherVidyaSubjectSelectOptions,
   buildHomeworkSubjectOptions,
+  homeworkBoardTracks,
+  type HomeworkBoardTrack,
   extractPlainSubjectName,
   getSubjectClassLabel,
   subjectCatalogGroupKey,
@@ -283,6 +286,18 @@ const TeacherDashboard = () => {
   const [sessionClassFilter, setSessionClassFilter] = useState<string>('all');
   const [sessionSubjectFilter, setSessionSubjectFilter] = useState<string>('all');
   const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
+  // Class 6-A, 6-B, 7-C, 8-A… everywhere a class is picked (API order is arbitrary).
+  const sortedAssignedClasses = useMemo(() => {
+    const num = (c: any) => parseInt(String(c?.classNumber || c?.name || '').replace(/D+/g, ' ').trim(), 10);
+    const sec = (c: any) => String(c?.section || String(c?.name || '').split(/[-s]+/).pop() || '');
+    return [...(assignedClasses || [])].sort((a, b) => {
+      const na = num(a);
+      const nb = num(b);
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+      if (Number.isFinite(na) !== Number.isFinite(nb)) return Number.isFinite(na) ? -1 : 1;
+      return sec(a).localeCompare(sec(b), undefined, { numeric: true });
+    });
+  }, [assignedClasses]);
   const [teacherSubjects, setTeacherSubjects] = useState<any[]>([]);
   const [availableClasses, setAvailableClasses] = useState<{classNumber: string, subjects: any[]}[]>([]);
   const [selectedClassSubjects, setSelectedClassSubjects] = useState<any[]>([]);
@@ -421,8 +436,9 @@ const TeacherDashboard = () => {
   const [selectedSubjectForRemark, setSelectedSubjectForRemark] = useState<string>('general');
   const [isPositiveRemark, setIsPositiveRemark] = useState(true);
   const [studentsSubTab, setStudentsSubTab] = useState<
-    'list' | 'track-progress' | 'submissions' | 'daily'
+    'list' | 'track-progress' | 'submissions' | 'daily' | 'exam-review'
   >('list');
+  const [examReviewClass, setExamReviewClass] = useState('all');
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
   const [trackProgressRemarks, setTrackProgressRemarks] = useState<any[]>([]);
   const [aiProgressInsights, setAiProgressInsights] = useState('');
@@ -552,9 +568,15 @@ const TeacherDashboard = () => {
     fileUrl: ''
   });
 
+  // Board first, then that board's subjects ("Biology" and "Biology IIT" are
+  // the same name on two boards, so a flat list read as duplicates).
+  const homeworkTracks = useMemo(() => homeworkBoardTracks(teacherSubjects || []), [teacherSubjects]);
+  const [homeworkBoard, setHomeworkBoard] = useState<HomeworkBoardTrack>('school');
+  const effectiveHomeworkBoard: HomeworkBoardTrack =
+    homeworkBoard === 'iit' && homeworkTracks.iit ? 'iit' : homeworkTracks.school ? 'school' : 'iit';
   const homeworkSubjectOptions = useMemo(
-    () => buildHomeworkSubjectOptions(teacherSubjects || [], homeworkForm.classNumber),
-    [teacherSubjects, homeworkForm.classNumber],
+    () => buildHomeworkSubjectOptions(teacherSubjects || [], homeworkForm.classNumber, effectiveHomeworkBoard),
+    [teacherSubjects, homeworkForm.classNumber, effectiveHomeworkBoard],
   );
   const [selectedHomeworkFile, setSelectedHomeworkFile] = useState<File | null>(null);
   const [isUploadingHomeworkFile, setIsUploadingHomeworkFile] = useState(false);
@@ -2885,6 +2907,18 @@ const TeacherDashboard = () => {
                         <BookMarked className="mr-2 h-4 w-4" />
                         Diary
                       </Button>
+                      <Button
+                        variant={studentsSubTab === 'exam-review' ? 'default' : 'ghost'}
+                        className={
+                          studentsSubTab === 'exam-review'
+                            ? 'bg-indigo-blue-600 text-white hover:bg-indigo-blue-700'
+                            : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                        }
+                        onClick={() => setStudentsSubTab('exam-review')}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Exam Review
+                      </Button>
                     </div>
                   </div>
                   ) : null}
@@ -3808,6 +3842,29 @@ const TeacherDashboard = () => {
 
                   {dashboardSubTab === 'students' && studentsSubTab === 'daily' && <TeacherWorkDiaryPanel />}
 
+                  {/* Class-wide exam paper review lives on its own tab, not inside student analytics. */}
+                  {dashboardSubTab === 'students' && studentsSubTab === 'exam-review' && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm">
+                        <Label className="text-sm text-slate-600">Class</Label>
+                        <Select value={examReviewClass} onValueChange={setExamReviewClass}>
+                          <SelectTrigger className="h-9 w-48">
+                            <SelectValue placeholder="All classes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All classes</SelectItem>
+                            {sortedAssignedClasses.map((classItem) => (
+                              <SelectItem key={classItem._id || classItem.id} value={String(classItem.classNumber || classItem.name)}>
+                                {classItem.name || classItem.classNumber}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <TeacherExamQuestionAnalytics classNumber={examReviewClass} />
+                    </div>
+                  )}
+
                   </div>
                 </div>
               )}
@@ -4022,6 +4079,27 @@ const TeacherDashboard = () => {
               />
             </div>
 
+            {homeworkTracks.school && homeworkTracks.iit ? (
+              <div>
+                <Label htmlFor="homework-board">Board *</Label>
+                <Select
+                  value={effectiveHomeworkBoard}
+                  onValueChange={(value) => {
+                    setHomeworkBoard(value as HomeworkBoardTrack);
+                    setHomeworkForm({ ...homeworkForm, subject: '' });
+                  }}
+                >
+                  <SelectTrigger id="homework-board" className="mt-1">
+                    <SelectValue placeholder="Select board" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="school">{homeworkTracks.schoolBoard}</SelectItem>
+                    <SelectItem value="iit">IIT / NEET</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="homework-subject">Subject *</Label>
@@ -4053,7 +4131,7 @@ const TeacherDashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Classes</SelectItem>
-                    {assignedClasses.map((classItem) => (
+                    {sortedAssignedClasses.map((classItem) => (
                       <SelectItem key={classItem._id || classItem.id} value={classItem.classNumber || classItem.name}>
                         {classItem.name || classItem.classNumber}
                       </SelectItem>

@@ -94,7 +94,8 @@ function coalesceLines(v: unknown): string[] {
   if (Array.isArray(v)) {
     return v
       .map((x) => {
-        if (typeof x === 'string') return stripOrderedPrefix(x);
+        // Saved records can hold the literal "[object Object]" (objects that
+        // were stringified on save); coerceHomeworkText drops it.
         return stripOrderedPrefix(coerceHomeworkText(x));
       })
       .filter(Boolean);
@@ -310,7 +311,16 @@ function materializeHomework(raw: Record<string, unknown>): NormalizedHomework {
       raw.instructions || raw.student_instructions || raw.homework_instructions,
     ),
     practiceQuestions: dedupeByQuestionText(toPracticeQuestions(practiceRaw)),
-    applicationTasks: coalesceLines(raw.application_tasks || raw.applicationTasks),
+    applicationTasks: (() => {
+      const tasks = coalesceLines(raw.application_tasks || raw.applicationTasks);
+      if (tasks.length) return tasks;
+      // Old records whose tasks were all "[object Object]": use the
+      // application / short-answer questions they were built from.
+      return (Array.isArray(raw.questions) ? raw.questions : [])
+        .filter((q: any) => q && typeof q === 'object' && /^(SA|APPLICATION)$/i.test(String(q.type || '')))
+        .map((q: any) => coerceHomeworkText(q.question))
+        .filter(Boolean);
+    })(),
     creativeThinkingQuestion: coerceHomeworkText(
       raw.creative_thinking_question || raw.creativeThinkingQuestion || raw.creative_question,
     ),

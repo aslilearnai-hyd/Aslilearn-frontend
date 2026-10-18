@@ -320,9 +320,33 @@ export type HomeworkSubjectOption = { value: string; label: string };
  * sibling id of a subject group, so keeping one id per label is safe; the
  * copy for the selected class wins.
  */
+export type HomeworkBoardTrack = 'school' | 'iit';
+
+/** Which boards a teacher's subjects span: the school board and/or IIT / NEET. */
+export function homeworkBoardTracks(
+  subjects: Array<{ name?: string; board?: string; productCategory?: string }>,
+): { school: boolean; iit: boolean; schoolBoard: string } {
+  let school = false;
+  let iit = false;
+  const boards = new Map<string, number>();
+  for (const subject of subjects || []) {
+    if (!String(subject?.name || '').trim()) continue;
+    if (isIitTeacherSubjectTrack(subject)) {
+      iit = true;
+    } else {
+      school = true;
+      const b = String(subject?.board || '').toUpperCase().trim();
+      if (b && b !== 'ASLI_EXCLUSIVE_SCHOOLS') boards.set(b, (boards.get(b) || 0) + 1);
+    }
+  }
+  const schoolBoard = [...boards.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'CBSE';
+  return { school, iit, schoolBoard };
+}
+
 export function buildHomeworkSubjectOptions(
   subjects: Array<{ _id?: string; id?: string; name?: string; board?: string; productCategory?: string; classNumber?: string | number }>,
   classNumber?: string,
+  track?: HomeworkBoardTrack,
 ): HomeworkSubjectOption[] {
   const wantClass = String(classNumber || '').replace(/\D/g, '');
   const best = new Map<string, HomeworkSubjectOption & { score: number }>();
@@ -331,7 +355,9 @@ export function buildHomeworkSubjectOptions(
     const name = String(subject?.name || '').trim();
     if (!value || !name) continue;
     const iit = isIitTeacherSubjectTrack(subject);
-    const label = `${canonicalTeacherSubjectLabel(name)}${iit ? ' · IIT / NEET' : ''}`;
+    // With a board picked, only that board's subjects, under their plain name.
+    if (track && (track === 'iit') !== iit) continue;
+    const label = track ? canonicalTeacherSubjectLabel(name) : `${canonicalTeacherSubjectLabel(name)}${iit ? ' · IIT / NEET' : ''}`;
     const key = label.toLowerCase();
     const ownClass = String(subject?.classNumber ?? (name.match(/_(\d{1,2})$/) || [])[1] ?? '').replace(/\D/g, '');
     const score = (wantClass && ownClass === wantClass ? 100 : 0) + teacherSubjectValueScore(name);
