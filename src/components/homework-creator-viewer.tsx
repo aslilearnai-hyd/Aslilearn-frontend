@@ -29,6 +29,7 @@ import {
 } from '@/lib/parse-homework-creator';
 import { StructuredContentRequired } from '@/components/structured-content-required';
 import { ExpandableText, SelfCheckList, TapToRevealCard } from '@/components/ai-tool-interactive';
+import { reconcileInstructionCounts } from '@/lib/reconcile-instructions';
 
 export interface HomeworkCreatorViewerProps {
   content: string;
@@ -54,7 +55,11 @@ const HOMEWORK_SECTIONS: SectionDef[] = [
     stripe: 'border-orange-500',
     iconWrap: 'bg-orange-100 text-orange-900',
     hasContent: (h) => !!h.instructions,
-    render: (h) => <ExpandableText text={stripMarkdownSyntax(h.instructions)} />,
+    render: (h) => (
+      <ExpandableText
+        text={reconcileInstructionCounts(stripMarkdownSyntax(h.instructions), { total: h.practiceQuestions.length })}
+      />
+    ),
   },
   {
     num: 3,

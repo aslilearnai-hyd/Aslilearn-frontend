@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ImagePlus, Trash2, Upload, Camera, CheckCircle2 } from 'lucide-react';
+import { ImagePlus, Trash2, Upload, Camera, CheckCircle2, Maximize2, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ export default function TeacherTimetableDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const { data: photo, isLoading, refetch } = useMyTimetablePhoto();
   const uploadMutation = useUploadMyTimetablePhoto();
@@ -134,11 +136,22 @@ export default function TeacherTimetableDashboard() {
               </div>
             ) : displayImage ? (
               <div className="relative">
-                <img
-                  src={displayImage}
-                  alt="My timetable"
-                  className="mx-auto max-h-[min(70vh,720px)] w-full object-contain bg-slate-50"
-                />
+                <button
+                  type="button"
+                  className="group block w-full cursor-zoom-in"
+                  onClick={() => setViewerOpen(true)}
+                  aria-label="Open timetable full size"
+                >
+                  <img
+                    src={displayImage}
+                    alt="My timetable"
+                    className="mx-auto max-h-[min(70vh,720px)] w-full object-contain bg-slate-50"
+                  />
+                  <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-slate-900/75 px-3 py-1 text-xs font-semibold text-white shadow">
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    Tap to enlarge
+                  </span>
+                </button>
                 {pendingFile ? (
                   <div className="absolute left-3 top-3 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
                     Preview — click Save timetable
@@ -186,6 +199,27 @@ export default function TeacherTimetableDashboard() {
           ) : null}
         </CardContent>
       </Card>
+      <Dialog open={viewerOpen && Boolean(displayImage)} onOpenChange={setViewerOpen}>
+        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col gap-2 p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-2 pr-8">
+            <DialogTitle className="text-base">My timetable</DialogTitle>
+            {displayImage ? (
+              <a
+                href={displayImage}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open original
+              </a>
+            ) : null}
+          </div>
+          {/* Natural size inside a scroll box: pinch / scroll to read small cells. */}
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg bg-slate-50 [touch-action:pan-x_pan-y_pinch-zoom]">
+            {displayImage ? <img src={displayImage} alt="My timetable full size" className="h-auto max-w-none min-w-full" /> : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

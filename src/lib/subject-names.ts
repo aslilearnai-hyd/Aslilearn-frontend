@@ -66,9 +66,10 @@ export function formatSubjectWithIitCategory(
         .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
         .join(' ');
 
-  const already = new RegExp(`\\biit\\s+${trackLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(base);
+  const already = new RegExp(`\\biit(?:\\s*/\\s*neet)?\\s+${trackLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(base);
   if (already) return base;
-  return `${base} IIT ${trackLabel}`;
+  // The IIT track is the IIT / NEET programme: "Biology · IIT / NEET Alpha".
+  return `${base.replace(/\s+IIT$/i, '')} · IIT / NEET ${trackLabel}`;
 }
 
 export function normalizeSubjectDisplayKey(name: string): string {
@@ -309,4 +310,35 @@ export function buildTeacherVidyaSubjectSelectOptions(
       if (g !== 0) return g;
       return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
     });
+}
+
+export type HomeworkSubjectOption = { value: string; label: string };
+
+/**
+ * One option per subject for Create Homework ("BIO", "Biology", "Biology" →
+ * "Biology"; "Physics IIT" → "Physics · IIT / NEET"). The server accepts any
+ * sibling id of a subject group, so keeping one id per label is safe; the
+ * copy for the selected class wins.
+ */
+export function buildHomeworkSubjectOptions(
+  subjects: Array<{ _id?: string; id?: string; name?: string; board?: string; productCategory?: string; classNumber?: string | number }>,
+  classNumber?: string,
+): HomeworkSubjectOption[] {
+  const wantClass = String(classNumber || '').replace(/\D/g, '');
+  const best = new Map<string, HomeworkSubjectOption & { score: number }>();
+  for (const subject of subjects || []) {
+    const value = String(subject?._id || subject?.id || '').trim();
+    const name = String(subject?.name || '').trim();
+    if (!value || !name) continue;
+    const iit = isIitTeacherSubjectTrack(subject);
+    const label = `${canonicalTeacherSubjectLabel(name)}${iit ? ' · IIT / NEET' : ''}`;
+    const key = label.toLowerCase();
+    const ownClass = String(subject?.classNumber ?? (name.match(/_(\d{1,2})$/) || [])[1] ?? '').replace(/\D/g, '');
+    const score = (wantClass && ownClass === wantClass ? 100 : 0) + teacherSubjectValueScore(name);
+    const prev = best.get(key);
+    if (!prev || score > prev.score) best.set(key, { value, label, score });
+  }
+  return [...best.values()]
+    .map(({ value, label }) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 }

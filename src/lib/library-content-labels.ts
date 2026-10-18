@@ -185,6 +185,6 @@ export function formatIitLearningPathContentLabel(
     learningPathDisplayName(fallbackSubjectName || '') ||
     'Subject';
   const cat = getLibraryContentProductCategory(row);
-  if (!cat) return `${subjectName} IIT`;
+  if (!cat) return `${subjectName.replace(/\s+IIT$/i, '')} · IIT / NEET`;
   return formatSubjectWithIitCategory(subjectName, cat);
 }

@@ -103,7 +103,15 @@ export function TeacherWorkDiaryPanel({ className }: { className?: string }) {
             name: c.name,
             className: c.className,
           }))
-          .filter((c: TeacherClassOption) => c.id);
+          .filter((c: TeacherClassOption) => c.id)
+          // Class 6-A, 6-B, 7-C, 8-A… (API order is arbitrary).
+          .sort((a: TeacherClassOption, b: TeacherClassOption) => {
+            const na = parseInt(String(a.classNumber || a.name || '').replace(/\D+/g, ' ').trim(), 10);
+            const nb = parseInt(String(b.classNumber || b.name || '').replace(/\D+/g, ' ').trim(), 10);
+            if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+            if (Number.isFinite(na) !== Number.isFinite(nb)) return Number.isFinite(na) ? -1 : 1;
+            return String(a.section || '').localeCompare(String(b.section || ''), undefined, { numeric: true });
+          });
         setClasses(options);
         if (options.length === 1) {
           setClassId(options[0].id);

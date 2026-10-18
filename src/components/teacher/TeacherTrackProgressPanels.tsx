@@ -65,6 +65,8 @@ interface TeacherTrackProgressPanelsProps {
   getStudentHomeworkStats?: (studentId: string) => { assigned: number; submitted: number };
   /** Class filter from dashboard ("all" or class number) for exam question analytics. */
   classNumberFilter?: string;
+  /** "Filter by student" selection; the class-wide exam paper review is hidden for one student. */
+  studentFilter?: string;
   /** Open View dialog for this student id (e.g. from a parent action). */
   openStudentId?: string | null;
   onOpenStudentConsumed?: () => void;
@@ -109,6 +111,7 @@ export function TeacherTrackProgressPanels({
   onFetchStudentInsights,
   getStudentHomeworkStats,
   classNumberFilter = 'all',
+  studentFilter = 'all',
   openStudentId = null,
   onOpenStudentConsumed,
 }: TeacherTrackProgressPanelsProps) {
@@ -242,7 +245,10 @@ export function TeacherTrackProgressPanels({
         </div>
       </div>
 
-      <TeacherExamQuestionAnalytics classNumber={classNumberFilter} />
+      {/* Paper review discusses a whole class; for one student it is noise. */}
+      {!studentFilter || studentFilter === 'all' ? (
+        <TeacherExamQuestionAnalytics classNumber={classNumberFilter} />
+      ) : null}
 
       {/* Single student list — View opens full detail */}
       <motion.section

@@ -1,4 +1,5 @@
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import {
@@ -107,7 +108,7 @@ function QuestionCard({
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-700 text-xs font-bold text-white">
             {num}
           </span>
-          <p className="text-base font-medium text-slate-900 leading-relaxed pt-0.5">{q.question}</p>
+          <p className="text-base font-medium text-slate-900 leading-relaxed pt-0.5"><ExamMathText text={q.question} /></p>
         </div>
         <div className="flex flex-wrap gap-1.5 shrink-0">
           {q.type ? (
@@ -133,7 +134,7 @@ function QuestionCard({
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-400 text-micro font-bold text-slate-600">
                 {String.fromCharCode(65 + i)}
               </span>
-              <span className="leading-snug">{opt.replace(/^[A-D][\).]\s*/i, '')}</span>
+              <span className="leading-snug"><ExamMathText text={opt.replace(/^[A-D][\).]\s*/i, '')} /></span>
             </li>
           ))}
         </ul>
@@ -142,13 +143,13 @@ function QuestionCard({
         <p className="text-base text-emerald-800 flex items-start gap-1.5 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
           <CircleCheck className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>
-            <span className="font-semibold">Answer:</span> {q.answer}
+            <span className="font-semibold">Answer:</span> <ExamMathText text={q.answer} />
           </span>
         </p>
       ) : null}
       {q.explanation ? (
         <p className="text-base text-slate-600 rounded-lg bg-slate-50 px-3 py-2 border border-slate-100">
-          <span className="font-semibold text-slate-700">Explanation:</span> {q.explanation}
+          <span className="font-semibold text-slate-700">Explanation:</span> <ExamMathText text={q.explanation} />
         </p>
       ) : null}
     </div>

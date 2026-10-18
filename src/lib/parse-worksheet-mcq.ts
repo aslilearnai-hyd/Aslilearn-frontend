@@ -3,6 +3,7 @@
  */
 
 import { renumberSectionQuestionLists } from '@/lib/renumber-questions';
+import { protectMultiplication } from '@/lib/strip-markdown-syntax';
 import {
   cleanWorksheetQuestionText,
   filterWorksheetLearningObjectiveLine,
@@ -185,7 +186,7 @@ export function buildAnswerKeyFromQuestions(sections: WorksheetSection[]): strin
 }
 
 function stripInlineMarkdown(text: string): string {
-  let t = String(text || '');
+  let t = protectMultiplication(String(text || ''));
   if (!t.trim()) return '';
   // Basic inline cleanup: bold/italic/code + heading markers
   t = t.replace(/^#{1,6}\s+/gm, '');
@@ -329,8 +330,9 @@ function toWorksheetQuestions(value: unknown): WorksheetQuestion[] {
     // Match questions don't need MCQ-style option validation
     if (matchPairs.length < 2 && !isValidWorksheetQuestionInput(question, options)) continue;
     const marksRaw = entry.marks ?? entry.mark;
-    const marks =
-      marksRaw != null && !Number.isNaN(Number(marksRaw)) ? Number(marksRaw) : undefined;
+    // "1 mark" / "2 Marks" were dropped as non-numeric, so the badge vanished.
+    const marksNum = marksRaw != null ? Number(String(marksRaw).match(/d+(?:.d+)?/)?.[0]) : NaN;
+    const marks = Number.isFinite(marksNum) && marksNum > 0 ? marksNum : undefined;
     const answer =
       stripInlineMarkdown(String(entry.answer || entry.correctAnswer || '').trim()) ||
       (matchPairs.length >= 2 ? formatMatchAnswerKey(matchPairs) : '');

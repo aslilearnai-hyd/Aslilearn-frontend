@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -685,6 +685,11 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     }
   };
 
+  const unmountedRef = useRef(false);
+  useEffect(() => () => {
+    unmountedRef.current = true;
+  }, []);
+
   const pollBookGeneratorJob = async (jobId: string) => {
     // Up to ~60 minutes (1200 × 3s). Premium book batches often need 15–40 min.
     const maxPolls = 1200;
@@ -693,6 +698,8 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
       if (attempt > 0) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
+      // Leaving the page stops polling (the job itself keeps running server-side).
+      if (unmountedRef.current) return;
       let res: Response;
       let json: { data?: Record<string, unknown>; message?: string };
       try {

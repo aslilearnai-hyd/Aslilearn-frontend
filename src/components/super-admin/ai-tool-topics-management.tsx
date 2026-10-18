@@ -653,8 +653,15 @@ export default function AiToolTopicsManagement() {
     setEditingId(row._id);
     setDialogMode('edit');
     setLockTopicFields(false);
+    // Stored boards vary ("IIT/NEET", "IIT / NEET", "iit") while options are
+    // codes ("IIT"); an exact-match Select then showed an empty Board field.
+    const compactBoard = (v: string) => String(v || '').toUpperCase().replace(/[\s/\\_-]+/g, '');
+    const rowBoard = String(row.board || '').trim();
+    const matchedBoard =
+      availableBoards.find((b) => compactBoard(b) === compactBoard(rowBoard)) ||
+      (/IIT|NEET|JEE/.test(compactBoard(rowBoard)) ? availableBoards.find((b) => compactBoard(b) === 'IIT') : undefined);
     setForm({
-      board: row.board,
+      board: matchedBoard || rowBoard,
       productCategory: String(row.productCategory || ''),
       classLabel: normalizedClass || row.classLabel,
       subject: row.subject,
@@ -663,8 +670,8 @@ export default function AiToolTopicsManagement() {
       subTopic: row.subTopic,
     });
     resetSubTopicEntry();
-    setIsCustomBoard(false);
-    setCustomBoard('');
+    setIsCustomBoard(Boolean(rowBoard) && !matchedBoard);
+    setCustomBoard(rowBoard && !matchedBoard ? rowBoard : '');
     setIsCustomClass(false);
     setCustomClass('');
     setIsCustomSubject(false);

@@ -44,6 +44,8 @@ import {
   type ExamQuestion,
   type ExamSection,
 } from '@/lib/parse-exam-question-paper';
+import { aiToolBoardLabel } from '@/lib/school-program';
+import { reconcileInstructionCounts, sectionLetter } from '@/lib/reconcile-instructions';
 
 export { examViewerPayloadFromRecord } from '@/lib/parse-exam-question-paper';
 
@@ -607,7 +609,7 @@ export function ExamQuestionPaperViewer({
                     <OverviewStat label="Subject" value={context.subject} />
                     <OverviewStat label="Chapter / Topic" value={context.topic} />
                     <OverviewStat label="Subtopic" value={displaySubtopicLabel(context.subtopic)} />
-                    <OverviewStat label="Board" value={context.board} />
+                    <OverviewStat label="Board" value={context.board ? aiToolBoardLabel(context.board) : ''} />
                     <OverviewStat
                       label="Duration"
                       value={context.duration ? `${context.duration} min` : '40 min'}
@@ -620,7 +622,15 @@ export function ExamQuestionPaperViewer({
                       <p className="text-micro font-semibold uppercase tracking-wide text-slate-500">
                         General Instructions
                       </p>
-                      <RichTextBlock text={paper.instructions} />
+                      <RichTextBlock
+                        text={reconcileInstructionCounts(paper.instructions, {
+                          total: totalQuestions,
+                          totalMarks,
+                          perSection: Object.fromEntries(
+                            paper.sections.map((sec: any, i: number) => [sectionLetter(sec.label || sec.title, i), sec.questions.length]),
+                          ),
+                        })}
+                      />
                     </div>
                   ) : null}
                 </div>

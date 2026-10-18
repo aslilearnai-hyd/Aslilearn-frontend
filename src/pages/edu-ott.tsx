@@ -757,7 +757,7 @@ export default function EduOTT() {
                   const preview = group.videos.slice(0, PREVIEW_VIDEO_COUNT);
                   const trackLabel = group.productCategories[0]
                     ? formatSubjectWithIitCategory(group.subject, group.productCategories[0])
-                    : `${group.subject} IIT`;
+                    : `${group.subject} · IIT / NEET`;
                   return (
                     <section key={group.key} className="space-y-4">
                       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-ink/10 pb-3">
@@ -980,7 +980,7 @@ export default function EduOTT() {
                       subjectFocus.subject,
                       subjectFocus.productCategories[0],
                     )
-                  : `${subjectFocus.subject} IIT`
+                  : `${subjectFocus.subject} · IIT / NEET`
                 : 'Subject library'}
             </SheetTitle>
             <SheetDescription className="text-sm text-muted-foreground">

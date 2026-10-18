@@ -1,4 +1,5 @@
 import { sanitizeAiDisplayText } from '@/lib/sanitize-ai-display-text';
+import { protectMultiplication } from '@/lib/strip-markdown-syntax';
 
 export type NormalizedLesson = {
   sl: number;
@@ -148,7 +149,7 @@ const SECTION_PLAIN_RE = /^(\d{1,2})\.\s+(.+?)\s*$/i;
 
 /** Plain text for UI — no **bold**, bullets, or heading markers. */
 export function stripDisplayMarkdown(text: string): string {
-  return String(text || '')
+  return protectMultiplication(String(text || ''))
     .replace(/\r\n/g, '\n')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')

@@ -265,14 +265,18 @@ function finalizePlan(plan: NormalizedDailyPlan, extraMarkdown = ''): Normalized
     .map((line) => parseTimelineLine(line))
     .filter((s): s is DailyPlanTimeSlot => Boolean(s));
 
-  const timeSlots = mergeTimeSlots(
-    plan.timeSlots,
-    reflectionSplit.slots,
-    breakupSplit.slots,
-    exitSplit.slots,
-    extraSplit.slots,
-    timelineSlots,
-  );
+  // Structured periods (time_slots) are the plan; lines scraped from prose
+  // only fill in when there are none (they produced "3 blocks" of fragments).
+  const timeSlots = plan.timeSlots.length
+    ? plan.timeSlots
+    : mergeTimeSlots(
+        plan.timeSlots,
+        reflectionSplit.slots,
+        breakupSplit.slots,
+        exitSplit.slots,
+        extraSplit.slots,
+        timelineSlots,
+      );
 
   return {
     ...plan,

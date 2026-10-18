@@ -319,6 +319,22 @@ function isWorksheetToolValue(v: unknown): boolean {
   return t === "worksheet-mcq-generator" || (t.includes("worksheet") && t.includes("mcq"));
 }
 
+
+/**
+ * A proxy timeout returns an HTML 502/504 page; res.json() then threw "Unexpected
+ * token <" and the admin saw a cryptic failure while the batch kept running.
+ */
+async function readBatchJson(res: Response): Promise<any> {
+  const json = await res.json().catch(() => null);
+  if (json) return json;
+  if (res.status === 502 || res.status === 504) {
+    throw new Error(
+      "The server is still generating, but the connection timed out. Records will appear in the list in a few minutes. Don't press Generate again.",
+    );
+  }
+  throw new Error(`Generation failed (HTTP ${res.status}).`);
+}
+
 export default function SuperAdminAiGenerator() {
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
@@ -819,11 +835,12 @@ export default function SuperAdminAiGenerator() {
             method: "POST",
             headers: { ...authHeaders(), "Content-Type": "application/json" },
             body: JSON.stringify(targetPayload),
-            retries: 2,
-            retryDelayMs: 2500,
+            // Never re-POST a batch: the first one keeps running on the server,
+            // so a retry doubled the LLM calls ("calls keep recording").
+            retries: 0,
             timeoutMs: 0,
           });
-          const targetJson = await targetRes.json();
+          const targetJson = await readBatchJson(targetRes);
           const saved = Number(targetJson?.data?.savedCount) || 0;
           const failed = Number(targetJson?.data?.failedCount) || Math.max(0, batchSize - saved);
           if (!targetRes.ok && saved === 0) throw new Error(targetJson?.message || `Generation failed for ${target}`);
@@ -858,11 +875,10 @@ export default function SuperAdminAiGenerator() {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(buildGenerationPayload(opts?.forceUnlock)),
-        retries: 2,
-        retryDelayMs: 2500,
+        retries: 0,
         timeoutMs: 0,
       });
-      const json = await res.json();
+      const json = await readBatchJson(res);
       const savedCount = Number(json?.data?.savedCount) || 0;
       const failedCount = Number(json?.data?.failedCount) || 0;
       const resultBatchSize = Number(json?.data?.batchSize) || batchSize;
@@ -921,7 +937,12 @@ export default function SuperAdminAiGenerator() {
       });
 
       if (savedCount === 0) {
-        throw new Error(failures[0] || `All ${resultBatchSize} generations failed`);
+        const first = String(failures[0] || '').trim();
+        throw new Error(
+          first && !/^(?:slot d+:s*)?unknown error$/i.test(first)
+            ? first
+            : `All ${resultBatchSize} generations failed: the model returned no usable content. Try again or lower the batch size.`,
+        );
       }
 
       if (board && recordsBoardFilter !== "__all__" && recordsBoardFilter !== board) {

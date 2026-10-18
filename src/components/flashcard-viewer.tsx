@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { stripAiGeneratorLeakage, isScaffoldFlashcardPair, isScaffoldDeckMetaText, stripLessonPlanLeakFromLabel, sanitizeFlashcardTopicLink, normalizeFlashcardClassLevel, sanitizeFlashcardFieldText } from '@/lib/strip-ai-tool-metadata';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 import { SelfCheckList } from '@/components/ai-tool-interactive';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 function cleanFlashcardText(text: string): string {
   return formatClassroomScienceText(
@@ -252,7 +253,7 @@ function DualFaceCardPair({
           {taskLabel}
         </p>
         <p className="relative text-base font-semibold leading-relaxed text-slate-900 break-words [overflow-wrap:anywhere] sm:text-[17px]">
-          {front}
+          <ExamMathText text={front} />
         </p>
       </div>
       <div className="relative min-h-[160px] min-w-0 overflow-hidden rounded-2xl border-2 border-emerald-300/90 bg-white p-4 sm:p-5 shadow-sm">
@@ -268,7 +269,7 @@ function DualFaceCardPair({
           {solutionLabel}
         </p>
         <p className="relative text-base leading-relaxed text-slate-800 break-words [overflow-wrap:anywhere] sm:text-lg">
-          {back}
+          <ExamMathText text={back} />
         </p>
       </div>
     </div>
@@ -291,7 +292,7 @@ function DecorativeFrontBackPair({ front, back }: { front: string; back: string 
             <div className="h-px flex-1 bg-indigo-300" />
           </div>
           <p className="font-serif text-lg font-bold leading-snug text-indigo-950 sm:text-xl">
-            {front}
+            <ExamMathText text={front} />
           </p>
           <div className="mx-auto mt-4 flex w-full max-w-[85%] items-center gap-2">
             <div className="h-px flex-1 bg-indigo-300" />
@@ -315,7 +316,7 @@ function DecorativeFrontBackPair({ front, back }: { front: string; back: string 
             <div className="h-px flex-1 bg-emerald-300" />
           </div>
           <p className="relative font-serif text-base leading-relaxed text-slate-800 sm:text-lg">
-            {back}
+            <ExamMathText text={back} />
           </p>
           <div className="mx-auto mt-3 flex w-full max-w-[85%] items-center gap-2">
             <div className="h-px flex-1 bg-emerald-300" />

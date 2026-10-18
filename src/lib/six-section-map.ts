@@ -1,3 +1,4 @@
+import { reconcileInstructionCounts } from '@/lib/reconcile-instructions';
 import { FileText, Target, Users, KeyRound, GraduationCap, Globe } from 'lucide-react';
 import { resolveWorksheetFromPayload } from '@/lib/parse-worksheet-mcq';
 import { resolveLessonsFromPayload } from '@/lib/parse-lesson-planner';
@@ -56,8 +57,11 @@ const list = (v: unknown): string[] => {
   const s = str(v);
   return s ? [s] : [];
 };
-const marks = (m: unknown): string | undefined =>
-  m ? `${m} mark${Number(m) === 1 ? '' : 's'}` : undefined;
+const marks = (m: unknown): string | undefined => {
+  // Models send 2, "2" or "2 marks"; the last rendered as "2 marks marks".
+  const n = Number(String(m ?? '').match(/d+(?:.d+)?/)?.[0]);
+  return Number.isFinite(n) && n > 0 ? `${n} mark${n === 1 ? '' : 's'}` : undefined;
+};
 
 function toBloomChips(items: unknown): { level: string; desc: string }[] {
   return (Array.isArray(items) ? items : [])
@@ -112,7 +116,10 @@ function questionsCore(core: Dict, toolSlug = ''): ContentBlock[] {
   if (core.instructions) {
     blocks.push({
       kind: 'lead',
-      text: reconcileDisplayedInstructionMarks(core.instructions, totalMarks),
+      text: reconcileInstructionCounts(reconcileDisplayedInstructionMarks(core.instructions, totalMarks), {
+        total: QUESTION_SECTION_KEYS.reduce((n, key) => n + arr(core[key]).length, 0),
+        perSection: Object.fromEntries(QUESTION_SECTION_KEYS.map((key, i) => [String.fromCharCode(65 + i), arr(core[key]).length])),
+      }),
     });
   }
   let n = 0;

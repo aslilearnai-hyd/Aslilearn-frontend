@@ -794,7 +794,7 @@ export default function LearningPaths() {
                   { label: 'Textbooks', value: boardStats.textbooks, iit: false },
                   { label: 'Materials', value: boardStats.materials, iit: false },
                   ...(iitCount > 0 || subject.hasIitTrack
-                    ? [{ label: 'IIT', value: iitCount, iit: true }]
+                    ? [{ label: 'IIT / NEET', value: iitCount, iit: true }]
                     : boardStats.videos > 0 ||
                         (isAsliPrepExclusive && allowedBrowseTypes.includes('Video'))
                       ? [{ label: 'Videos', value: boardStats.videos, iit: false }]
@@ -819,7 +819,7 @@ export default function LearningPaths() {
                         <h3 className="truncate font-display text-lg font-bold text-ink">{displayName}</h3>
                         <p className="truncate text-sm text-muted-foreground">
                           {iitCount > 0
-                            ? `${displayName} · includes ${displayName} IIT`
+                            ? `${displayName} · includes IIT / NEET`
                             : `Content for ${displayName}`}
                         </p>
                       </div>
@@ -880,7 +880,7 @@ export default function LearningPaths() {
                     {recentIit.length > 0 && (
                       <div className="mt-3">
                         <p className="mb-2 text-micro font-bold uppercase tracking-wider text-amber-700">
-                          {displayName} IIT
+                          {displayName} · IIT / NEET
                         </p>
                         <ul className="space-y-1.5">
                           {recentIit.map((c: any, i: number) => (

@@ -5,6 +5,7 @@ import { formatAiToolText } from '@/lib/title-case';
 import { displaySubtopicLabel } from '@/lib/curriculum-subtopic-display';
 import { AI_V2 } from '@/lib/ai-tool-design-tokens';
 import { extractAiToolV2Context } from '@/lib/extract-ai-tool-v2-context';
+import { aiToolBoardLabel } from '@/lib/school-program';
 
 export function AiToolV2InputSummary({
   rawContent,
@@ -21,7 +22,7 @@ export function AiToolV2InputSummary({
     { icon: BookOpen, label: 'Subject', value: ctx.subject },
     { icon: Target, label: 'Topic', value: ctx.topic },
     { icon: Layers, label: 'Subtopic', value: subtopicDisplay },
-    { icon: Target, label: 'Board', value: ctx.board },
+    { icon: Target, label: 'Board', value: ctx.board ? aiToolBoardLabel(ctx.board) : '' },
   ].filter((r) => r.value.trim());
 
   if (!rows.length) return null;

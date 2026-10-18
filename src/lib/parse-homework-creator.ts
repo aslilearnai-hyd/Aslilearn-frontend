@@ -73,6 +73,16 @@ function dedupePracticeQuestions(items: HomeworkPracticeQuestion[]): HomeworkPra
   return out;
 }
 
+function dedupeByQuestionText(items: HomeworkPracticeQuestion[]): HomeworkPracticeQuestion[] {
+  const seen = new Set<string>();
+  return dedupePracticeQuestions(items).filter((q) => {
+    const key = normalizeForKey(q.question);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function stripOrderedPrefix(line: string): string {
   return String(line || '')
     .replace(/^\s*\d+[\).\s]+/i, '')
@@ -286,18 +296,20 @@ function linesToPracticeQuestions(body: string): HomeworkPracticeQuestion[] {
 }
 
 function materializeHomework(raw: Record<string, unknown>): NormalizedHomework {
-  const practiceRaw = [
-    ...(Array.isArray(raw.practice_questions) ? raw.practice_questions : []),
-    ...(Array.isArray(raw.practiceQuestions) ? raw.practiceQuestions : []),
-    ...(Array.isArray(raw.questions) ? raw.questions : []),
-  ];
+  // The same questions arrive under several keys (V2 sends `practice_questions`
+  // as strings AND `questions` as objects): concatenating them showed
+  // "40 practice questions" for a 20-question homework. Use the richest list.
+  const lists = [raw.questions, raw.practice_questions, raw.practiceQuestions].filter(
+    (v): v is unknown[] => Array.isArray(v) && v.length > 0,
+  );
+  const practiceRaw = lists[0] || [];
 
   return {
     title: coerceHomeworkText(raw.title || raw.homework_title || raw.name || 'Homework'),
     instructions: coerceHomeworkText(
       raw.instructions || raw.student_instructions || raw.homework_instructions,
     ),
-    practiceQuestions: toPracticeQuestions(practiceRaw),
+    practiceQuestions: dedupeByQuestionText(toPracticeQuestions(practiceRaw)),
     applicationTasks: coalesceLines(raw.application_tasks || raw.applicationTasks),
     creativeThinkingQuestion: coerceHomeworkText(
       raw.creative_thinking_question || raw.creativeThinkingQuestion || raw.creative_question,

@@ -496,10 +496,14 @@ export default function BookKnowledgeBase() {
     if (!classLabel) nextErrors.classLabel = "Class is required.";
     if (!subject) nextErrors.subject = "Subject is required.";
     if (!file) nextErrors.file = "Please choose a PDF, DOCX, or TXT file.";
+    else if (file.size > 80 * 1024 * 1024) nextErrors.file = "File is larger than 80 MB. Split or compress the PDF first.";
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     setUploading(true);
+    // Never spin forever: a dropped connection or proxy timeout ends here.
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5 * 60 * 1000);
     try {
       const fd = new FormData();
       fd.append("file", file!);
@@ -516,10 +520,20 @@ export default function BookKnowledgeBase() {
         method: "POST",
         headers: { ...authHeaders() },
         body: fd,
+        signal: controller.signal,
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || "Upload failed");
-      toast({ title: "Book uploaded", description: json.message || "Indexing started." });
+      const json = await res.json().catch(() => ({}) as any);
+      if (!res.ok || !json.success) {
+        throw new Error(
+          json.message ||
+            (res.status === 413
+              ? "File is too large for the server. Split or compress the PDF."
+              : res.status >= 500
+                ? `Server error (${res.status}). Check Uploaded Books in a minute — the file may still be processing.`
+                : "Upload failed"),
+        );
+      }
+      toast({ title: "Book uploaded", description: json.message || "Indexing started — progress shows on the book card." });
       setTitle("");
       setFile(null);
       setClassLabel("");
@@ -532,8 +546,17 @@ export default function BookKnowledgeBase() {
       setFieldErrors({});
       await loadBooks();
     } catch (e: any) {
-      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+      const aborted = e?.name === "AbortError";
+      toast({
+        title: aborted ? "Upload is taking too long" : "Upload failed",
+        description: aborted
+          ? "The connection timed out. Check Uploaded Books below; if the book is missing, try again on a faster connection."
+          : e.message,
+        variant: "destructive",
+      });
+      if (aborted) void loadBooks();
     } finally {
+      window.clearTimeout(timer);
       setUploading(false);
     }
   };

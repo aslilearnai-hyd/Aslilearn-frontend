@@ -18,6 +18,7 @@ import {
   bloomRowsToDonutRows,
   difficultyRowsFromTags,
 } from './ai-tool-v2-analytics';
+import { aiToolBoardLabel } from '@/lib/school-program';
 
 const BLOOM_ORDER = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'] as const;
 
@@ -78,7 +79,7 @@ export function AiToolV2OverviewSnapshot({
     { label: 'Subject', value: ctx.subject },
     { label: 'Topic', value: ctx.topic },
     { label: 'Subtopic', value: displaySubtopicLabel(ctx.subtopic) },
-    { label: 'Board', value: ctx.board },
+    { label: 'Board', value: ctx.board ? aiToolBoardLabel(ctx.board) : '' },
     { label: 'Duration', value: ctx.duration ? `${ctx.duration} min` : '' },
     ...stats,
   ].filter((r) => r.value.trim());

@@ -597,7 +597,7 @@ export default function AdminLearningPaths() {
                                   <h3 className="font-semibold text-gray-900 truncate">{displayName}</h3>
                                   {hasIit ? (
                                     <p className="text-micro font-semibold uppercase tracking-wider text-amber-700">
-                                      IIT · {formatIitLearningPathContentLabel(iitItems[0], displayName)}
+                                      {formatIitLearningPathContentLabel(iitItems[0], displayName)}
                                     </p>
                                   ) : null}
                                 </div>

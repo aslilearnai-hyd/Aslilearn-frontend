@@ -45,9 +45,13 @@ export function isStoryPassageLanguageSubject(subject: string | undefined | null
   return false;
 }
 
-export function filterSubjectsForAiTool(_toolType: string, subjects: string[]): string[] {
-  // Dashboard delivery: do not hide subjects by tool language rules.
-  return Array.isArray(subjects) ? subjects.filter(Boolean) : [];
+export function filterSubjectsForAiTool(toolType: string, subjects: string[]): string[] {
+  const list = Array.isArray(subjects) ? subjects.filter(Boolean) : [];
+  // Story & Passage / Reading Practice say "English, Hindi & Telugu only":
+  // listing Science there invites requests the tool cannot serve. Other
+  // tools keep every subject (language teachers want worksheets too).
+  if (isStoryLanguageTool(toolType)) return list.filter((s) => isStoryPassageLanguageSubject(s));
+  return list;
 }
 
 /** IIT / NEET / JEE boards in AI Tools — STEM only (matches AI Tool Topics + IIT-6 catalog). */

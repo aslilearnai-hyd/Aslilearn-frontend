@@ -9,6 +9,7 @@ import {
 } from '@/components/ai-tool-3d-icons';
 import { AI_V2 } from '@/lib/ai-tool-design-tokens';
 import { formatAiToolText } from '@/lib/title-case';
+import { aiToolBoardLabel } from '@/lib/school-program';
 
 export type AiToolResultMeta = {
   board?: string;
@@ -249,7 +250,7 @@ export function AiToolResultShell({
   hideHeader?: boolean;
 }) {
   const theme = TOOL_THEMES[toolType] || DEFAULT_THEME;
-  const board = String(meta?.board || '').trim();
+  const board = aiToolBoardLabel(String(meta?.board || '').trim());
   const classLabel = String(meta?.classLabel || '').trim();
   const subject = String(meta?.subject || '').trim();
   const chapter = String(meta?.chapter || '').trim();
@@ -377,7 +378,9 @@ export function AiToolResultShell({
               </div>
             </div>
           ) : children ? (
-            <div className="w-full min-w-0 break-words [&_pre]:overflow-x-auto [&_table]:block [&_table]:w-max [&_table]:min-w-full [&_table]:overflow-x-auto">
+            // Generated sentences keep their own case (the app-wide capitalize
+            // rule turned "Express the result" into "Express The Result").
+            <div data-no-title-case className="w-full min-w-0 break-words [&_pre]:overflow-x-auto [&_table]:block [&_table]:w-max [&_table]:min-w-full [&_table]:overflow-x-auto">
               {children}
             </div>
           ) : (

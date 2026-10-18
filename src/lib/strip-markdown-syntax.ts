@@ -1,6 +1,13 @@
+/** "2 * 14 * 9" / "3*4" are multiplication, not *italics*: keep them as ×. */
+export function protectMultiplication(text: string): string {
+  return String(text || "")
+    .replace(/(\S)[ \t]+\*[ \t]+(?=\S)/g, "$1 × ")
+    .replace(/([0-9)\]])\*(?=[0-9([])/g, "$1×");
+}
+
 /** Remove markdown markers so AI tool content reads as normal plain text. */
 export function stripMarkdownSyntax(text: string): string {
-  let s = String(text || "").replace(/\r\n/g, "\n");
+  let s = protectMultiplication(String(text || "").replace(/\r\n/g, "\n"));
 
   for (let i = 0; i < 6; i += 1) {
     const prev = s;
@@ -8,7 +15,8 @@ export function stripMarkdownSyntax(text: string): string {
       .replace(/\*\*(.*?)\*\*/gs, "$1")
       .replace(/__(.*?)__/gs, "$1")
       .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, "$1")
-      .replace(/(?<!_)_(?!_)([^_\n]+?)(?<!_)_(?!_)/g, "$1");
+      // "_note_" is italics; "a_1 + a_2" is subscripts and must survive.
+      .replace(/(?<![A-Za-z0-9_])_(?!_)([^_\n]+?)(?<!_)_(?![A-Za-z0-9_])/g, "$1");
     if (s === prev) break;
   }
 

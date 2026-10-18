@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, Loader2, RefreshCw, Search, XCircle } from "lucide-react";
+import { Check, CheckCircle2, ChevronsUpDown, Loader2, RefreshCw, Search, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,9 @@ export type CurriculumMappingSummary = {
   totalTopics?: number;
   mappedSubtopics?: number;
   totalSubtopics?: number;
+  /** Whole class curriculum; the totals above count only this book's chapters. */
+  curriculumTopics?: number;
+  curriculumSubtopics?: number;
   sectionCount?: number;
   unmappedSections?: number;
   needsReviewSections?: number;
@@ -140,6 +145,89 @@ function formatPages(start?: number | null, end?: number | null) {
 const subValue = (id: string) => `sub:${id}`;
 const topicValue = (key: string) => `topic:${key}`;
 
+/** Searchable topic / subtopic picker (a book can have 80+ subtopics). */
+function CurriculumTargetPicker({
+  curriculum,
+  value,
+  disabled,
+  onChange,
+}: {
+  curriculum: CurriculumTopic[];
+  value?: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = useMemo(() => {
+    if (!value) return "";
+    for (const topic of curriculum) {
+      if (value === topicValue(topic.aiTopicKey)) return `${topic.topicName} (whole topic)`;
+      const sub = topic.subtopics.find((s) => value === subValue(s.aiSubtopicId));
+      if (sub) return `${sub.number ? `${sub.number} ` : ""}${sub.name}`;
+    }
+    return "";
+  }, [curriculum, value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="h-auto min-h-10 min-w-0 flex-1 justify-between whitespace-normal py-2 text-left font-normal"
+        >
+          <span className={cn("min-w-0 break-words", !label && "text-slate-400")}>
+            {label || "Choose topic / subtopic"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(92vw,420px)] p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search topic or subtopic…" />
+          <CommandList className="max-h-80">
+            <CommandEmpty>No match.</CommandEmpty>
+            {curriculum.map((topic) => (
+              <CommandGroup key={topic.aiTopicKey} heading={topic.topicName}>
+                <CommandItem
+                  value={`${topic.topicName} whole topic ${topic.aiTopicKey}`}
+                  onSelect={() => {
+                    onChange(topicValue(topic.aiTopicKey));
+                    setOpen(false);
+                  }}
+                  className="font-semibold"
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === topicValue(topic.aiTopicKey) ? "opacity-100" : "opacity-0")} />
+                  {topic.topicName} (whole topic)
+                </CommandItem>
+                {topic.subtopics.map((sub) => (
+                  <CommandItem
+                    key={sub.aiSubtopicId}
+                    // Topic name is part of the search text so "square" finds every subtopic of that chapter.
+                    value={`${sub.number || ""} ${sub.name} ${topic.topicName} ${sub.aiSubtopicId}`}
+                    onSelect={() => {
+                      onChange(subValue(sub.aiSubtopicId));
+                      setOpen(false);
+                    }}
+                    className="pl-6"
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", value === subValue(sub.aiSubtopicId) ? "opacity-100" : "opacity-0")} />
+                    {sub.number ? `${sub.number} ` : ""}
+                    {sub.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function BookCurriculumMappingDialog({
   bookId,
   bookTitle,
@@ -186,6 +274,8 @@ export function BookCurriculumMappingDialog({
 
   useEffect(() => {
     if (open && bookId) {
+      // Each book opens on its own review list, not the previous book's "show all".
+      setShowAllSections(false);
       setTestResult(null);
       setTestTopic("");
       setTestSubtopic("");
@@ -325,7 +415,15 @@ export function BookCurriculumMappingDialog({
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              <Stat label="Topics mapped" value={`${mapping.mappedTopics || 0}/${mapping.totalTopics || 0}`} />
+              <Stat
+                label="Chapters in this book"
+                value={`${mapping.mappedTopics || 0}/${mapping.totalTopics || 0}`}
+                hint={
+                  mapping.curriculumTopics && mapping.curriculumTopics > (mapping.totalTopics || 0)
+                    ? `of ${mapping.curriculumTopics} class topics; the rest are in another book (e.g. Part-2)`
+                    : undefined
+                }
+              />
               <Stat
                 label="Subtopics mapped"
                 value={`${mapping.mappedSubtopics || 0}/${mapping.totalSubtopics || 0}`}
@@ -428,30 +526,12 @@ export function BookCurriculumMappingDialog({
                             ) : null}
                           </div>
                           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-[420px] lg:shrink-0">
-                            <Select
+                            <CurriculumTargetPicker
+                              curriculum={curriculum}
                               value={current}
-                              onValueChange={(v) => handleTargetChange(section, v)}
+                              onChange={(v) => handleTargetChange(section, v)}
                               disabled={savingKey === section.sectionKey}
-                            >
-                              <SelectTrigger className="min-w-0 flex-1 text-left">
-                                <SelectValue placeholder="Choose topic / subtopic" />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-80">
-                                {curriculum.map((topic) => (
-                                  <SelectGroup key={topic.aiTopicKey}>
-                                    <SelectItem value={topicValue(topic.aiTopicKey)} className="font-semibold">
-                                      {topic.topicName} (whole topic)
-                                    </SelectItem>
-                                    {topic.subtopics.map((sub) => (
-                                      <SelectItem key={sub.aiSubtopicId} value={subValue(sub.aiSubtopicId)} className="pl-6">
-                                        {sub.number ? `${sub.number} ` : ""}
-                                        {sub.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                             <Button
                               size="sm"
                               variant="outline"
@@ -485,15 +565,21 @@ export function BookCurriculumMappingDialog({
                     </thead>
                     <tbody>
                       {curriculum.map((topic) => (
-                        <FragmentRows key={topic.aiTopicKey} topic={topic} />
+                        <FragmentRows
+                          key={topic.aiTopicKey}
+                          topic={topic}
+                          sections={sections}
+                          savingKey={savingKey}
+                          onAssign={(section, aiSubtopicId) => void saveSection(section, { aiSubtopicId })}
+                        />
                       ))}
                     </tbody>
                   </table>
                 </div>
                 <p className="mt-2 text-xs text-slate-500">
-                  Highlighted subtopics have no mapped chunks — generation for them stops before calling Gemini.
-                  To fill one: open <strong>Review mappings</strong> → <strong>Show all sections</strong>, find the book
-                  section that teaches it and pick that subtopic in its dropdown. If the book never covers it, leave it empty.
+                  Highlighted subtopics have no book section of their own yet; generation for them uses the whole
+                  chapter. To fix one, press <strong>Assign book section</strong> on its row and pick the heading that
+                  teaches it. If the book never covers it, leave it empty.
                   Books indexed before this update need <strong>Remap</strong> once.
                 </p>
               </TabsContent>
@@ -589,7 +675,80 @@ export function BookCurriculumMappingDialog({
   );
 }
 
-function FragmentRows({ topic }: { topic: CurriculumTopic }) {
+/** Pick the book section that teaches an empty subtopic (reverse of the review list). */
+function SectionAssignPicker({
+  topic,
+  sections,
+  disabled,
+  onAssign,
+}: {
+  topic: CurriculumTopic;
+  sections: MappedSection[];
+  disabled?: boolean;
+  onAssign: (section: MappedSection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Sections of the same chapter first: the right one is almost always there.
+  const ordered = useMemo(
+    () =>
+      [...sections]
+        .filter((s) => s.kind !== "exercise")
+        .sort((a, b) => Number(b.aiTopicKey === topic.aiTopicKey) - Number(a.aiTopicKey === topic.aiTopicKey)),
+    [sections, topic.aiTopicKey],
+  );
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal>
+      <PopoverTrigger asChild>
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled}>
+          Assign book section
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(92vw,460px)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search book headings…" />
+          <CommandList className="max-h-80">
+            <CommandEmpty>No match.</CommandEmpty>
+            <CommandGroup heading="Book sections (this chapter first)">
+              {ordered.map((section) => (
+                <CommandItem
+                  key={section.sectionKey}
+                  value={`${section.number || ""} ${section.title || ""} ${section.chapterTitle || ""} ${section.sectionKey}`}
+                  onSelect={() => {
+                    onAssign(section);
+                    setOpen(false);
+                  }}
+                  className="flex flex-col items-start gap-0.5"
+                >
+                  <span className="text-sm">
+                    {section.number ? `${section.number} ` : ""}
+                    {section.title || "(untitled)"}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {[section.chapterTitle, formatPages(section.pageStart, section.pageEnd), section.aiSubtopicName ? `now: ${section.aiSubtopicName}` : section.mappingStatus]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function FragmentRows({
+  topic,
+  sections,
+  savingKey,
+  onAssign,
+}: {
+  topic: CurriculumTopic;
+  sections: MappedSection[];
+  savingKey: string | null;
+  onAssign: (section: MappedSection, aiSubtopicId: string) => void;
+}) {
   const assetText = (assets: Record<string, number>) =>
     Object.entries(assets || {})
       .map(([type, n]) => `${n} ${type.replace(/_/g, " ")}`)
@@ -615,7 +774,18 @@ function FragmentRows({ topic }: { topic: CurriculumTopic }) {
           <td className={cn("px-3 py-1.5 text-right", sub.chunkCount ? "text-slate-700" : "font-semibold text-amber-700")}>
             {sub.chunkCount || 0}
           </td>
-          <td className="px-3 py-1.5 text-xs text-slate-500">{assetText(sub.assets)}</td>
+          <td className="px-3 py-1.5 text-xs text-slate-500">
+            {sub.chunkCount ? (
+              assetText(sub.assets)
+            ) : (
+              <SectionAssignPicker
+                topic={topic}
+                sections={sections}
+                disabled={savingKey != null}
+                onAssign={(section) => onAssign(section, sub.aiSubtopicId)}
+              />
+            )}
+          </td>
         </tr>
       ))}
     </>

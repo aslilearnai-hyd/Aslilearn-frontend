@@ -92,6 +92,7 @@ import { TeacherSettingsPanel } from '@/components/teacher/TeacherSettingsPanel'
 import { useToast } from '@/hooks/use-toast';
 import {
   buildTeacherVidyaSubjectSelectOptions,
+  buildHomeworkSubjectOptions,
   extractPlainSubjectName,
   getSubjectClassLabel,
   subjectCatalogGroupKey,
@@ -550,6 +551,11 @@ const TeacherDashboard = () => {
     deadline: '',
     fileUrl: ''
   });
+
+  const homeworkSubjectOptions = useMemo(
+    () => buildHomeworkSubjectOptions(teacherSubjects || [], homeworkForm.classNumber),
+    [teacherSubjects, homeworkForm.classNumber],
+  );
   const [selectedHomeworkFile, setSelectedHomeworkFile] = useState<File | null>(null);
   const [isUploadingHomeworkFile, setIsUploadingHomeworkFile] = useState(false);
 
@@ -3334,6 +3340,7 @@ const TeacherDashboard = () => {
                           }
                           getStudentHomeworkStats={getStudentHomeworkStatsForPanel}
                           classNumberFilter={filterByClass}
+                          studentFilter={filterByStudent}
                           openStudentId={progressDetailStudentId}
                           onOpenStudentConsumed={() => setProgressDetailStudentId(null)}
                         />
@@ -4026,9 +4033,9 @@ const TeacherDashboard = () => {
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teacherSubjects.map((subject) => (
-                      <SelectItem key={subject._id || subject.id} value={subject._id || subject.id}>
-                        {subject.name}
+                    {homeworkSubjectOptions.map((subject) => (
+                      <SelectItem key={subject.value} value={subject.value}>
+                        {subject.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

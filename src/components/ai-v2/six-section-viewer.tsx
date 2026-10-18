@@ -16,6 +16,7 @@ import { displaySubtopicLabel } from '@/lib/curriculum-subtopic-display';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
 import ExamMathText from '@/components/exam/ExamMathText';
+import { aiToolBoardLabel } from '@/lib/school-program';
 
 /**
  * SixSectionViewer — one reusable, premium card shell for all 21 AsliLearn tools.
@@ -621,7 +622,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
   const subtopicShown = displaySubtopicLabel(curriculum?.subtopic);
   const chapterSubtopicShown = displaySubtopicLabel(chapter?.subtopic);
   const chips = [
-    { k: 'Board', v: curriculum?.board },
+    { k: 'Board', v: curriculum?.board ? aiToolBoardLabel(String(curriculum.board)) : '' },
     { k: 'Class', v: curriculum?.class },
     { k: 'Subject', v: curriculum?.subject },
     { k: 'Chapter', v: curriculum?.chapter },

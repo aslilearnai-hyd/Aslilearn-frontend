@@ -11,6 +11,7 @@ import {
 import { resolveMockTestFromPayload } from '@/lib/parse-mock-test';
 import { getFlashcardsFromContent } from '@/components/flashcard-viewer';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+import { aiToolBoardLabel } from './school-program';
 
 export const TEACHER_DOWNLOAD_TOOL_IDS = [
   'worksheet-mcq-generator',
@@ -89,7 +90,7 @@ function buildPdfCover(meta?: AiToolPdfMeta): string {
     ['Subject', meta?.subject],
     ['Topic', meta?.topic],
     ['Subtopic', meta?.subtopic],
-    ['Board', meta?.board],
+    ['Board', meta?.board ? aiToolBoardLabel(String(meta.board)) : ''],
   ].filter(([, v]) => String(v || '').trim());
 
   const metaGrid = rows
