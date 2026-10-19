@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useState, useEffect, useRef } from 'react';
 import { useRoute, useLocation, useSearch } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -179,7 +180,7 @@ export default function AdminSubjectContent() {
           </Button>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{subject?.name || 'Subject'}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{subject?.name ? canonicalTeacherSubjectLabel(subject.name) : 'Subject'}</h1>
               {(() => {
                 const classLabel = contents
                   .map((row) => formatLibraryContentClassLabel(row))

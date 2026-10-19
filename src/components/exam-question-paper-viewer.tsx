@@ -1,3 +1,4 @@
+import { cleanAnswerKeyText, cleanAnswerText } from '@/lib/answer-key-text';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   BookOpen,
@@ -308,15 +309,13 @@ function AnswerKeySnapshotTable({
       <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-emerald-100">
         <table className="w-full table-fixed border-collapse text-left text-sm">
           <colgroup>
-            <col className="w-16 sm:w-20" />
-            <col className="w-16 sm:w-24" />
+            <col className="w-14 sm:w-20" />
             <col />
-            <col className="w-16 sm:w-20" />
+            <col className="w-14 sm:w-20" />
           </colgroup>
           <thead>
             <tr className="bg-emerald-50/90 text-emerald-900">
               <th className="border border-emerald-100 px-2.5 py-2 font-semibold">Q. No.</th>
-              <th className="border border-emerald-100 px-2.5 py-2 font-semibold">Section</th>
               <th className="border border-emerald-100 px-2.5 py-2 font-semibold">Answer</th>
               <th className="border border-emerald-100 px-2.5 py-2 font-semibold">Marks</th>
             </tr>
@@ -325,8 +324,7 @@ function AnswerKeySnapshotTable({
             {rows.map((row, i) => (
               <tr key={`${row.qNo}-${i}`} className="bg-white text-slate-800">
                 <td className="border border-emerald-50 px-2.5 py-2 font-medium">{row.qNo}</td>
-                <td className="border border-emerald-50 px-2.5 py-2">{row.sectionId}</td>
-                <td className="break-words border border-emerald-50 px-2.5 py-2 leading-relaxed">{row.answer}</td>
+                <td className="whitespace-normal break-words border border-emerald-50 px-2.5 py-2 leading-relaxed [overflow-wrap:anywhere]">{cleanAnswerText(row.answer)}</td>
                 <td className="border border-emerald-50 px-2.5 py-2">{row.marks ?? '—'}</td>
               </tr>
             ))}
@@ -335,7 +333,7 @@ function AnswerKeySnapshotTable({
       </div>
     );
   }
-  return <RichTextBlock text={fallbackText} />;
+  return <RichTextBlock text={cleanAnswerKeyText(fallbackText)} />;
 }
 
 /** Hide answer/solution content behind a tap so a mock test stays a real self-test. */

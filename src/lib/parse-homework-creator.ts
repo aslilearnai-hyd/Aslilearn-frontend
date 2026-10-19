@@ -73,6 +73,12 @@ function dedupePracticeQuestions(items: HomeworkPracticeQuestion[]): HomeworkPra
   return out;
 }
 
+/** One generation is at most 20 questions. */
+const MAX_HOMEWORK_QUESTIONS = 20;
+function capQuestions(items: HomeworkPracticeQuestion[]): HomeworkPracticeQuestion[] {
+  return items.slice(0, MAX_HOMEWORK_QUESTIONS);
+}
+
 function dedupeByQuestionText(items: HomeworkPracticeQuestion[]): HomeworkPracticeQuestion[] {
   const seen = new Set<string>();
   return dedupePracticeQuestions(items).filter((q) => {
@@ -310,7 +316,7 @@ function materializeHomework(raw: Record<string, unknown>): NormalizedHomework {
     instructions: coerceHomeworkText(
       raw.instructions || raw.student_instructions || raw.homework_instructions,
     ),
-    practiceQuestions: dedupeByQuestionText(toPracticeQuestions(practiceRaw)),
+    practiceQuestions: capQuestions(dedupeByQuestionText(toPracticeQuestions(practiceRaw))),
     applicationTasks: (() => {
       const tasks = coalesceLines(raw.application_tasks || raw.applicationTasks);
       if (tasks.length) return tasks;
@@ -433,11 +439,12 @@ function mergeHomeworkRecords(records: Record<string, unknown>[]): Record<string
 
   const questions: HomeworkPracticeQuestion[] = [];
   for (const r of records) {
-    if (Array.isArray(r.practice_questions)) {
-      questions.push(...toPracticeQuestions(r.practice_questions));
-    }
-    if (Array.isArray(r.questions)) {
+    // One list per record (questions are objects, practice_questions the same
+    // questions as strings), never both.
+    if (Array.isArray(r.questions) && r.questions.length) {
       questions.push(...toPracticeQuestions(r.questions));
+    } else if (Array.isArray(r.practice_questions)) {
+      questions.push(...toPracticeQuestions(r.practice_questions));
     }
     if (isQuestionOnlyRow(r)) {
       questions.push(...toPracticeQuestions([r]));
@@ -490,8 +497,12 @@ function mergeNormalizedHomeworks(items: NormalizedHomework[]): NormalizedHomewo
     return '';
   };
 
-  const practiceQuestions = dedupePracticeQuestions(items.flatMap((h) => h.practiceQuestions));
-  const applicationTasks = [...new Set(items.flatMap((h) => h.applicationTasks))];
+  // The structured record and its markdown rendering are the SAME homework in
+  // two shapes; their union doubled the questions (18 shown as 36).
+  const practiceQuestions = capQuestions(
+    dedupeByQuestionText(items.find((h) => h.practiceQuestions.length)?.practiceQuestions || []),
+  );
+  const applicationTasks = items.find((h) => h.applicationTasks.length)?.applicationTasks || [];
 
   return {
     title,

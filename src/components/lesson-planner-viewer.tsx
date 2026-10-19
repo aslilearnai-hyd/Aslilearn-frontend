@@ -437,9 +437,6 @@ function TeacherLessonCard({
               {lesson.lessonName}
             </h4>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge className="rounded border-amber-200 bg-amber-100/80 text-amber-950 hover:bg-amber-100/80 font-medium">
-                Lesson {lesson.sl}
-              </Badge>
               {lesson.subjectArea ? (
                 <span className="text-xs text-slate-600">{lesson.subjectArea}</span>
               ) : null}
@@ -516,7 +513,6 @@ function TeacherLessonCard({
         includeOverview
         overviewStats={[
           { label: 'Lesson', value: lesson.lessonName },
-          { label: 'Period', value: lesson.sl ? `Lesson ${lesson.sl}` : '' },
           { label: 'Duration', value: lesson.durationLabel || '' },
           { label: 'Flow blocks', value: String(filled) },
         ].filter((s) => s.value)}
@@ -546,7 +542,7 @@ function TeacherLessonShell({
     <div className="w-full space-y-5">
       {(classLabel || bookName || lessonCount > 0) && (
         <p className="text-xs font-semibold text-amber-900">
-          {[classLabel && `Class ${classLabel}`, bookName, lessonCount > 1 ? `${lessonCount} periods` : null]
+          {[classLabel && (/^class/i.test(String(classLabel)) ? String(classLabel) : `Class ${classLabel}`), bookName, lessonCount > 1 ? `${lessonCount} periods` : null]
             .filter(Boolean)
             .join(' · ')}
         </p>
@@ -576,9 +572,6 @@ function StudentLessonCard({ lesson }: { lesson: NormalizedLesson }) {
           <p className="text-micro font-bold uppercase tracking-wider text-cyan-700 mb-1">
             1. Study Schedule Title
           </p>
-          <Badge className="mb-1.5 border-0 bg-cyan-100 text-cyan-900 hover:bg-cyan-100">
-            Schedule {lesson.sl}
-          </Badge>
           <h4 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">{lesson.lessonName}</h4>
           {(lesson.subjectArea || lesson.durationLabel) && (
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
@@ -639,7 +632,7 @@ function StudentLessonShell({
     <div className="w-full space-y-5">
       {(classLabel || bookName || lessonCount > 0) && (
         <p className="text-xs font-semibold text-cyan-900">
-          {[classLabel && `Class ${classLabel}`, bookName, lessonCount > 0 ? `${lessonCount} lesson${lessonCount !== 1 ? 's' : ''}` : null]
+          {[classLabel && (/^class/i.test(String(classLabel)) ? String(classLabel) : `Class ${classLabel}`), bookName, lessonCount > 0 ? `${lessonCount} lesson${lessonCount !== 1 ? 's' : ''}` : null]
             .filter(Boolean)
             .join(' · ')}
         </p>

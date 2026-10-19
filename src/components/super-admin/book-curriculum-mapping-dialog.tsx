@@ -316,11 +316,13 @@ export function BookCurriculumMappingDialog({
     () =>
       sections.filter(
         (s) =>
-          s.mappingStatus === "unmapped" ||
+          // A heading with no text of its own (contents line, chapter topic list) has nothing to map.
+          (s.wordCount || 0) >= 25 &&
+          (s.mappingStatus === "unmapped" ||
           s.mappingStatus === "needs_review" ||
           // Numbered sub-sections that only reached topic level still need a subtopic.
           // Exercise blocks are chapter-level by design, not a gap to review.
-          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected"),
+          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected")),
       ),
     [sections],
   );

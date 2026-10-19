@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -1599,7 +1600,8 @@ export default function TeacherToolPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {fieldOptions.length > 0 ? (
-                            fieldOptions.map((option) => {
+                            fieldOptions.map((option, optionIndex) => {
+                              const isSubjectField = field.name === 'subject' || field.name === 'subjects';
                               const label =
                                 option === WHOLE_CHAPTER_VALUE
                                   ? 'Whole chapter'
@@ -1607,7 +1609,16 @@ export default function TeacherToolPage() {
                                     ? 'General'
                                     : field.name === 'productCategory'
                                       ? `IIT ${formatIitCategoryLabel(option)}`
-                                      : option;
+                                      : isSubjectField
+                                        ? canonicalTeacherSubjectLabel(option)
+                                        : option;
+                              // "Maths" and "Mathematics" in one list would show twice.
+                              if (
+                                isSubjectField &&
+                                fieldOptions.slice(0, optionIndex).some((o) => canonicalTeacherSubjectLabel(o) === label)
+                              ) {
+                                return null;
+                              }
                               return (
                                 <SelectItem key={option} value={option}>
                                   <span className="min-w-0 whitespace-normal break-words text-left leading-snug">

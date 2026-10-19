@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRoute, useLocation, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -250,7 +251,7 @@ export default function TeacherSubjectContent() {
                 </div>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold mb-1 uppercase tracking-wide">
-                    {subject?.name || 'Subject'}
+                    {subject?.name ? canonicalTeacherSubjectLabel(subject.name) : 'Subject'}
                   </h1>
                   {(() => {
                     const classLabel = selectedClassFilter

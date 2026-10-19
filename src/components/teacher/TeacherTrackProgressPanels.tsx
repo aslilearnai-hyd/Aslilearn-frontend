@@ -1,4 +1,17 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/api-config';
+import { getAuthToken } from '@/lib/auth-utils';
+
+type StudentExamRow = {
+  _id?: string;
+  examTitle?: string;
+  percentage?: number;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  correctAnswers?: number;
+  totalQuestions?: number;
+  completedAt?: string;
+};
 import { motion } from 'framer-motion';
 import {
   Target,
@@ -117,6 +130,8 @@ export function TeacherTrackProgressPanels({
   const [detailStudent, setDetailStudent] = useState<TrackProgressStudent | null>(null);
   const [improvementText, setImprovementText] = useState('');
   const [isLoadingImprovement, setIsLoadingImprovement] = useState(false);
+  const [studentExams, setStudentExams] = useState<StudentExamRow[]>([]);
+  const [isLoadingExams, setIsLoadingExams] = useState(false);
 
   const studentIds = new Set(students.map(studentIdStr).filter(Boolean));
   const filteredRemarks =
@@ -143,6 +158,16 @@ export function TeacherTrackProgressPanels({
       setDetailStudent(student);
       setImprovementText('');
       setIsLoadingImprovement(true);
+      // Every exam this student took, with its score (the card only had the average).
+      setStudentExams([]);
+      setIsLoadingExams(true);
+      void fetch(`${API_BASE_URL}/api/teacher/students/${encodeURIComponent(studentIdStr(student))}/performance`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      })
+        .then((res) => res.json())
+        .then((json) => setStudentExams(Array.isArray(json?.data) ? json.data : []))
+        .catch(() => setStudentExams([]))
+        .finally(() => setIsLoadingExams(false));
       try {
         const text = await onFetchStudentInsights(student);
         setImprovementText(text);
@@ -405,6 +430,45 @@ export function TeacherTrackProgressPanels({
                   </span>
                 </div>
                 <Progress value={Math.min(impPerf.overallProgress ?? 0, 100)} className="h-2" />
+              </div>
+
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-gray-900">Exams taken</h4>
+                {isLoadingExams ? (
+                  <p className="text-sm text-gray-500">Loading exam scores…</p>
+                ) : studentExams.length === 0 ? (
+                  <p className="text-sm text-gray-500">No exams taken yet.</p>
+                ) : (
+                  <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                    {studentExams.map((exam, i) => {
+                      const pct = Number(exam.percentage);
+                      return (
+                        <li
+                          key={exam._id || i}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm"
+                        >
+                          <span className="min-w-0">
+                            <span className="block break-words font-medium text-slate-800">{exam.examTitle || 'Exam'}</span>
+                            <span className="block text-xs text-slate-500">
+                              {exam.completedAt ? new Date(exam.completedAt).toLocaleDateString() : ''}
+                              {exam.totalQuestions ? ` · ${exam.correctAnswers ?? 0}/${exam.totalQuestions} correct` : ''}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-right">
+                            <span className={`block font-semibold ${pct >= 60 ? 'text-emerald-700' : pct >= 35 ? 'text-amber-700' : 'text-rose-700'}`}>
+                              {Number.isFinite(pct) ? `${pct.toFixed(1)}%` : '—'}
+                            </span>
+                            {exam.totalMarks ? (
+                              <span className="block text-xs text-slate-500">
+                                {exam.obtainedMarks ?? 0}/{exam.totalMarks}
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
 
               <div>

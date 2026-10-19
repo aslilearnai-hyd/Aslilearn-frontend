@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import StudentShell from '@/components/layout/StudentShell';
@@ -2060,7 +2061,11 @@ export default function StudentToolPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {optionsForSelect.length > 0 ? (
-                              optionsForSelect.map((option) => (
+                              optionsForSelect
+                                .filter((option, optionIndex) =>
+                                  !(field.name === 'subject' || field.name === 'subjects') ||
+                                  !optionsForSelect.slice(0, optionIndex).some((o) => canonicalTeacherSubjectLabel(o) === canonicalTeacherSubjectLabel(option)))
+                                .map((option) => (
                                 <SelectItem key={option} value={option}>
                                   {option === WHOLE_CHAPTER_VALUE
                                     ? 'Whole chapter'
@@ -2068,7 +2073,9 @@ export default function StudentToolPage() {
                                       ? option === 'NONE'
                                         ? 'General'
                                         : `IIT ${formatIitCategoryLabel(option)}`
-                                      : option.charAt(0).toUpperCase() + option.slice(1)}
+                                      : field.name === 'subject' || field.name === 'subjects'
+                                        ? canonicalTeacherSubjectLabel(option)
+                                        : option.charAt(0).toUpperCase() + option.slice(1)}
                                 </SelectItem>
                               ))
                             ) : (

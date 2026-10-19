@@ -201,19 +201,37 @@ export function extractTimeSlotsFromText(text: string): { prose: string; slots: 
   };
 }
 
+/** A long "type" (a whole sentence) reads as a badge-shaped paragraph: move it into the text. */
+function tidySlot(slot: DailyPlanTimeSlot): DailyPlanTimeSlot {
+  const type = String(slot.type || '').trim();
+  if (type.length <= 24) return slot;
+  return { ...slot, type: 'Activity', activity: [type, slot.activity].filter(Boolean).join('\n') };
+}
+
+const slotActivityKey = (s: DailyPlanTimeSlot) =>
+  String(s.activity || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * The same period arrives from several places (objectives turned into
+ * "Period 1..4", the timeline, the prose), so one plan showed Period 1-4 and
+ * then Period 1, 2 again. Dedupe on the activity text, and when timed periods
+ * exist ("Period 1 · 40 min") show only those.
+ */
 export function mergeTimeSlots(...lists: DailyPlanTimeSlot[][]): DailyPlanTimeSlot[] {
   const seen = new Set<string>();
   const out: DailyPlanTimeSlot[] = [];
   for (const list of lists) {
-    for (const s of list) {
-      const key = `${s.time}|${s.activity}|${s.type}`.toLowerCase();
+    for (const raw of list) {
+      const s = tidySlot(raw);
+      const key = slotActivityKey(s) || `${s.time}|${s.type}`.toLowerCase();
       if (!key.replace(/\|/g, '').trim()) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(s);
     }
   }
-  return out;
+  const timed = out.filter((s) => /\d+\s*min/i.test(String(s.time || '')));
+  return timed.length ? timed : out;
 }
 
 function parseTimeSlotsFromMarkdown(block: string): DailyPlanTimeSlot[] {
@@ -268,7 +286,7 @@ function finalizePlan(plan: NormalizedDailyPlan, extraMarkdown = ''): Normalized
   // Structured periods (time_slots) are the plan; lines scraped from prose
   // only fill in when there are none (they produced "3 blocks" of fragments).
   const timeSlots = plan.timeSlots.length
-    ? plan.timeSlots
+    ? mergeTimeSlots(plan.timeSlots)
     : mergeTimeSlots(
         plan.timeSlots,
         reflectionSplit.slots,

@@ -1108,14 +1108,16 @@ export type ExamAnswerKeyRow = {
 
 export function synthesizeExamAnswerKeyRows(sections: ExamSection[]): ExamAnswerKeyRow[] {
   const rows: ExamAnswerKeyRow[] = [];
-  let serial = 0;
   for (const sec of sections) {
+    let inSection = 0;
     for (const q of sec.questions) {
-      serial += 1;
+      inSection += 1;
       const answer = cleanText(q.answer);
       if (!answer) continue;
+      // "A1", "B2"… like the paper, never a bare "1" repeated in every section.
+      const own = cleanText(q.questionNumber).replace(/^[A-G]/i, '');
       rows.push({
-        qNo: cleanText(q.questionNumber) || String(serial),
+        qNo: `${sec.id.toUpperCase()}${own && /^\d+$/.test(own) ? own : inSection}`,
         sectionId: sec.id.toUpperCase(),
         answer,
         marks: q.marks,

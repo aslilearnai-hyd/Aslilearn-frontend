@@ -1,3 +1,4 @@
+import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
@@ -357,7 +358,7 @@ function PracticeQaBody({
           className="sm:col-span-2"
         >
           <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 px-2.5 py-2">
-            <ExpandableText text={practice.answerKey} />
+            <ExpandableText text={cleanAnswerKeyText(practice.answerKey)} />
           </div>
         </SectionCard>
       ) : null}

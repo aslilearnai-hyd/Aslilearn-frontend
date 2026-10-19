@@ -1,3 +1,4 @@
+import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
@@ -131,7 +132,7 @@ const HOMEWORK_SECTIONS: SectionDef[] = [
     iconWrap: 'bg-emerald-100 text-emerald-900',
     hasContent: (h) => !!h.answerHints,
     render: (h) => (
-      <TapToRevealCard prompt="Check your answers" detail={stripMarkdownSyntax(h.answerHints)} tone="emerald" revealLabel="Show key points" />
+      <TapToRevealCard prompt="Check your answers" detail={cleanAnswerKeyText(stripMarkdownSyntax(h.answerHints))} tone="emerald" revealLabel="Show key points" />
     ),
   },
   {

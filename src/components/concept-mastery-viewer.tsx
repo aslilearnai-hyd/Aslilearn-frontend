@@ -260,9 +260,6 @@ function TeacherConceptCard({ concept }: { concept: NormalizedConcept }) {
           {concept.conceptName}
         </h4>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge className="rounded border-fuchsia-200 bg-fuchsia-100/80 text-fuchsia-950 hover:bg-fuchsia-100/80 font-medium">
-            Concept {concept.sl}
-          </Badge>
           {concept.difficulty ? (
             <span
               className={cn(

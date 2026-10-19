@@ -889,8 +889,15 @@ export default function LearningPaths() {
                               className="flex items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/70 px-3 py-2"
                             >
                               <span className="truncate text-sm text-ink-soft">
-                                {formatIitLearningPathContentLabel(c, displayName)}
-                                {c?.title ? ` · ${c.title}` : ''}
+                                {/* The header already says "<Subject> · IIT / NEET": show the track and title only. */}
+                                {[
+                                  formatIitLearningPathContentLabel(c, displayName)
+                                    .replace(/^.*?·\s*IIT \/ NEET\s*/i, '')
+                                    .trim(),
+                                  c?.title,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || 'IIT / NEET'}
                               </span>
                               <ChevronRight className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
                             </li>
