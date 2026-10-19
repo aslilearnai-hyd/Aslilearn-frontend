@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1227,7 +1228,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjectOptionsForSelect.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {subjectOptionsForSelect.map((s) => <SelectItem key={s} value={s}>{canonicalTeacherSubjectLabel(s)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

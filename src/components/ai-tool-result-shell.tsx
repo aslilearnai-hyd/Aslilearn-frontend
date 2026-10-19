@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -252,7 +253,7 @@ export function AiToolResultShell({
   const theme = TOOL_THEMES[toolType] || DEFAULT_THEME;
   const board = aiToolBoardLabel(String(meta?.board || '').trim());
   const classLabel = String(meta?.classLabel || '').trim();
-  const subject = String(meta?.subject || '').trim();
+  const subject = meta?.subject ? canonicalTeacherSubjectLabel(String(meta.subject).trim()) : '';
   const chapter = String(meta?.chapter || '').trim();
   const subtopic = String(meta?.subtopic || '').trim();
   const hasMeta = Boolean(board || classLabel || subject || chapter || subtopic);

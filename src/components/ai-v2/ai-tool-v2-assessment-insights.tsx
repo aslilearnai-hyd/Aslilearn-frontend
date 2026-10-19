@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import type { ReactNode } from 'react';
 import { Brain, CheckCircle2, Clock, GraduationCap, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -76,7 +77,7 @@ export function AiToolV2OverviewSnapshot({
   const ctx = extractAiToolV2Context(rawContent);
   const rows = [
     { label: 'Class', value: ctx.className },
-    { label: 'Subject', value: ctx.subject },
+    { label: 'Subject', value: (ctx.subject ? canonicalTeacherSubjectLabel(String(ctx.subject)) : '') },
     { label: 'Topic', value: ctx.topic },
     { label: 'Subtopic', value: displaySubtopicLabel(ctx.subtopic) },
     { label: 'Board', value: ctx.board ? aiToolBoardLabel(ctx.board) : '' },

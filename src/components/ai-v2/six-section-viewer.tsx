@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -624,7 +625,7 @@ export function SixSectionViewer({ tool, curriculum, chapter, summary, sections,
   const chips = [
     { k: 'Board', v: curriculum?.board ? aiToolBoardLabel(String(curriculum.board)) : '' },
     { k: 'Class', v: curriculum?.class },
-    { k: 'Subject', v: curriculum?.subject },
+    { k: 'Subject', v: (curriculum?.subject ? canonicalTeacherSubjectLabel(String(curriculum?.subject)) : '') },
     { k: 'Chapter', v: curriculum?.chapter },
     { k: 'Subtopic', v: subtopicShown },
   ].filter((c) => c.v);

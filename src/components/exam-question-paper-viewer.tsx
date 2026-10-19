@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { cleanAnswerKeyText, cleanAnswerText } from '@/lib/answer-key-text';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
@@ -604,7 +605,7 @@ export function ExamQuestionPaperViewer({
                 <div className="space-y-3">
                   <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <OverviewStat label="Class" value={context.className} />
-                    <OverviewStat label="Subject" value={context.subject} />
+                    <OverviewStat label="Subject" value={(context.subject ? canonicalTeacherSubjectLabel(String(context.subject)) : '')} />
                     <OverviewStat label="Chapter / Topic" value={context.topic} />
                     <OverviewStat label="Subtopic" value={displaySubtopicLabel(context.subtopic)} />
                     <OverviewStat label="Board" value={context.board ? aiToolBoardLabel(context.board) : ''} />

@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1339,7 +1340,7 @@ export default function SuperAdminAiGenerator() {
               <SelectContent>
                 {subjectsForTool.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {canonicalTeacherSubjectLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>

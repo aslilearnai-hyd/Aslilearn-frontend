@@ -1,3 +1,4 @@
+import { canonicalTeacherSubjectLabel } from '@/lib/subject-names';
 import { useMemo } from 'react';
 import { BookOpen, GraduationCap, Layers, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,7 @@ export function AiToolV2InputSummary({
 
   const rows = [
     { icon: GraduationCap, label: 'Class', value: ctx.className },
-    { icon: BookOpen, label: 'Subject', value: ctx.subject },
+    { icon: BookOpen, label: 'Subject', value: (ctx.subject ? canonicalTeacherSubjectLabel(String(ctx.subject)) : '') },
     { icon: Target, label: 'Topic', value: ctx.topic },
     { icon: Layers, label: 'Subtopic', value: subtopicDisplay },
     { icon: Target, label: 'Board', value: ctx.board ? aiToolBoardLabel(ctx.board) : '' },
