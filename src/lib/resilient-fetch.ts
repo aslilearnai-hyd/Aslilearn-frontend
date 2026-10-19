@@ -71,9 +71,13 @@ export async function resilientFetch(
       return res;
     } catch (error) {
       if (timer != null) window.clearTimeout(timer);
-      lastError = error;
-      if (attempt >= retries || !isTransientNetworkError(error)) {
-        throw error;
+      // A timeout abort surfaces as "signal is aborted without reason"; say what happened.
+      const timedOut = controller?.signal.aborted && !init.signal?.aborted;
+      lastError = timedOut
+        ? new Error("The server took too long to respond. It may be restarting — please try again in a minute.")
+        : error;
+      if (attempt >= retries || (!timedOut && !isTransientNetworkError(error))) {
+        throw lastError;
       }
       await sleep(retryDelayMs * attempt);
     }
