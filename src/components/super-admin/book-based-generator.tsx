@@ -248,8 +248,8 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
   const {
     classOptions,
     subjects,
-    topics,
-    subtopics,
+    topics: cascadeTopics,
+    subtopics: cascadeSubtopics,
     loadingClasses,
     loadingSubjects,
     loadingTopics,
@@ -303,13 +303,59 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     }
     return boardOptions;
   }, [boardOptions, board]);
+  const selectedBook = useMemo(() => books.find((b) => b._id === bookId), [books, bookId]);
+
+  /*
+   * Topics/subtopics of the SELECTED BOOK (the curriculum its text was mapped
+   * to). The AI Tool Topics list for the on-screen board/class/subject can
+   * contain subtopics this book does not have, and picking one failed with
+   * "The selected subtopic is not in this book's AI Tools curriculum".
+   */
+  const [bookCurriculum, setBookCurriculum] = useState<
+    Array<{ topicName: string; topicLevelChunks: number; subtopics: Array<{ name: string; chunkCount: number }> }> | null
+  >(null);
+  useEffect(() => {
+    setBookCurriculum(null);
+    if (!bookId) return;
+    let cancelled = false;
+    const token = getAuthToken();
+    fetch(`${API_BASE_URL}/api/book-knowledge/books/${bookId}/curriculum-mapping`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        const rows = Array.isArray(json?.data?.curriculum) ? json.data.curriculum : [];
+        const withText = rows.filter(
+          (t: any) => Number(t.topicLevelChunks) > 0 || (t.subtopics || []).some((s: any) => Number(s.chunkCount) > 0),
+        );
+        setBookCurriculum(withText.length ? withText : null);
+      })
+      .catch(() => {
+        if (!cancelled) setBookCurriculum(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId]);
+
+  const topics = useMemo(
+    () => (bookCurriculum ? bookCurriculum.map((t) => t.topicName) : cascadeTopics),
+    [bookCurriculum, cascadeTopics],
+  );
+  const subtopics = useMemo(() => {
+    if (!bookCurriculum) return cascadeSubtopics;
+    const row = bookCurriculum.find((t) => t.topicName.toLowerCase() === String(topic || '').toLowerCase());
+    // Only subtopics this book has text for; empty ones would stop before Gemini.
+    return row ? row.subtopics.filter((s) => s.chunkCount > 0).map((s) => s.name) : [];
+  }, [bookCurriculum, cascadeSubtopics, topic]);
   const topicOptionsForSelect = useMemo(() => {
     if (topic && !topics.some((t) => t.toLowerCase() === topic.toLowerCase())) {
       return [topic, ...topics];
     }
     return topics;
   }, [topics, topic]);
-  const selectedBook = useMemo(() => books.find((b) => b._id === bookId), [books, bookId]);
   // A book being re-indexed keeps its previous chunks live, so it can generate.
   const bookReady = Boolean(
     selectedBook?.embeddingsCreated &&
