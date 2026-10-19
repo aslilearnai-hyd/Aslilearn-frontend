@@ -205,7 +205,7 @@ function CurriculumTargetPicker({
           className="h-auto min-h-10 min-w-0 flex-1 justify-between whitespace-normal py-2 text-left font-normal"
         >
           <span className={cn("min-w-0 break-words", !label && "text-slate-400")}>
-            {label || "Choose topic / subtopic"}
+            {label || "Map to a topic / subtopic…"}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -441,7 +441,7 @@ export function BookCurriculumMappingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(92vh,960px)] w-[min(96vw,1100px)] max-w-[min(96vw,1100px)] lg:max-w-[min(96vw,1100px)] flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[min(92vh,960px)] w-[calc(100vw-1.5rem)] max-w-[1100px] lg:max-w-[1100px] flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
             <span className="break-words">Curriculum mapping · {bookTitle}</span>
@@ -456,7 +456,7 @@ export function BookCurriculumMappingDialog({
         ) : !data ? (
           <p className="py-10 text-center text-sm text-slate-500">No mapping data.</p>
         ) : (
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+          <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
             {mapping.status === "no_curriculum" || mapping.status === "not_mapped" || !mapping.status ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                 {mapping.status === "no_curriculum"
@@ -561,7 +561,7 @@ export function BookCurriculumMappingDialog({
                       return (
                         <div
                           key={section.sectionKey}
-                          className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 lg:flex-row lg:items-start"
+                          className="flex min-w-0 flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 xl:flex-row xl:items-start"
                         >
                           <div className="min-w-0 flex-1 space-y-1">
                             <p className="break-words text-sm font-medium text-slate-900">
@@ -588,10 +588,11 @@ export function BookCurriculumMappingDialog({
                               ) : null}
                             </div>
                             {section.preview ? (
-                              <p className="line-clamp-2 text-xs text-slate-500">{section.preview}</p>
+                              <p className="line-clamp-2 break-words text-xs text-slate-500">{section.preview}</p>
                             ) : null}
                           </div>
-                          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-[420px] lg:shrink-0">
+                          {/* Under the section text below xl: a right-hand column was cut off on laptop screens, so the picker looked missing. */}
+                          <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row xl:w-[400px] xl:shrink-0">
                             <CurriculumTargetPicker
                               curriculum={curriculum}
                               value={current}
