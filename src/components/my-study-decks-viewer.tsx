@@ -13,6 +13,7 @@ import {
   type Flashcard,
 } from '@/components/flashcard-viewer';
 import { ExpandableText, SelfCheckList } from '@/components/ai-tool-interactive';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 const BLOOM_FALLBACK_LEVELS = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
 
@@ -87,7 +88,7 @@ export function enrichStudyDeckCards(cards: Flashcard[], rawContent?: unknown): 
       card.selfCheckRound ||
       card.peerPrompt ||
       selfCheckFromRaw ||
-      (card.front ? `Without looking, explain: ${card.front}` : '');
+      selfCheckPrompt(card.front || '');
 
     return {
       ...card,
@@ -293,6 +294,29 @@ function DeckSectionCard({
   );
 }
 
+/** "Numerical Answer Type: Evaluate …" → "Evaluate …" (the question-type label is noise on a card). */
+const QUESTION_TYPE_LABEL_RE =
+  /^\s*(?:assertion\s*[-–&]?\s*reason|numerical(?:\s+answer)?(?:\s+type)?|integer(?:\s+answer)?(?:\s+type)?|paragraph(?:\s+type)?|comprehension|single\s+correct(?:\s+answer)?(?:\s+type)?|multi(?:ple)?\s+correct(?:\s+answers?)?(?:\s+type)?|matrix\s+match|match\s+the\s+following|mcq|fib|true\s*\/\s*false|case[- ]based)\s*(?:type)?\s*[:\-–]\s*/i;
+
+function stripQuestionTypeLabel(text: string): string {
+  return String(text || '').replace(QUESTION_TYPE_LABEL_RE, '').trim();
+}
+
+/** Self-check line: questions are answered from memory, terms are explained. */
+/** Saved prompts still carry the label: "Without looking, explain: Paragraph: …". */
+function cleanSelfCheckText(text: string): string {
+  const m = String(text || '').match(/^(Without looking, explain:|Answer from memory:)\s*([\s\S]*)$/);
+  return m ? `${m[1]} ${stripQuestionTypeLabel(m[2])}` : String(text || '');
+}
+
+function selfCheckPrompt(front: string): string {
+  const text = stripQuestionTypeLabel(front);
+  if (!text) return '';
+  const isQuestion = /\?\s*$/.test(text) ||
+    /^(?:evaluate|find|calculate|solve|simplify|what|which|why|how|if|consider|prove|show|determine|assertion)\b/i.test(text);
+  return isQuestion ? `Answer from memory: ${text}` : `Without looking, explain: ${text}`;
+}
+
 function PerCardList({
   cards,
   pick,
@@ -313,7 +337,9 @@ function PerCardList({
           <span className="text-micro font-bold uppercase tracking-wide text-violet-700">
             {label(i)}
           </span>
-          <p className="mt-0 whitespace-pre-wrap">{text}</p>
+          <p className="mt-0 whitespace-pre-wrap">
+            <ExamMathText text={cleanSelfCheckText(text)} />
+          </p>
         </li>
       ))}
     </ul>

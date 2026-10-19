@@ -212,7 +212,14 @@ export function AiToolStackedList({
   className?: string;
 }) {
   return (
-    <div className={cn('grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5', className)}>
+    // Masonry columns, not a grid: a 2-column grid made every row as tall as
+    // its taller card, leaving big holes under the shorter one.
+    <div
+      className={cn(
+        'columns-1 gap-5 md:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid md:[&>*]:mb-5',
+        className,
+      )}
+    >
       {children}
     </div>
   );

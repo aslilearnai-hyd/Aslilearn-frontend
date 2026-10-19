@@ -317,20 +317,46 @@ function normalizePracticeQuestions(raw: unknown): StudyGuidePracticeQuestion[] 
     .filter((q) => q.question);
 }
 
+/** First clause of a text, at most 6 words. */
+function shortLabel(text: string): string {
+  const clause = String(text || '').split(/[.;:]/)[0].trim();
+  const words = clause.split(/\s+/).filter(Boolean);
+  return words.length <= 6 ? clause : `${words.slice(0, 6).join(' ')}…`;
+}
+
 function normalizeKeyConcepts(raw: unknown): StudyGuideKeyConcept[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((c) => {
       if (c && typeof c === 'object') {
         const row = c as Record<string, unknown>;
-        return {
-          name: cleanText(row.name || row.concept),
-          explanation: cleanText(row.explanation),
-        };
+        const name = cleanText(row.name || row.concept);
+        const explanation = cleanText(row.explanation);
+        // Older guides paired an unrelated key-point SENTENCE with each
+        // explanation; label the card from its own explanation instead.
+        const sentenceName = name.split(/\s+/).length > 8;
+        return { name: sentenceName && explanation ? shortLabel(explanation) : name, explanation };
       }
       return { name: cleanText(c), explanation: '' };
     })
     .filter((c) => c.name);
+}
+
+/**
+ * Older guides used the whole title ("Mathematics: Advanced Analysis of …")
+ * or the first comma-fragment of a key point ("A number ending in 1") as a
+ * "term". Strip the subject prefix and drop fragment terms.
+ */
+function cleanDefinitions(rows: StudyGuideDefinition[]): StudyGuideDefinition[] {
+  return rows
+    .map((d) => ({ ...d, term: d.term.replace(/^[^:]{2,30}:\s*/, '').trim() }))
+    .filter((d) => {
+      if (!d.term || !d.definition) return false;
+      const term = d.term.toLowerCase();
+      const def = d.definition.toLowerCase();
+      const isFragment = def.startsWith(term) && def.length > term.length + 3;
+      return !isFragment;
+    });
 }
 
 function extractSources(rawContent?: unknown): Record<string, unknown>[] {
@@ -417,7 +443,7 @@ function fromStructured(sources: Record<string, unknown>[]): StudyGuideContent {
     learningObjectives: pickList('learning_objectives', 'learningObjectives', 'objectives'),
     priorKnowledge: pickList('prior_knowledge_required', 'prior_knowledge'),
     keyConcepts,
-    definitions,
+    definitions: cleanDefinitions(definitions),
     formulae,
     conceptFlow: pick('concept_flow_mind_map', 'concept_flow', 'mind_map'),
     realLifeExamples: pickList('real_life_examples', 'real_life_applications', 'examples'),

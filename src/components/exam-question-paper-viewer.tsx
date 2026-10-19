@@ -540,7 +540,7 @@ export function ExamQuestionPaperViewer({
         </Badge>
       </div>
 
-      <AiToolV2SectionStack className="md:grid-cols-1">
+      <AiToolV2SectionStack className="md:columns-1">
         {(() => {
           const counts = parseBlueprintCounts(paper.blueprint);
           const countById: Record<string, number> = {

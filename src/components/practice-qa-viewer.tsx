@@ -1,3 +1,4 @@
+import { reconcileInstructionCounts, sectionLetter } from '@/lib/reconcile-instructions';
 import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
@@ -304,7 +305,19 @@ function PracticeQaBody({
         stripe="border-green-500"
         iconWrap="bg-green-100 text-green-800"
       >
-        <ExpandableText text={practice.instructions} />
+        {/* The model writes "Attempt all 10 questions" before the paper is final; use the real counts. */}
+        <ExpandableText
+          text={reconcileInstructionCounts(practice.instructions, {
+            total: countPracticeQaQuestions(practice),
+            totalMarks: practice.sections.reduce(
+              (sum, sec) => sum + sec.questions.reduce((n, q) => n + (Number(q.marks) || 0), 0),
+              0,
+            ),
+            perSection: Object.fromEntries(
+              practice.sections.map((sec, i) => [sectionLetter(sec.label, i), sec.questions.length]),
+            ),
+          })}
+        />
       </SectionCard>,
     );
   }

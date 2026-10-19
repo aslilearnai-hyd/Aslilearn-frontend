@@ -450,20 +450,22 @@ export function FlipCard({
       className="block w-full text-left [perspective:1200px]"
       aria-pressed={flipped}
     >
+      {/* Both faces share one grid cell, so the card grows to the taller face
+          instead of long text spilling out of a fixed-height box. */}
       <motion.div
-        className="relative min-h-[13rem]"
+        className="grid min-h-[13rem]"
         style={{ transformStyle: 'preserve-3d' }}
         animate={{ rotateY: flipped ? 180 : 0 }}
         transition={{ duration: 0.5, ease: 'easeInOut' }}
       >
         <div
-          className={cn('absolute inset-0 flex flex-col rounded-3xl border bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm', t.border)}
+          className={cn('flex flex-col rounded-3xl border bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm [grid-area:1/1] break-words', t.border)}
           style={{ backfaceVisibility: 'hidden' }}
         >
           {front}
         </div>
         <div
-          className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-3xl border p-5 text-center text-white shadow-sm bg-gradient-to-br', t.border, t.gradient)}
+          className={cn('flex flex-col items-center justify-center gap-2 rounded-3xl border p-5 text-center text-white shadow-sm bg-gradient-to-br [grid-area:1/1]', t.border, t.gradient)}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {back}
