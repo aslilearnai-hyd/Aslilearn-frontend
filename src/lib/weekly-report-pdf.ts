@@ -1,3 +1,4 @@
+import { formatMarks } from './format-marks';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import {
@@ -36,6 +37,17 @@ function esc(s: unknown) {
     .replace(/"/g, '&quot;');
 }
 
+/** "12.5 / 20" from a marks pair, else the old percentage. */
+function marksOrPct(pair: { obtained?: number; total?: number } | undefined, pct: unknown): string {
+  return formatMarks(pair?.obtained, pair?.total) ?? `${n(pct)}%`;
+}
+
+/** One exam row: online exams carry obtained/total; OMR rows carry the score in totalMarks and the paper maximum in maxMarks. */
+function rowMarks(r: { percentage?: number; obtainedMarks?: number; totalMarks?: number; maxMarks?: number }): string {
+  const marks = r.obtainedMarks != null ? formatMarks(r.obtainedMarks, r.totalMarks) : formatMarks(r.totalMarks, r.maxMarks);
+  return marks ?? `${n(r.percentage)}%`;
+}
+
 function tile(label: string, value: string, hint = '') {
   return `<div class="tile">
     <div class="tile-label">${esc(label)}</div>
@@ -66,7 +78,7 @@ function listRows(
         <span class="list-title">${esc(r.title || 'Item')}${
           r.rank != null && Number(r.rank) > 0 ? ` · Rank #${esc(r.rank)}` : ''
         }</span>
-        <span class="list-pct">${esc(n(r.percentage))}%</span>
+        <span class="list-pct">${esc(rowMarks(r))}</span>
       </li>`,
     )
     .join('')}</ul>`;
@@ -376,8 +388,8 @@ export function buildWeeklyReportHtml(input: WeeklyReportPdfInput): string {
       'Exams',
       `<div class="grid">
         ${tile('Exams written', String(n(m.examAttempts)))}
-        ${tile('Average score', n(m.examAttempts) > 0 ? `${n(m.avgExamPct)}%` : '—')}
-        ${tile('Best score', n(m.examAttempts) > 0 ? `${n(m.bestExamPct)}%` : '—')}
+        ${tile('Average marks', n(m.examAttempts) > 0 ? marksOrPct((m.examMarks as any)?.avg, m.avgExamPct) : '—')}
+        ${tile('Best marks', n(m.examAttempts) > 0 ? marksOrPct((m.examMarks as any)?.best, m.bestExamPct) : '—')}
       </div>
       ${listRows(exams.slice(0, 8), 'No exams written this week yet.')}`,
     )}
@@ -386,8 +398,8 @@ export function buildWeeklyReportHtml(input: WeeklyReportPdfInput): string {
       'Offline Results',
       `<div class="grid">
         ${tile('OMR tests', String(n(m.omrAttempts)))}
-        ${tile('Average score', n(m.omrAttempts) > 0 ? `${n(m.omrAvgPct)}%` : '—')}
-        ${tile('Best score', n(m.omrAttempts) > 0 ? `${n(m.omrBestPct)}%` : '—')}
+        ${tile('Average marks', n(m.omrAttempts) > 0 ? marksOrPct((m.omrMarks as any)?.avg, m.omrAvgPct) : '—')}
+        ${tile('Best marks', n(m.omrAttempts) > 0 ? marksOrPct((m.omrMarks as any)?.best, m.omrBestPct) : '—')}
       </div>
       ${
         n(m.omrBestRank) > 0

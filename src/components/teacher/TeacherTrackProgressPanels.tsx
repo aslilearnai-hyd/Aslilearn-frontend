@@ -1,3 +1,4 @@
+import { formatMarks } from '@/lib/format-marks';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-utils';
@@ -47,6 +48,10 @@ export interface TrackProgressStudent {
   performance?: {
     totalExams?: number;
     averagePercentage?: number | null;
+    averageMarks?: number | null;
+    averageTotalMarks?: number | null;
+    recentMarks?: number | null;
+    recentTotalMarks?: number | null;
     overallProgress?: number;
     learningProgress?: number;
     dailyAverageWatchTime?: number;
@@ -209,6 +214,14 @@ export function TeacherTrackProgressPanels({
     .filter((p): p is number => p != null);
   const avgExam =
     examScores.length > 0 ? examScores.reduce((a, b) => a + b, 0) / examScores.length : 0;
+  // Class average in marks: mean obtained over mean paper total.
+  const withMarks = withExams.filter((s) => Number(s.performance?.averageTotalMarks) > 0);
+  const avgExamMarks = withMarks.length
+    ? formatMarks(
+        withMarks.reduce((sum, s) => sum + (Number(s.performance?.averageMarks) || 0), 0) / withMarks.length,
+        withMarks.reduce((sum, s) => sum + Number(s.performance?.averageTotalMarks), 0) / withMarks.length,
+      )
+    : null;
 
   const avgOverall =
     students.length > 0
@@ -240,8 +253,8 @@ export function TeacherTrackProgressPanels({
               <Target className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{avgExam.toFixed(1)}%</p>
-              <p className="text-xs text-gray-600">Avg exam score</p>
+              <p className="text-2xl font-bold text-gray-900">{avgExamMarks ?? (withExams.length ? `${avgExam.toFixed(1)}%` : '—')}</p>
+              <p className="text-xs text-gray-600">Avg exam marks</p>
             </div>
           </div>
         </div>
@@ -317,6 +330,7 @@ export function TeacherTrackProgressPanels({
               const perf = s.performance || {};
               const overall = perf.overallProgress ?? 0;
               const examPct = perf.averagePercentage;
+              const examMarks = formatMarks(perf.averageMarks, perf.averageTotalMarks);
               const remarkCount = remarksByStudentId.get(sid)?.length || 0;
               return (
                 <li
@@ -329,8 +343,12 @@ export function TeacherTrackProgressPanels({
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {classLabel(s)}
-                      {examPct != null && (perf.totalExams || 0) > 0
-                        ? ` · ${examPct.toFixed(0)}% exam avg`
+                      {(perf.totalExams || 0) > 0
+                        ? examMarks
+                          ? ` · avg ${examMarks} marks`
+                          : examPct != null
+                            ? ` · ${examPct.toFixed(0)}% exam avg`
+                            : ''
                         : ' · No exams yet'}
                       {` · ${overall.toFixed(0)}% progress`}
                       {remarkCount > 0 ? ` · ${remarkCount} remark${remarkCount !== 1 ? 's' : ''}` : ''}
@@ -382,14 +400,16 @@ export function TeacherTrackProgressPanels({
                   </p>
                   <p className="font-semibold text-gray-900 mt-0.5">
                     {impPerf.totalExams || 0} taken
-                    {impPerf.averagePercentage != null
-                      ? ` · ${impPerf.averagePercentage.toFixed(1)}% avg`
-                      : ''}
+                    {formatMarks(impPerf.averageMarks, impPerf.averageTotalMarks)
+                      ? ` · avg ${formatMarks(impPerf.averageMarks, impPerf.averageTotalMarks)} marks`
+                      : impPerf.averagePercentage != null
+                        ? ` · ${impPerf.averagePercentage.toFixed(1)}% avg`
+                        : ''}
                   </p>
                   {impPerf.recentExamTitle ? (
                     <p className="text-gray-500 mt-1 truncate">
                       Recent: {impPerf.recentExamTitle} (
-                      {(impPerf.recentPercentage ?? 0).toFixed(0)}%)
+                      {formatMarks(impPerf.recentMarks, impPerf.recentTotalMarks) ?? `${(impPerf.recentPercentage ?? 0).toFixed(0)}%`})
                     </p>
                   ) : null}
                 </div>
@@ -456,13 +476,9 @@ export function TeacherTrackProgressPanels({
                           </span>
                           <span className="shrink-0 text-right">
                             <span className={`block font-semibold ${pct >= 60 ? 'text-emerald-700' : pct >= 35 ? 'text-amber-700' : 'text-rose-700'}`}>
-                              {Number.isFinite(pct) ? `${pct.toFixed(1)}%` : '—'}
+                              {formatMarks(exam.obtainedMarks ?? 0, exam.totalMarks) ?? (Number.isFinite(pct) ? `${pct.toFixed(1)}%` : '—')}
                             </span>
-                            {exam.totalMarks ? (
-                              <span className="block text-xs text-slate-500">
-                                {exam.obtainedMarks ?? 0}/{exam.totalMarks}
-                              </span>
-                            ) : null}
+                            {exam.totalMarks ? <span className="block text-xs text-slate-500">marks</span> : null}
                           </span>
                         </li>
                       );

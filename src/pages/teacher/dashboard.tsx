@@ -137,9 +137,11 @@ interface Student {
   performance?: {
     recentExamTitle?: string;
     recentMarks?: number;
+    recentTotalMarks?: number;
     recentPercentage?: number;
     totalExams?: number;
     averageMarks?: number;
+    averageTotalMarks?: number;
     averagePercentage?: number;
     overallProgress?: number;
     learningProgress?: number; // Content completion progress
@@ -1902,13 +1904,15 @@ const TeacherDashboard = () => {
               assignedClass: student.assignedClass,
               performance: {
                 recentExamTitle: perf.recentExamTitle || null,
-                recentMarks: perf.recentMarks || null,
+                recentMarks: perf.recentMarks ?? null,
+                recentTotalMarks: perf.recentTotalMarks ?? null,
                 recentPercentage: perf.recentPercentage || null,
                 // All metrics from database:
                 // - totalExams: Count from ExamResult collection
                 totalExams: perf.totalExams !== null && perf.totalExams !== undefined ? perf.totalExams : 0,
                 // - averageMarks: Average of obtained marks from ExamResult
                 averageMarks: perf.averageMarks || 0,
+                averageTotalMarks: perf.averageTotalMarks || 0,
                 // - averagePercentage: Average of all exam percentages from ExamResult
                 averagePercentage: perf.averagePercentage !== null && perf.averagePercentage !== undefined ? perf.averagePercentage : null,
                 // - overallProgress: Calculated from exam progress + learning path progress

@@ -1,3 +1,4 @@
+import { formatMarks, formatMarksPair } from '@/lib/format-marks';
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +54,8 @@ type OmrRow = {
   title?: string;
   percentage?: number;
   totalMarks?: number;
+  /** Paper maximum (OMR totalMarks is the score). */
+  maxMarks?: number | null;
   correct?: number;
   wrong?: number;
   left?: number;
@@ -93,6 +96,8 @@ type DigestMetrics = {
   examAttempts?: number;
   avgExamPct?: number;
   bestExamPct?: number;
+  examMarks?: { avg?: { obtained?: number; total?: number }; best?: { obtained?: number; total?: number } } | null;
+  omrMarks?: { avg?: { obtained?: number; total?: number }; best?: { obtained?: number; total?: number } } | null;
   examQuestionAccuracy?: number;
   exams?: ExamRow[];
   omrAttempts?: number;
@@ -569,12 +574,12 @@ export function WeeklyDigestCard({ apiBase }: { apiBase: "/api/teacher" | "/api/
               <MetricTile label="Exams written" value={n(m.examAttempts)} hint="Exams you took this week" />
               <MetricTile
                 label="Average score"
-                value={n(m.examAttempts) > 0 ? `${n(m.avgExamPct)}%` : "—"}
+                value={n(m.examAttempts) > 0 ? formatMarksPair(m.examMarks?.avg) ?? `${n(m.avgExamPct)}%` : "—"}
                 hint="Mean across all your exams"
               />
               <MetricTile
                 label="Best score"
-                value={n(m.examAttempts) > 0 ? `${n(m.bestExamPct)}%` : "—"}
+                value={n(m.examAttempts) > 0 ? formatMarksPair(m.examMarks?.best) ?? `${n(m.bestExamPct)}%` : "—"}
                 hint="Your top exam result"
               />
             </div>
@@ -587,7 +592,7 @@ export function WeeklyDigestCard({ apiBase }: { apiBase: "/api/teacher" | "/api/
                   >
                     <span className="min-w-0 flex-1 text-slate-700 line-clamp-2">{exam.title}</span>
                     <span className="shrink-0 font-semibold tabular-nums text-slate-900">
-                      {n(exam.percentage)}%
+                      {formatMarks(exam.obtainedMarks ?? 0, exam.totalMarks) ?? `${n(exam.percentage)}%`}
                     </span>
                   </li>
                 ))}
@@ -601,12 +606,12 @@ export function WeeklyDigestCard({ apiBase }: { apiBase: "/api/teacher" | "/api/
               <MetricTile label="Offline Tests" value={n(m.omrAttempts)} hint="OMR tests scored this week" />
               <MetricTile
                 label="Average score"
-                value={n(m.omrAttempts) > 0 ? `${n(m.omrAvgPct)}%` : "—"}
+                value={n(m.omrAttempts) > 0 ? formatMarksPair(m.omrMarks?.avg) ?? `${n(m.omrAvgPct)}%` : "—"}
                 hint="Mean across offline tests"
               />
               <MetricTile
                 label="Best score"
-                value={n(m.omrAttempts) > 0 ? `${n(m.omrBestPct)}%` : "—"}
+                value={n(m.omrAttempts) > 0 ? formatMarksPair(m.omrMarks?.best) ?? `${n(m.omrBestPct)}%` : "—"}
                 hint="Your top offline result"
               />
             </div>
@@ -627,7 +632,7 @@ export function WeeklyDigestCard({ apiBase }: { apiBase: "/api/teacher" | "/api/
                       ) : null}
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums text-slate-900">
-                      {n(row.percentage)}%
+                      {formatMarks(row.totalMarks, row.maxMarks) ?? `${n(row.percentage)}%`}
                     </span>
                   </li>
                 ))}
