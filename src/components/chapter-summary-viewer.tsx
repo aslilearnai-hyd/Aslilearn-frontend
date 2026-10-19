@@ -29,6 +29,23 @@ import {
   TapToMarkItem,
   TapToRevealCard,
 } from '@/components/ai-tool-interactive';
+import ExamMathText from '@/components/exam/ExamMathText';
+
+/**
+ * "Properties of Square Numbers: Square numbers can only end in 0, 1, 4…"
+ * arrives as one long name. The card front needs the short name; the rest is
+ * the explanation on the back.
+ */
+function splitConceptCard(name: string, explanation?: string): { name: string; explanation: string } {
+  const raw = String(name || '').trim();
+  const colon = raw.indexOf(':');
+  if (raw.length > 60 && colon > 2 && colon <= 70) {
+    const head = raw.slice(0, colon).trim();
+    const rest = raw.slice(colon + 1).trim();
+    return { name: head, explanation: String(explanation || '').trim() && explanation !== name ? String(explanation) : rest };
+  }
+  return { name: raw, explanation: String(explanation || '').trim() || raw };
+}
 
 export { chapterSummaryViewerPayloadFromRecord };
 
@@ -97,19 +114,22 @@ function buildBodySections(summary: ChapterSummaryContent): ReactNode[] {
       hasContent: summary.importantConcepts.length > 0,
       body: (
         <div className="grid gap-1.5 sm:grid-cols-2">
-          {summary.importantConcepts.map((c, i) => (
-            <FlipCard
-              key={`${c.name}-${i}`}
-              tone="violet"
-              front={
-                <div className="flex flex-1 flex-col justify-center">
-                  <p className="text-base font-semibold text-violet-900">{c.name}</p>
-                  <p className="mt-1 text-mini font-medium text-violet-600">Tap to flip ↻</p>
-                </div>
-              }
-              back={<p className="text-base leading-relaxed">{c.explanation || c.name}</p>}
-            />
-          ))}
+          {summary.importantConcepts.map((c, i) => {
+            const card = splitConceptCard(c.name, c.explanation);
+            return (
+              <FlipCard
+                key={`${c.name}-${i}`}
+                tone="violet"
+                front={
+                  <div className="flex flex-1 flex-col justify-center">
+                    <p className="text-base font-semibold text-violet-900"><ExamMathText text={card.name} /></p>
+                    <p className="mt-1 text-mini font-medium text-violet-600">Tap to flip ↻</p>
+                  </div>
+                }
+                back={<p className="text-base leading-relaxed"><ExamMathText text={card.explanation} /></p>}
+              />
+            );
+          })}
         </div>
       ),
     },

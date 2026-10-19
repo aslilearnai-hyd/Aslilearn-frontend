@@ -5,6 +5,22 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RealisticIcon, type AiTool3dIconName } from '@/components/ai-tool-3d-icons';
 import { renderMarkdown } from '@/lib/render-teacher-markdown';
+import ExamMathText from '@/components/exam/ExamMathText';
+
+/**
+ * Every interactive block shows AI text: render $…$ / \(…\) LaTeX and
+ * classroom ASCII (sqrt(), cbrt(), x^2) as maths instead of raw symbols.
+ */
+function mathText(value: ReactNode): ReactNode {
+  return typeof value === 'string' ? <ExamMathText text={value} /> : value;
+}
+
+/** Cut long text without leaving half of a $…$ expression behind. */
+function truncateKeepingMath(text: string, max: number): string {
+  let cut = text.slice(0, max).trim();
+  if ((cut.match(/\$/g) || []).length % 2 === 1) cut = cut.slice(0, cut.lastIndexOf('$')).trim();
+  return `${cut}…`;
+}
 
 function looksLikeMarkdown(text: string): boolean {
   return (
@@ -92,7 +108,7 @@ export function SelfCheckList({
               <CheckCircle2
                 className={cn('mt-0.5 h-4 w-4 shrink-0 transition-colors', done ? 'text-emerald-500' : 'text-slate-300')}
               />
-              <span className={done ? t.text : 'text-slate-800'}>{item}</span>
+              <span className={done ? t.text : 'text-slate-800'}>{mathText(item)}</span>
             </motion.button>
           );
         })}
@@ -125,7 +141,7 @@ export function TapToRevealCard({
       className={cn('w-full rounded-2xl border bg-white px-4 py-3 text-left shadow-sm transition', t.border, `hover:${t.borderStrong}`)}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={cn('text-base font-bold', t.text)}>{prompt}</span>
+        <span className={cn('text-base font-bold', t.text)}>{mathText(prompt)}</span>
         {detail ? (
           <span className={cn('shrink-0 text-mini font-semibold', t.accentText)}>
             {revealed ? 'Hide' : revealLabel}
@@ -140,7 +156,7 @@ export function TapToRevealCard({
             exit={{ opacity: 0, height: 0 }}
             className="mt-1.5 overflow-hidden whitespace-pre-wrap text-base text-slate-700"
           >
-            {detail}
+            {mathText(detail)}
           </motion.p>
         ) : null}
       </AnimatePresence>
@@ -187,7 +203,7 @@ export function TapToMarkItem({
           markedStyle === 'highlight' && marked ? 'font-medium' : undefined,
         )}
       >
-        {text}
+        {mathText(text)}
       </span>
     </motion.button>
   );
@@ -219,7 +235,7 @@ export function OneAtATimeCarousel({
           className={cn('flex items-start gap-3 rounded-2xl border bg-white px-4 py-4 text-base text-slate-800 shadow-sm', t.border)}
         >
           <RealisticIcon name={icon} alt="" className="mt-0.5 h-7 w-7 shrink-0" />
-          <span className="leading-relaxed">{item}</span>
+          <span className="leading-relaxed">{mathText(item)}</span>
         </motion.div>
       </AnimatePresence>
       <div className="mt-3 flex items-center justify-between gap-2">
@@ -274,11 +290,11 @@ export function ExpandableText({ text, threshold = 260 }: { text?: string; thres
   }
 
   const isLong = safeText.length > threshold;
-  const display = isLong && !expanded ? `${safeText.slice(0, threshold - 40).trim()}…` : safeText;
+  const display = isLong && !expanded ? truncateKeepingMath(safeText, threshold - 40) : safeText;
 
   return (
     <div>
-      <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">{display}</p>
+      <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">{mathText(display)}</p>
       {isLong ? (
         <button
           type="button"
@@ -335,7 +351,7 @@ export function CheckableTimeline({ items, tone = 'violet' }: { items: string[];
                   done ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : cn(t.border, 'bg-white/80 text-slate-800 hover:border-slate-300'),
                 )}
               >
-                {item}
+                {mathText(item)}
               </button>
             </li>
           );

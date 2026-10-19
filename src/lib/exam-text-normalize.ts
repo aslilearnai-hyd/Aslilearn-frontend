@@ -69,6 +69,9 @@ export function normalizeExamDisplayText(value: unknown): string {
   text = text.replace(/(?<!\\)\bsqrt\s*\(/gi, '√(');
   text = text.replace(/(?<!\\)\bsqrt\s*\{([^{}]+)\}/gi, '√($1)');
   text = text.replace(/(?<!\\)\bsqrt\s+(\d+)/gi, '√$1');
+  // Cube roots arrive as "cbrt(1728)" (or "cuberoot(…)"): show ∛(1728).
+  text = text.replace(/(?<!\\)\b(?:cbrt|cube\s*root|cuberoot)\s*\(/gi, '∛(');
+  text = text.replace(/(?<!\\)\bcbrt\s+(\d+)/gi, '∛$1');
 
   const monthToNumber: Record<string, string> = {
     jan: '1',

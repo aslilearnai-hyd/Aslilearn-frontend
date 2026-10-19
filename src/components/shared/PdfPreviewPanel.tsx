@@ -188,6 +188,49 @@ function buildPdfDocumentInit(source: PdfSource): PdfDocumentInit {
   return { ...base, data: source.bytes };
 }
 
+/**
+ * Printed page = PDF page - offset (front matter shifts them: PDF page 27 is
+ * the book's page 21). Uses the PDF's own page labels when present, else the
+ * standalone number printed at the top/bottom of sampled pages; needs three
+ * agreeing samples, otherwise null (show PDF pages only).
+ */
+async function detectBookPageOffset(pdf: pdfjs.PDFDocumentProxy): Promise<number | null> {
+  try {
+    const labels = await pdf.getPageLabels();
+    if (Array.isArray(labels) && labels.length === pdf.numPages) {
+      const first = labels.findIndex((l) => String(l || '').trim() === '1');
+      if (first >= 0) return first;
+    }
+  } catch {
+    /* no labels */
+  }
+  const n = pdf.numPages;
+  if (n < 6) return null;
+  const counts = new Map<number, number>();
+  const start = Math.min(8, n);
+  for (let pageNum = start, taken = 0; pageNum <= n && taken < 12; pageNum += 3, taken += 1) {
+    try {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const nums = (content.items as Array<{ str?: string; transform?: number[] }>)
+        .filter((it) => /^\s*\d{1,3}\s*$/.test(String(it.str || '')) && Array.isArray(it.transform))
+        .map((it) => ({ value: Number(String(it.str).trim()), y: Number(it.transform![5]) || 0 }));
+      if (!nums.length) continue;
+      // Page numbers sit at the very bottom (or top) of the page.
+      const lowest = nums.reduce((a, b) => (b.y < a.y ? b : a));
+      const highest = nums.reduce((a, b) => (b.y > a.y ? b : a));
+      for (const cand of [lowest, highest]) {
+        const offset = pageNum - cand.value;
+        if (offset >= 0 && offset < 80) counts.set(offset, (counts.get(offset) || 0) + 1);
+      }
+    } catch {
+      /* skip page */
+    }
+  }
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] >= 3 ? best[0] : null;
+}
+
 function getPageViewport(page: pdfjs.PDFPageProxy, scale: number) {
   return page.getViewport({ scale, dontFlip: false });
 }
@@ -405,7 +448,9 @@ function PdfPageJumpBar({
   onZoomOut,
   onResetZoom,
   showZoom = true,
+  bookPageOffset = null,
 }: {
+  bookPageOffset?: number | null;
   page: number;
   pageCount: number;
   draft: string;
@@ -420,6 +465,7 @@ function PdfPageJumpBar({
   showZoom?: boolean;
 }) {
   const knownCount = pageCount > 0;
+  const bookPage = bookPageOffset != null && page - bookPageOffset >= 1 ? page - bookPageOffset : null;
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-stone-300/50 bg-stone-100/95 px-3 py-2.5 backdrop-blur-sm sm:gap-3 sm:py-3">
       <Button
@@ -452,7 +498,12 @@ function PdfPageJumpBar({
           className="h-10 w-14 rounded-xl text-center text-sm font-semibold tabular-nums sm:h-11 sm:w-16"
           aria-label="Go to page number"
         />
-        {knownCount ? (
+        {bookPageOffset != null ? (
+          <span className="text-xs font-medium tabular-nums text-stone-500">
+            {bookPage == null ? 'front matter · ' : ''}PDF {page}
+            {knownCount ? ` of ${pageCount}` : ''}
+          </span>
+        ) : knownCount ? (
           <span className="text-sm font-semibold tabular-nums text-stone-700">
             of {pageCount}
           </span>
@@ -574,6 +625,18 @@ export default function PdfPreviewPanel({
   const [totalPages, setTotalPages] = useState(0);
   const [pdfSource, setPdfSource] = useState<PdfSource | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
+  const [bookPageOffset, setBookPageOffset] = useState<number | null>(null);
+  useEffect(() => {
+    setBookPageOffset(null);
+    if (!pdfDoc) return;
+    let alive = true;
+    void detectBookPageOffset(pdfDoc).then((offset) => {
+      if (alive) setBookPageOffset(offset);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [pdfDoc]);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [useIframeFallback, setUseIframeFallback] = useState(false);
@@ -822,9 +885,11 @@ export default function PdfPreviewPanel({
     updateContainerSize();
   }, [isFullscreen, useCanvasRendering, updateContainerSize]);
 
+  // The box shows the page number printed in the book when it is known.
   useEffect(() => {
-    setPageJumpDraft(String(readerPage));
-  }, [readerPage]);
+    const book = bookPageOffset != null && readerPage - bookPageOffset >= 1 ? readerPage - bookPageOffset : null;
+    setPageJumpDraft(String(book ?? readerPage));
+  }, [readerPage, bookPageOffset]);
 
   useEffect(() => {
     const stored = readStoredPdfPage(normalizeContentFileUrl(fileUrl) || fileUrl);
@@ -840,7 +905,8 @@ export default function PdfPreviewPanel({
   }, [fileUrl, title]);
 
   const submitPageJump = useCallback(() => {
-    const parsed = Number.parseInt(pageJumpDraft.replace(/[^\d]/g, ''), 10);
+    const typed = Number.parseInt(pageJumpDraft.replace(/[^\d]/g, ''), 10);
+    const parsed = bookPageOffset != null && Number.isFinite(typed) ? typed + bookPageOffset : typed;
     if (!Number.isFinite(parsed) || parsed < 1) {
       setPageJumpDraft(String(readerPage));
       return;
@@ -848,7 +914,7 @@ export default function PdfPreviewPanel({
     const knownMax = readerPageCount || totalPages;
     const next = knownMax > 0 ? Math.min(parsed, knownMax) : parsed;
     jumpReaderPage(next);
-  }, [pageJumpDraft, readerPage, readerPageCount, totalPages, jumpReaderPage]);
+  }, [pageJumpDraft, readerPage, readerPageCount, totalPages, jumpReaderPage, bookPageOffset]);
 
   const destroyPdfDoc = useCallback(async () => {
     if (!pdfDocRef.current) return;
@@ -1403,6 +1469,7 @@ export default function PdfPreviewPanel({
       <PdfPageJumpBar
         page={readerPage}
         pageCount={readerPageCount || totalPages}
+        bookPageOffset={useIframeFallback ? null : bookPageOffset}
         draft={pageJumpDraft}
         onDraftChange={setPageJumpDraft}
         onSubmit={submitPageJump}
