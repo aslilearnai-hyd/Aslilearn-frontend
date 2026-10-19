@@ -417,20 +417,64 @@ export function buildWeeklyReportHtml(input: WeeklyReportPdfInput): string {
     ${shellEnd}`;
 }
 
-function addCanvasPages(pdf: jsPDF, canvas: HTMLCanvasElement) {
+type LayoutBlock = { top: number; bottom: number; heading?: boolean };
+
+/** Tiles, list rows, headings and boxes that must not be cut by a page break (CSS px). */
+function collectLayoutBlocks(root: HTMLElement): LayoutBlock[] {
+  const base = root.getBoundingClientRect().top;
+  const blocks: LayoutBlock[] = [];
+  root.querySelectorAll<HTMLElement>('.hero, .section > h2, .tile, .list li, .highlights, .empty, .footer').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    blocks.push({ top: r.top - base, bottom: r.bottom - base, heading: el.tagName === 'H2' });
+  });
+  return blocks;
+}
+
+/**
+ * Page ends in CSS px. A page used to be a fixed-height slice, which cut tile
+ * rows in half ("Exams written" on one page, its "1" on the next). Now each
+ * page ends before the first block that would cross it, and a section heading
+ * is never left alone at the bottom.
+ */
+function pageBreaks(totalPx: number, pagePx: number, blocks: LayoutBlock[]): number[] {
+  const ends: number[] = [];
+  let start = 0;
+  while (start < totalPx - 1) {
+    const limit = start + pagePx;
+    if (limit >= totalPx) {
+      ends.push(totalPx);
+      break;
+    }
+    let end = limit;
+    const crossing = blocks.filter((b) => b.top < end && b.bottom > end && b.top > start);
+    if (crossing.length) end = Math.min(...crossing.map((b) => b.top)) - 4;
+    const orphan = blocks.find((b) => b.heading && b.top > start && b.top < end && end - b.top < 48);
+    if (orphan) end = orphan.top - 4;
+    // Never make a near-empty page (one block taller than a page is cut as before).
+    if (end - start < pagePx * 0.35) end = limit;
+    ends.push(end);
+    start = end;
+  }
+  return ends;
+}
+
+function addCanvasPages(pdf: jsPDF, canvas: HTMLCanvasElement, blocks: LayoutBlock[] = [], cssWidth = 794) {
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = 10;
   const innerW = pageW - margin * 2;
   const imgW = innerW;
-  const imgH = (canvas.height * imgW) / canvas.width;
   const pageInnerH = pageH - margin * 2;
-  const totalPages = Math.max(1, Math.ceil(imgH / pageInnerH));
+  const canvasPerCss = canvas.width / cssWidth;
+  const pagePx = (pageInnerH * cssWidth) / imgW;
+  const ends = pageBreaks(canvas.height / canvasPerCss, pagePx, blocks);
 
-  for (let page = 0; page < totalPages; page += 1) {
+  let startCss = 0;
+  for (let page = 0; page < ends.length; page += 1) {
     if (page > 0) pdf.addPage();
-    const srcY = (page * pageInnerH * canvas.width) / imgW;
-    const srcH = Math.min(canvas.height - srcY, (pageInnerH * canvas.width) / imgW);
+    const srcY = startCss * canvasPerCss;
+    const srcH = Math.min(canvas.height - srcY, (ends[page] - startCss) * canvasPerCss);
+    startCss = ends[page];
     const slice = document.createElement('canvas');
     slice.width = canvas.width;
     slice.height = Math.max(1, Math.floor(srcH));
@@ -463,7 +507,7 @@ export async function downloadWeeklyReportPdf(input: WeeklyReportPdfInput): Prom
       windowWidth: 794,
     });
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    addCanvasPages(pdf, canvas);
+    addCanvasPages(pdf, canvas, collectLayoutBlocks(target), 794);
     const slug = String(input.studentName || input.title || 'weekly-report')
       .replace(/[^\w.-]+/g, '_')
       .slice(0, 48);
