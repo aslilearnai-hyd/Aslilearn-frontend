@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
@@ -224,7 +225,7 @@ function PracticeQuestionCard({
         </Badge>
       </div>
 
-      <p className="text-base font-semibold leading-snug text-slate-900 sm:text-base">{q.question}</p>
+      <p className="text-base font-semibold leading-snug text-slate-900 sm:text-base"><ExamMathText text={q.question} /></p>
 
       {isMcq ? (
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -268,7 +269,7 @@ function PracticeQuestionCard({
                   >
                     {label}
                   </span>
-                  <span className="min-w-0 flex-1 pt-0.5">{text}</span>
+                  <span className="min-w-0 flex-1 pt-0.5"><ExamMathText text={text} /></span>
                 </button>
               </motion.li>
             );
@@ -580,10 +581,13 @@ export function SmartStudyGuideViewer({ content, rawContent, className }: SmartS
                 {guide.formulae.map((f, i) => (
                   <div
                     key={`fm-${i}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-base text-slate-800"
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-800"
                   >
-                    {f.name ? <span className="font-sans font-semibold text-slate-900">{f.name}: </span> : null}
-                    {f.formula}
+                    {/* Name and formula often repeat each other ("Cube: V = s³: Cube: V = s³"). */}
+                    {f.name && !String(f.formula || '').toLowerCase().startsWith(String(f.name).toLowerCase()) ? (
+                      <span className="font-semibold text-slate-900">{f.name}: </span>
+                    ) : null}
+                    <ExamMathText text={String(f.formula || f.name || '')} />
                     {f.note ? <p className="mt-1 font-sans text-xs text-slate-500">{f.note}</p> : null}
                   </div>
                 ))}

@@ -44,6 +44,13 @@ import { renderMarkdown } from '@/lib/render-teacher-markdown';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun, ExternalHyperlink, InternalHyperlink } from 'docx';
 import { saveAs } from 'file-saver';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+/** Downloads showed raw "2sqrt(19)", "cbrt(x^3)", "x^2": use the same symbols as the screen (√, ∛, ²). Lines keep their layout. */
+const classroomMathForExport = (text: string): string =>
+  String(text || '')
+    .split(/\r?\n/)
+    .map((line) => (line.trim() ? formatClassroomScienceText(line) : line))
+    .join('\n');
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -965,7 +972,7 @@ export default function TeacherToolPage() {
 
   const handleDownloadText = () => {
     const fileName = `${config?.name || 'AI-Content'}-${Date.now()}.txt`.replace(/\s+/g, '-');
-    saveAs(new Blob([displayGeneratedContent], { type: 'text/plain;charset=utf-8' }), fileName);
+    saveAs(new Blob([classroomMathForExport(displayGeneratedContent)], { type: 'text/plain;charset=utf-8' }), fileName);
     toast({ title: 'Downloaded!', description: 'Content saved as a text file' });
   };
 
@@ -1371,7 +1378,7 @@ export default function TeacherToolPage() {
         effectiveRawContent,
         subject,
       );
-      const doc = await convertToWordDocument(wordText);
+      const doc = await convertToWordDocument(classroomMathForExport(wordText));
       const blob = await Packer.toBlob(doc);
       const fileName = `${config.name.replace(/\s+/g, '-')}-${Date.now()}.docx`;
       saveAs(blob, fileName);
@@ -1747,10 +1754,6 @@ export default function TeacherToolPage() {
                       Download
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={handleShare} className="shrink-0 bg-white">
-                    <Share2 className="h-4 w-4" />
-                    Share
-                  </Button>
                   <Button size="sm" onClick={handleGenerate} disabled={isGenerating} className="shrink-0">
                     <RotateCcw className="h-4 w-4" />
                     Regenerate

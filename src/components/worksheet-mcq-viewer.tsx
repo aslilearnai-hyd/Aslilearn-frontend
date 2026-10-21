@@ -210,7 +210,15 @@ function buildTimelineBlocks(worksheet: NormalizedWorksheet): TimelineBlock[] {
       stepNum: 2,
       title: 'Instructions To Students',
       icon: BookOpen,
-      content: <ExpandableText text={worksheet.instructions} />,
+      // The model writes "Attempt all 20 questions" before the set is final; show the real count.
+      content: (
+        <ExpandableText
+          text={worksheet.instructions.replace(
+            /\b(attempt|answer)\s+all\s+\d+\s+questions\b/gi,
+            (_m, verb: string) => `${verb} all ${countWorksheetQuestions(worksheet)} questions`,
+          )}
+        />
+      ),
     });
   }
 

@@ -48,8 +48,9 @@ export function MatchColumnsTable({
             const b = right[i];
             const leftKey = String(a?.key || String.fromCharCode(65 + i)).replace(/\.$/, '');
             const rightKey = String(b?.key || String(i + 1)).replace(/\.$/, '');
-            const leftText = formatText(String(a?.text || '').trim());
-            const rightText = formatText(String(b?.text || '').trim());
+            // Items arrive from comma-separated lists ("Velocity,"), so drop the separator.
+            const leftText = formatText(String(a?.text || '').trim().replace(/[,;]\s*$/, ''));
+            const rightText = formatText(String(b?.text || '').trim().replace(/[,;]\s*$/, ''));
             return (
               <tr key={i} className="bg-white">
                 <td className="border border-slate-800 px-3 py-2 align-top">

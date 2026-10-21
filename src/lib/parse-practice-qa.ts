@@ -215,16 +215,24 @@ function questionDedupeKey(q: PracticeQaQuestion): string {
   const n = q.questionNumber != null ? String(q.questionNumber) : '';
   const text = q.question.toLowerCase().replace(/\s+/g, ' ').trim();
   const sec = mapPracticeQaSectionName(q.section || '');
-  return `${sec}::${n}::${text}`;
+  // Same text under a new number is still the same question (HOTS showed Q1 and Q2 identical).
+  return text ? `${sec}::${text}` : `${sec}::${n}::`;
 }
 
 function dedupePracticeQaQuestions(questions: PracticeQaQuestion[]): PracticeQaQuestion[] {
-  const seen = new Set<string>();
+  const seen = new Map<string, number>();
   const out: PracticeQaQuestion[] = [];
+  const richness = (q: PracticeQaQuestion) =>
+    (q.answer ? 2 : 0) + (q.explanation ? 1 : 0) + ((q as { marks?: unknown }).marks != null ? 1 : 0) + (q.options?.length ? 1 : 0);
   for (const q of questions) {
     const key = questionDedupeKey(q);
-    if (!key.endsWith('::') && seen.has(key)) continue;
-    seen.add(key);
+    const at = key.endsWith('::') ? undefined : seen.get(key);
+    if (at != null) {
+      // Keep whichever copy carries the answer / marks.
+      if (richness(q) > richness(out[at])) out[at] = { ...q, questionNumber: out[at].questionNumber };
+      continue;
+    }
+    if (!key.endsWith('::')) seen.set(key, out.length);
     out.push(q);
   }
   return out;

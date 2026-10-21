@@ -735,7 +735,7 @@ export function FlashcardViewer({
                   onClick={() => setIsFlipped(!isFlipped)}
                 >
                   <p className="text-base font-semibold text-slate-900 leading-snug line-clamp-5">
-                    {currentCard.back}
+                    <ExamMathText text={String(currentCard.back ?? '')} />
                   </p>
                   {embeddedExtras.length > 0 ? (
                     <div className="flex flex-wrap justify-center gap-1.5 w-full">
@@ -1229,7 +1229,7 @@ export function FlashcardViewer({
                         </span>
                       </div>
                       <div className="flex flex-1 items-center justify-center overflow-y-auto px-2 text-center text-base font-medium leading-relaxed text-slate-900 sm:text-lg">
-                        {currentCard.front}
+                        <ExamMathText text={String(currentCard.front ?? '')} />
                       </div>
                       <div className="pt-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsFlipped(true)}>
@@ -1256,7 +1256,7 @@ export function FlashcardViewer({
                         className="flex flex-1 cursor-pointer items-center justify-center overflow-y-auto px-2 text-center text-base font-medium leading-relaxed text-slate-900 sm:text-lg"
                         onClick={() => setIsFlipped(!isFlipped)}
                       >
-                        {currentCard.back}
+                        <ExamMathText text={String(currentCard.back ?? '')} />
                       </div>
                       <div className="pt-3 text-center">
                         <Button type="button" variant="outline" className="rounded-full" onClick={() => setIsFlipped(false)}>

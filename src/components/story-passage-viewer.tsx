@@ -238,7 +238,7 @@ const READING_PRACTICE_SECTIONS: StorySectionDef[] = [
     iconWrap: 'bg-amber-100 text-amber-800',
     hasContent: (s) => !!s.passage,
     render: (s) => (
-      <p className="font-serif text-base sm:text-lg leading-[1.85] text-slate-800 whitespace-pre-wrap">
+      <p className="text-base sm:text-lg leading-[1.85] text-slate-800 whitespace-pre-wrap">
         {s.passage}
       </p>
     ),
@@ -433,7 +433,7 @@ const TEACHER_STORY_PASSAGE_SECTIONS: StorySectionDef[] = [
     iconWrap: 'bg-amber-100 text-amber-800',
     hasContent: (s) => !!s.passage,
     render: (s) => (
-      <p className="font-serif text-base sm:text-lg leading-[1.85] text-slate-800 whitespace-pre-wrap">
+      <p className="text-base sm:text-lg leading-[1.85] text-slate-800 whitespace-pre-wrap">
         {s.passage}
       </p>
     ),
@@ -690,7 +690,7 @@ function StudentPassagesBundle({ bundle }: { bundle: ParsedPassagesBundle }) {
             <p className="text-micro font-bold uppercase tracking-widest text-amber-800/70 mb-3">
               Passage {current.passageNumber}
             </p>
-            <p className="font-serif text-base sm:text-lg leading-[1.85] text-slate-800">{current.paragraph}</p>
+            <p className="text-base sm:text-lg leading-[1.85] text-slate-800">{current.paragraph}</p>
           </article>
           {current.questions.length > 0 ? (
             <div className="mt-2 space-y-2">

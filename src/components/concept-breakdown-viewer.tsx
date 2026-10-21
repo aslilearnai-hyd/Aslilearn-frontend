@@ -1,4 +1,5 @@
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { useMemo, type ReactNode } from 'react';
 import { ToolSectionIcon } from '@/components/ai-tool-3d-icons';
 import { AiToolPairedSectionColumns } from '@/lib/ai-tool-section-layout';
@@ -129,11 +130,11 @@ function buildSections(concept: ConceptBreakdownContent): {
               tone="amber"
               front={
                 <div className="flex flex-1 flex-col justify-center">
-                  <p className="text-base font-semibold text-amber-900">{term.term}</p>
+                  <p className="text-base font-semibold text-amber-900"><ExamMathText text={term.term} /></p>
                   <p className="mt-1 text-mini font-medium text-amber-600">Tap to flip ↻</p>
                 </div>
               }
-              back={<p className="text-base leading-relaxed">{term.definition || term.term}</p>}
+              back={<p className="text-base leading-relaxed"><ExamMathText text={term.definition || term.term} /></p>}
             />
           ))}
         </div>

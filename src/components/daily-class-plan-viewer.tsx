@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { cn } from '@/lib/utils';
 import { renderMarkdown } from '@/lib/render-teacher-markdown';
 import { stripStructuredAiToolMetadata } from '@/lib/strip-ai-tool-metadata';
@@ -96,14 +97,17 @@ function PeriodTimeline({ slots }: { slots: DailyPlanTimeSlot[] }) {
             </div>
             <div className="min-w-0 flex-1 rounded-2xl border border-indigo-100/80 bg-white p-4 shadow-sm ring-1 ring-indigo-50">
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="text-base font-bold text-indigo-900">{slot.time || `Period ${i + 1}`}</span>
+                {/* The model sometimes restarts its own numbering ("Period 1" twice); number generic labels by position. */}
+                <span className="text-base font-bold text-indigo-900">
+                  {!slot.time || /^period\s*\d+$/i.test(slot.time.trim()) ? `Period ${i + 1}` : slot.time}
+                </span>
                 {slot.type ? (
                   <Badge variant="outline" className={cn('text-micro font-semibold', slotTypeClass(slot.type))}>
                     {slot.type}
                   </Badge>
                 ) : null}
               </div>
-              <p className="text-base text-slate-700 whitespace-pre-wrap leading-relaxed">{slot.activity}</p>
+              <p className="text-base text-slate-700 whitespace-pre-wrap leading-relaxed"><ExamMathText text={slot.activity} /></p>
             </div>
           </motion.li>
         ))}

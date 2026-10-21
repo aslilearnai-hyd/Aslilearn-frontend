@@ -1,4 +1,5 @@
 import { reconcileInstructionCounts, sectionLetter } from '@/lib/reconcile-instructions';
+import ExamMathText from '@/components/exam/ExamMathText';
 import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
@@ -183,7 +184,7 @@ function QuestionCard({ q, index }: { q: PracticeQaQuestion; index: number }) {
           </Badge>
         ) : null}
       </div>
-      <p className="text-base font-medium leading-snug text-slate-900">{q.question}</p>
+      <p className="text-base font-medium leading-snug text-slate-900"><ExamMathText text={q.question} /></p>
       <QuestionFigure imageUrl={q.imageUrl} alt="Practice question figure" />
       {isMcq ? (
         <ul className="mt-2 grid gap-2 md:grid-cols-2">
@@ -198,7 +199,7 @@ function QuestionCard({ q, index }: { q: PracticeQaQuestion; index: number }) {
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">
                   {label}
                 </span>
-                <span className="min-w-0 flex-1 pt-0.5">{text}</span>
+                <span className="min-w-0 flex-1 pt-0.5"><ExamMathText text={text} /></span>
               </li>
             );
           })}
@@ -222,13 +223,13 @@ function QuestionCard({ q, index }: { q: PracticeQaQuestion; index: number }) {
                 <p className="flex items-start gap-1.5 rounded-md bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800 border border-emerald-100">
                   <CircleCheck className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
                   <span>
-                    <span className="font-semibold">Answer:</span> {q.answer}
+                    <span className="font-semibold">Answer:</span> <ExamMathText text={q.answer} />
                   </span>
                 </p>
               ) : null}
               {q.explanation ? (
                 <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600 border border-slate-100">
-                  <span className="font-semibold text-slate-700">Explanation:</span> {q.explanation}
+                  <span className="font-semibold text-slate-700">Explanation:</span> <ExamMathText text={q.explanation} />
                 </p>
               ) : null}
             </div>

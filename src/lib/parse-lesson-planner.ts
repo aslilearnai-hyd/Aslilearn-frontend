@@ -309,6 +309,21 @@ function linesFromTimeSlots(v: unknown): string[] {
     .filter(Boolean);
 }
 
+/** First readable text inside a value; nested objects printed "[object Object]" in Student Tasks. */
+function textOf(v: unknown, depth = 0): string {
+  if (v == null || depth > 3) return '';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map((x) => textOf(x, depth + 1)).filter(Boolean).join('; ');
+  if (typeof v === 'object') {
+    for (const val of Object.values(v as Record<string, unknown>)) {
+      const s = textOf(val, depth + 1);
+      if (s) return s;
+    }
+  }
+  return '';
+}
+
 function coalesceLines(v: unknown): string[] {
   if (Array.isArray(v)) {
     return v
@@ -335,15 +350,14 @@ function coalesceLines(v: unknown): string[] {
             'step',
           ];
           for (const k of keys) {
-            const s = String(row[k] ?? '').trim();
+            const s = textOf(row[k]);
             if (s) return stripOrderedPrefix(s);
           }
-          const first = Object.values(row).find(
-            (val) => typeof val === 'string' && String(val).trim().length > 0,
-          );
-          if (typeof first === 'string') return stripOrderedPrefix(first);
+          const first = textOf(row);
+          if (first) return stripOrderedPrefix(first);
+          return '';
         }
-        return stripOrderedPrefix(String(x ?? ''));
+        return stripOrderedPrefix(textOf(x));
       })
       .filter(Boolean);
   }

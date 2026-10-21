@@ -54,6 +54,13 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+/** Downloads showed raw "2sqrt(19)", "cbrt(x^3)", "x^2": use the same symbols as the screen (√, ∛, ²). Lines keep their layout. */
+const classroomMathForExport = (text: string): string =>
+  String(text || '')
+    .split(/\r?\n/)
+    .map((line) => (line.trim() ? formatClassroomScienceText(line) : line))
+    .join('\n');
+
 import { saveAs } from 'file-saver';
 import { AiToolResultShell } from '@/components/ai-tool-result-shell';
 import { AiToolV2InputSummary } from '@/components/ai-v2';
@@ -1743,7 +1750,7 @@ export default function StudentToolPage() {
         effectiveRawContent,
         subject,
       );
-      const doc = await convertToWordDocument(wordText);
+      const doc = await convertToWordDocument(classroomMathForExport(wordText));
       const blob = await Packer.toBlob(doc);
       const fileName = `${config.name.replace(/\s+/g, '-')}-${Date.now()}.docx`;
       saveAs(blob, fileName);
@@ -2171,10 +2178,6 @@ export default function StudentToolPage() {
                   >
                     {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     Download
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleShare} className="shrink-0 bg-white">
-                    <Share2 className="h-4 w-4" />
-                    Share
                   </Button>
                   <Button size="sm" onClick={handleGenerate} disabled={isGenerating} className="shrink-0">
                     <RotateCcw className="h-4 w-4" />
