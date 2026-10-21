@@ -31,7 +31,9 @@ const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 /** Monday → Sunday of the current calendar week (local time). */
 export function buildWeeklyActivityStats(
   examResults: any[],
-  progressRecords: any[] = []
+  progressRecords: any[] = [],
+  /** Logged-in minutes per day (YYYY-MM-DD) from /api/student/session-time. */
+  sessionMinutesByDate: Record<string, number> = {}
 ): WeeklyDayStat[] {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -60,7 +62,9 @@ export function buildWeeklyActivityStats(
     const d = new Date(monday);
     d.setDate(monday.getDate() + index);
     const dateKey = toLocalDateKey(d);
-    const seconds = secondsByDate.get(dateKey) || 0;
+    // A student who studies without finishing an exam still shows their time:
+    // take whichever is larger, study activity or time logged in that day.
+    const seconds = Math.max(secondsByDate.get(dateKey) || 0, (Number(sessionMinutesByDate[dateKey]) || 0) * 60);
     const hours = Math.round((seconds / 3600) * 10) / 10;
     return {
       day: label,

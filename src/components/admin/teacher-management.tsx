@@ -1772,7 +1772,7 @@ Jane Smith,jane.smith@school.edu,TeacherPass2,1234567891,Science,MSc in Chemistr
                       <Button
                         size="sm"
                         variant="outline"
-                        className={`${adminBtn.secondary} min-w-0 px-0`}
+                        className={cn(adminBtn.secondary, 'min-w-0 px-0 sm:px-0')}
                         onClick={() => {
                           setEditingTeacher(teacher);
                           setIsEditDialogOpen(true);
@@ -1785,7 +1785,7 @@ Jane Smith,jane.smith@school.edu,TeacherPass2,1234567891,Science,MSc in Chemistr
                       <Button
                         size="sm"
                         variant="outline"
-                        className={`${adminBtn.secondary} min-w-0 px-0`}
+                        className={cn(adminBtn.secondary, 'min-w-0 px-0 sm:px-0')}
                         onClick={() => openAssignClassDialog(teacher)}
                         title="Assign Class"
                         aria-label="Assign class"

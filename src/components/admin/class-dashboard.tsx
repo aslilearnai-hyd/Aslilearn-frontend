@@ -1029,12 +1029,12 @@ const ClassDashboard = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`group relative min-w-0 overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border ${
+                className={`group relative flex h-full min-w-0 flex-col overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 border ${
                   isExpanded ? 'border-sky-400 border-2' : 'border-white/20'
                 }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-sky-400/10 to-blue-500/10 backdrop-blur-sm"></div>
-                <div className="relative z-10 p-3 sm:p-4 lg:p-6 min-w-0">
+                <div className="relative z-10 flex flex-1 flex-col p-3 sm:p-4 lg:p-6 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-4 min-w-0">
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                       <div className="p-3 bg-white/40 rounded-xl backdrop-blur-sm shrink-0">
@@ -1267,7 +1267,7 @@ const ClassDashboard = () => {
                     </div>
                   </div>
                   
-                  <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-sky-200">
+                  <div className="mt-auto flex justify-end gap-2 pt-4 border-t border-sky-200">
                     <Button
                       size="sm"
                       variant="outline"

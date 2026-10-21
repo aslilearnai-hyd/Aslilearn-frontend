@@ -2958,7 +2958,10 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
               <div className="flex gap-2 flex-wrap items-center">
                 <Badge className={riskBadgeClass}>Risk: {(aiAnalysis?.riskLevel || 'medium').toString()}</Badge>
                 <Badge variant="outline" className="capitalize">Trend: {String(aiAnalysis?.predictions?.trend || 'stable')}</Badge>
-                <span className="text-xs sm:text-sm font-bold text-red-600">{Math.max(0, (result.totalMarks || 0) - (result.obtainedMarks || 0))} MARKS LOST</span>
+                <span className="text-xs sm:text-sm font-bold text-red-600">
+                  {Math.max(0, (result.totalMarks || 0) - (result.obtainedMarks || 0))} MARKS LOST
+                  {Number(result.unattempted) > 0 ? ` · ${result.unattempted} unanswered` : ''}
+                </span>
               </div>
             </div>
             <div className="flex h-4 rounded-full overflow-hidden bg-gray-100">
@@ -2992,9 +2995,27 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
                 );
               })}
             </div>
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs sm:text-sm text-amber-900">
-              Pattern detected — Careless errors have appeared in consecutive mocks. Slow-mode drills recommended daily.
-            </div>
+            {(() => {
+              // This used to be fixed text ("careless errors in consecutive mocks"), even
+              // for a paper with 0 wrong answers where every mark was lost to blanks.
+              const wrong = Number(result.wrongAnswers) || 0;
+              const blank = Number(result.unattempted) || 0;
+              const kinds = [
+                { key: 'careless', n: mistakeTaxonomy.careless, text: 'Most mistakes were careless slips. Re-read each question and check the final step before moving on.' },
+                { key: 'conceptual', n: mistakeTaxonomy.conceptual, text: 'Most mistakes were conceptual. Revise the chapter ideas before doing more questions.' },
+                { key: 'procedural', n: mistakeTaxonomy.procedural, text: 'Most mistakes were in the working steps. Practise the method slowly, step by step.' },
+                { key: 'time', n: mistakeTaxonomy.time, text: 'Most mistakes came under time pressure. Practise timed sets to build speed.' },
+                { key: 'reading', n: mistakeTaxonomy.reading, text: 'Most mistakes came from misreading the question. Underline what is being asked.' },
+              ].sort((a, b) => b.n - a.n);
+              const message = wrong === 0 && blank > 0
+                ? `No wrong answers. The marks were lost on ${blank} unanswered question${blank === 1 ? '' : 's'}; attempt every question you can.`
+                : kinds[0].n > 0
+                  ? kinds[0].text
+                  : '';
+              return message ? (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-xs sm:text-sm text-amber-900">{message}</div>
+              ) : null;
+            })()}
             <AdvancedPerformanceDashboard examId={advancedExamId} />
           </div>
         )}
@@ -3101,11 +3122,11 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { icon: '⚡', title: 'Careless errors · 3 attempts in a row', desc: `${mistakeTaxonomy.careless} this time — fast wrong answers climbing.`, fix: '10 min slow-mode drill daily' },
+                  { icon: '⚡', title: 'Careless errors', desc: `${mistakeTaxonomy.careless} careless mistake${mistakeTaxonomy.careless === 1 ? '' : 's'} in this attempt.`, fix: '10 min slow-mode drill daily', show: mistakeTaxonomy.careless > 0 },
                   { icon: '🧠', title: 'Weak chapter · red zone', desc: (aiAnalysis?.focusAreas?.[0]?.issue || 'Stuck below target accuracy.').slice(0, 80), fix: '8-min concept video + 10 Qs' },
-                  { icon: '📉', title: 'Confidence trend declining', desc: `Trend: ${String(aiAnalysis?.predictions?.trend || 'stable')}.`, fix: 'Start mocks with your anchor subject' },
+                  { icon: '📉', title: 'Confidence trend declining', desc: `Trend: ${String(aiAnalysis?.predictions?.trend || 'stable')}.`, fix: 'Start mocks with your anchor subject', show: String(aiAnalysis?.predictions?.trend || '').toLowerCase() === 'declining' },
                   { icon: '⏱', title: 'Stamina drops in last 25%', desc: 'Accuracy often falls when time pressure peaks.', fix: 'Practice longer test stamina' },
-                ].map((alert, i) => (
+                ].filter((alert) => (alert as { show?: boolean }).show !== false).map((alert, i) => (
                   <div key={i} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
                     <p className="font-bold text-gray-900">{alert.icon} {alert.title}</p>
                     <p className="text-xs sm:text-sm text-gray-600 mt-2">{alert.desc}</p>

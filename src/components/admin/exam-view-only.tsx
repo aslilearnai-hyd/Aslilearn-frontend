@@ -846,7 +846,7 @@ export default function ExamViewOnly() {
                         setSelectedAttemptByStudent({});
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full bg-white text-xs sm:w-[170px]">
+                      <SelectTrigger className="h-9 w-full bg-white text-xs sm:w-[220px]">
                         <SelectValue placeholder="Select attempt" />
                       </SelectTrigger>
                       <SelectContent>

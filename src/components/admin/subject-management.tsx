@@ -602,7 +602,7 @@ const SubjectManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button size="icon" variant="outline" className={cn('h-9 w-9 shrink-0 sm:h-10 sm:w-10', adminBtn.secondary)} onClick={() => handleViewSubject(subject)} title="View">
+                      <Button size="icon" variant="outline" className={cn(adminBtn.secondary, 'h-9 w-9 shrink-0 px-0 sm:h-10 sm:w-10 sm:px-0')} onClick={() => handleViewSubject(subject)} title="View">
                         <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                       </Button>
                       <Button 

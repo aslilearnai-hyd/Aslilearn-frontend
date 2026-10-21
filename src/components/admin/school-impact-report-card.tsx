@@ -297,7 +297,7 @@ export function SchoolImpactReportCard() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                   Teachers ({snap.teachers.length})
                 </p>
-                <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y">
+                <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-sm divide-y">
                   {snap.teachers.map((t, idx) => (
                     <div
                       key={`${t.email || t.name}-${idx}`}
@@ -342,7 +342,7 @@ export function SchoolImpactReportCard() {
                   {" / "}
                   {snap.totalStudents ?? snap.studentReports.length} active)
                 </p>
-                <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y">
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-sm divide-y">
                   {snap.studentReports.slice(0, 40).map((s, idx) => (
                     <div
                       key={`${s.name}-${idx}`}

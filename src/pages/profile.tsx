@@ -53,6 +53,7 @@ export default function Profile() {
   const [examResults, setExamResults] = useState<any[]>([]);
   const [rankings, setRankings] = useState<any[]>([]);
   const [progressRecords, setProgressRecords] = useState<any[]>([]);
+  const [sessionMinutesByDate, setSessionMinutesByDate] = useState<Record<string, number>>({});
   const [streakCount, setStreakCount] = useState(0);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
@@ -110,6 +111,11 @@ export default function Profile() {
           fetch(`${API_BASE_URL}/api/student/learning-progress`, { headers }),
           fetch(`${API_BASE_URL}/api/auth/me`, { headers }),
         ]);
+        // Daily logged-in time; the week view was 0h for students who used the app without exams.
+        fetch(`${API_BASE_URL}/api/student/session-time`, { headers })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((json) => setSessionMinutesByDate(json?.data?.weeklyData && typeof json.data.weeklyData === 'object' ? json.data.weeklyData : {}))
+          .catch(() => setSessionMinutesByDate({}));
 
         if (resultsRes.ok) {
           const json = await resultsRes.json();
@@ -199,8 +205,8 @@ export default function Profile() {
   );
 
   const weeklyStats = useMemo(
-    () => buildWeeklyActivityStats(examResults, progressRecords),
-    [examResults, progressRecords]
+    () => buildWeeklyActivityStats(examResults, progressRecords, sessionMinutesByDate),
+    [examResults, progressRecords, sessionMinutesByDate]
   );
 
   const weeklyHoursTotal = useMemo(
@@ -678,7 +684,7 @@ export default function Profile() {
                             Total: {weeklyHoursTotal} hours this week
                           </p>
                           <p className="text-micro text-gray-500 mt-1">
-                            From exam time and content study sessions
+                            From time in the app, exams and study sessions
                           </p>
                         </div>
                       </>

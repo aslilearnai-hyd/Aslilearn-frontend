@@ -829,7 +829,7 @@ const UserManagement = () => {
       </div>
 
       <div className="pt-3 border-t border-sky-200 w-full min-w-0 overflow-hidden">
-        <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:justify-between board:flex-row board:items-center board:justify-start board:gap-2 board:flex-wrap uhd:flex-nowrap uhd:max-w-full">
+        <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between board:flex-row board:items-center board:justify-start board:gap-2 board:flex-wrap uhd:flex-nowrap uhd:max-w-full">
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="ghost"
@@ -865,7 +865,7 @@ const UserManagement = () => {
         <Button
           variant="outline"
           size="sm"
-          className="w-full sm:w-auto shrink-0 text-sky-600 hover:text-sky-800 border-sky-200 hover:bg-sky-50 rounded-lg h-9 text-xs sm:text-sm whitespace-nowrap board:w-auto"
+          className="w-full sm:w-auto min-w-0 text-sky-600 hover:text-sky-800 border-sky-200 hover:bg-sky-50 rounded-lg h-9 text-xs sm:text-sm whitespace-nowrap board:w-auto"
           onClick={() => {
             setSelectedStudentForClass(student);
             setIsAssignClassDialogOpen(true);
