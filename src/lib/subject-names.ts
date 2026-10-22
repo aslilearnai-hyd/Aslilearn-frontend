@@ -103,6 +103,23 @@ export function normalizeSubjectDisplayKey(name: string): string {
     return 'computer';
   }
   if (plain === 'eng' || plain === 'english') return 'english';
+  // "SL Hindi", "2nd Language Hindi" and "Hindi (Second Language)" showed as a
+  // second card next to "Second Language Hindi".
+  const lang = plain.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const level =
+    lang.match(/^(second|2nd|ii|sl)\s*(?:language\s*)?([a-z]+)$/) ||
+    lang.match(/^([a-z]+)\s*(second|2nd|ii)\s*language$/);
+  if (level) {
+    const language = /^(second|2nd|ii|sl)$/.test(level[1]) ? level[2] : level[1];
+    return `second language ${language}`;
+  }
+  const third =
+    lang.match(/^(third|3rd|iii|tl)\s*(?:language\s*)?([a-z]+)$/) ||
+    lang.match(/^([a-z]+)\s*(third|3rd|iii)\s*language$/);
+  if (third) {
+    const language = /^(third|3rd|iii|tl)$/.test(third[1]) ? third[2] : third[1];
+    return `third language ${language}`;
+  }
   return plain;
 }
 

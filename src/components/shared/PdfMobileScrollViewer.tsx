@@ -228,6 +228,7 @@ function PdfMobilePage({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pinchRef = useRef<PdfPagePinchFrameHandle | null>(null);
   const renderedRef = useRef(false);
+  const renderedLayoutKeyRef = useRef('');
   const [shouldRender, setShouldRender] = useState(pageNum === 1 || forceRender);
   const [layoutReady, setLayoutReady] = useState(false);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -308,13 +309,17 @@ function PdfMobilePage({
   }, [shouldRender, pdf, pageNum, layoutKey, maxPageHeight, containerWidth]);
 
   useEffect(() => {
-    if (!layoutReady || renderedRef.current) return;
+    // The first pages are painted while the viewer is still opening (narrow).
+    // Once it widens they were only stretched, so pages 1–2 looked blurry while
+    // later pages were sharp. Repaint whenever the layout width/height changes.
+    const isCurrent = renderedRef.current && renderedLayoutKeyRef.current === layoutKey;
+    if (!layoutReady || isCurrent) return;
 
     let cancelled = false;
     let attempts = 0;
 
     const paint = () => {
-      if (cancelled || renderedRef.current) return;
+      if (cancelled || (renderedRef.current && renderedLayoutKeyRef.current === layoutKey)) return;
       const canvas = canvasRef.current;
       if (!canvas) {
         // Canvas mounts one frame after layoutReady — retry briefly.
@@ -335,6 +340,7 @@ function PdfMobilePage({
         );
         if (cancelled || !result) return;
         renderedRef.current = true;
+        renderedLayoutKeyRef.current = layoutKey;
         setDims({ w: result.cssWidth, h: result.cssHeight });
       })();
     };
