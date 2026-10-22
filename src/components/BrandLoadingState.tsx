@@ -14,7 +14,7 @@ export function BrandLoadingState({
 }: BrandLoadingStateProps) {
   return (
     <div
-      className="asli-app-bg flex min-h-screen items-center justify-center p-6"
+      className="asli-app-bg flex !min-h-[100dvh] items-center justify-center p-6"
       role="status"
       aria-live="polite"
       aria-busy="true"

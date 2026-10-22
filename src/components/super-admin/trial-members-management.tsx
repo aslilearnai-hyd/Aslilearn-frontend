@@ -765,9 +765,13 @@ export default function TrialMembersManagement() {
                       <Badge
                         variant="outline"
                         className="border-slate-200 bg-slate-50 text-slate-700"
-                        title={m.accountSource || 'legacy'}
+                        title={
+                          !m.accountSource || m.accountSource === 'legacy'
+                            ? 'Signed up before the app recorded whether sign-up was on web or mobile'
+                            : m.accountSource
+                        }
                       >
-                        {m.accountSourceLabel || 'Self-signup · Legacy'}
+                        {m.accountSourceLabel || 'Self-signup · source not recorded'}
                       </Badge>
                     </div>
                     <p className="truncate text-xs text-slate-600">

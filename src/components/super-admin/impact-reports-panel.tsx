@@ -204,6 +204,11 @@ export function ImpactReportsPanel() {
   const [studentReports, setStudentReports] = useState<StudentReportRow[]>([]);
   const [dayBreakdown, setDayBreakdown] = useState<DayBreakdownRow[]>([]);
   const [studentFilter, setStudentFilter] = useState<"active" | "all">("active");
+  const [schoolQuery, setSchoolQuery] = useState("");
+  const visibleSchools = useMemo(() => {
+    const q = schoolQuery.trim().toLowerCase();
+    return q ? schools.filter((sc) => String(sc.schoolName || "").toLowerCase().includes(q)) : schools;
+  }, [schools, schoolQuery]);
   const detailRef = useRef<HTMLDivElement | null>(null);
 
   const periodQuery = useMemo(() => {
@@ -223,9 +228,21 @@ export function ImpactReportsPanel() {
       try {
         const params = new URLSearchParams(periodQuery);
         if (build) params.set("build", "1");
-        const res = await fetch(`${API_BASE_URL}/api/super-admin/impact-reports?${params}`, {
-          headers: authHeaders(),
-        });
+        let res: Response;
+        try {
+          res = await fetch(`${API_BASE_URL}/api/super-admin/impact-reports?${params}`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok && build) throw new Error(`HTTP ${res.status}`);
+        } catch (buildError) {
+          // Rebuilding every school live can outlast the connection ("Failed to
+          // fetch" on mobile). Show the saved snapshots instead of an error.
+          if (!build) throw buildError;
+          params.delete("build");
+          res = await fetch(`${API_BASE_URL}/api/super-admin/impact-reports?${params}`, {
+            headers: authHeaders(),
+          });
+        }
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || "Failed to load");
         setPeriodLabel(json.data?.periodLabel || "");
@@ -670,6 +687,15 @@ export function ImpactReportsPanel() {
             Schools with logins, sessions, exams, or AI use appear at the top.
           </p>
         ) : (
+          <>
+          <input
+            type="search"
+            value={schoolQuery}
+            onChange={(e) => setSchoolQuery(e.target.value)}
+            placeholder="Find a school…"
+            aria-label="Find a school"
+            className="mb-2 h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm sm:max-w-xs"
+          />
           <DashboardScrollPanel className="rounded-xl border border-slate-200 max-h-[360px]">
             <table className="min-w-full text-sm">
               <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -683,7 +709,7 @@ export function ImpactReportsPanel() {
                 </tr>
               </thead>
               <tbody>
-                {schools.map((s) => {
+                {visibleSchools.map((s) => {
                   const hasActivity =
                     (s.studentsAccessed || 0) > 0 ||
                     (s.teachersLoggedIn || 0) > 0 ||
@@ -742,6 +768,7 @@ export function ImpactReportsPanel() {
               </tbody>
             </table>
           </DashboardScrollPanel>
+          </>
         )}
       </CardContent>
     </Card>

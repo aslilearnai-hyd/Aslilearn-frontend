@@ -330,12 +330,14 @@ const Login = () => {
     });
   };
 
+  // The root uses !min-h-[100dvh]: .asli-app-bg sets min-height:100%, which beat
+  // min-h-screen and left a blank band under the card on tall screens.
   const handleForgotPassword = () => {
     window.location.href = 'mailto:support@aslilearn.ai?subject=Password%20reset%20request';
   };
 
   return (
-    <div className="asli-app-bg relative flex min-h-screen w-full items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10 2xl:p-12 board:p-16">
+    <div className="asli-app-bg relative flex !min-h-[100dvh] w-full items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10 2xl:p-12 board:p-16">
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#e8f4f6] via-[#d5e8ec] to-[#c5dde3]">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmMWY1ZjkiIGZpbGwtb3BhY2l0eT0iMC40Ij48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>

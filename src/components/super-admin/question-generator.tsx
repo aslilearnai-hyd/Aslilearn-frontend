@@ -80,7 +80,16 @@ export default function QuestionGenerator({ classNumber, onBack }: QuestionGener
           return subjectClass === currentClass;
         });
 
-        setSubjects(classFilteredSubjects);
+        // Several boards each have a "Biology_6" row; the list showed it twice and
+        // "Chemistry_6" four times. Keep one per name, shown without the class suffix.
+        const seenNames = new Set<string>();
+        const uniqueSubjects = classFilteredSubjects.filter((subject: any) => {
+          const key = String(subject?.name || '').replace(/_\d+$/, '').trim().toLowerCase();
+          if (!key || seenNames.has(key)) return false;
+          seenNames.add(key);
+          return true;
+        });
+        setSubjects(uniqueSubjects);
       } else {
         toast({
           title: 'Error',
@@ -285,7 +294,7 @@ export default function QuestionGenerator({ classNumber, onBack }: QuestionGener
                       ) : (
                         subjects.map((subject) => (
                           <SelectItem key={subject._id} value={subject._id}>
-                            {subject.name}
+                            {String(subject.name || '').replace(/_\d+$/, '')}
                           </SelectItem>
                         ))
                       )}

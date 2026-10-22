@@ -126,12 +126,14 @@ export default function SuperAdminDashboard() {
     const passRate = Number(stats.passRate) || 0;
     const contentVolume = Number(stats.contentVolume ?? stats.contentEngagement) || 0;
     const totalStudents = Number(stats.totalStudents) || 0;
-    const rows: Array<{ title: string; detail: string; metric: string }> = [];
+    const rows: Array<{ title: string; detail: string; metric: string; view?: SuperAdminView; action?: string }> = [];
     if (totalStudents > 0 && activeRate < 60) {
       rows.push({
         title: 'Improve student activation',
         detail: 'Review inactive cohorts and ask school admins to schedule a guided learning or quiz session.',
         metric: `${activeRate.toFixed(0)}% active`,
+        view: 'impact-reports',
+        action: 'Open school impact reports',
       });
     }
     if (Number(stats.examResults) > 0 && passRate < 70) {
@@ -139,6 +141,8 @@ export default function SuperAdminDashboard() {
         title: 'Target low-performing exam topics',
         detail: 'Open Analytics to identify subjects with the largest correctness gap and assign focused practice.',
         metric: `${passRate.toFixed(0)}% pass rate`,
+        view: 'analytics',
+        action: 'Open exam analytics',
       });
     }
     if (contentVolume < Math.max(20, Math.ceil(totalStudents / 5))) {
@@ -146,6 +150,8 @@ export default function SuperAdminDashboard() {
         title: 'Expand curriculum coverage',
         detail: 'Add or index more textbook-aligned content for classes with limited learning material.',
         metric: `${contentVolume.toLocaleString()} content items`,
+        view: 'subjects-and-content',
+        action: 'Open subjects & content',
       });
     }
     if (rows.length === 0) {
@@ -620,7 +626,17 @@ export default function SuperAdminDashboard() {
           <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="grid gap-3 md:grid-cols-3">
               {dashboardRecommendations.map((recommendation) => (
-                <div key={recommendation.title} className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
+                <div
+                  key={recommendation.title}
+                  role={recommendation.view ? 'button' : undefined}
+                  tabIndex={recommendation.view ? 0 : undefined}
+                  onClick={recommendation.view ? () => handleViewChange(recommendation.view!) : undefined}
+                  onKeyDown={recommendation.view ? (e) => { if (e.key === 'Enter') handleViewChange(recommendation.view!); } : undefined}
+                  className={cn(
+                    'rounded-xl border border-orange-100 bg-orange-50/50 p-4',
+                    recommendation.view && 'cursor-pointer transition hover:border-orange-300 hover:bg-orange-50',
+                  )}
+                >
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <h3 className="text-sm font-semibold text-gray-900">{recommendation.title}</h3>
                     <Badge variant="outline" className="shrink-0 border-orange-200 bg-white text-orange-700">
@@ -628,6 +644,9 @@ export default function SuperAdminDashboard() {
                     </Badge>
                   </div>
                   <p className="text-sm leading-relaxed text-gray-600">{recommendation.detail}</p>
+                  {recommendation.action ? (
+                    <p className="mt-2 text-xs font-semibold text-orange-700">{recommendation.action} →</p>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -709,6 +728,7 @@ export default function SuperAdminDashboard() {
                               <div key={`${scorer.studentId || scorer.studentEmail || scorer.studentName || 'scorer'}-${idx}`} className="flex items-center justify-between p-2 bg-white/90 backdrop-blur-sm rounded border border-white/50 shadow-sm">
                                 <div>
                                   <p className="font-medium text-gray-900">{scorer.studentName}</p>
+                                  {scorer.schoolName ? <p className="text-xs font-medium text-gray-700">{scorer.schoolName}</p> : null}
                                   <p className="text-xs text-gray-600">{scorer.studentEmail}</p>
                                 </div>
                                 <div className="text-right">
@@ -734,14 +754,15 @@ export default function SuperAdminDashboard() {
                     <AlertTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Low-performing Admins (Needs Attention)
                   </CardTitle>
+                  <p className="text-xs text-gray-700">Avg score = marks obtained ÷ total marks over every exam result from the school&apos;s students. Logins and time spent per school are in Analytics → Impact Reports.</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {realtimeAnalytics.lowPerformingAdmins.map((admin: any, idx: number) => (
                       <div key={`${admin.adminId || admin.adminEmail || admin.adminName || 'admin'}-${idx}`} className="flex items-center justify-between p-3 bg-white rounded border border-red-200">
                         <div>
-                          <p className="font-semibold text-gray-900">{admin.adminName}</p>
-                          <p className="text-xs sm:text-sm text-gray-600">{admin.adminEmail}</p>
+                          <p className="font-semibold text-gray-900">{admin.schoolName || admin.adminName}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">{admin.schoolName ? `${admin.adminName} · ${admin.adminEmail}` : admin.adminEmail}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             {admin.totalStudents} students • {admin.totalExams} exams
                           </p>
@@ -768,6 +789,7 @@ export default function SuperAdminDashboard() {
                     <TrendingUpIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                     Admin Performance Overview
                   </CardTitle>
+                  <p className="text-xs text-gray-700">Avg score = marks obtained ÷ total marks over every exam result from the school&apos;s students. Logins and time spent per school are in Analytics → Impact Reports.</p>
                 </CardHeader>
                 <CardContent className="relative z-10">
                   <div className="space-y-4">
@@ -775,8 +797,9 @@ export default function SuperAdminDashboard() {
                       <div key={`${admin.adminId || admin.adminEmail || admin.adminName || 'admin'}-${idx}`} className="p-4 bg-white/90 backdrop-blur-sm rounded-lg border border-white/50 shadow-md">
                         <div className="flex items-center justify-between mb-3">
                           <div>
-                            <h3 className="font-semibold text-base sm:text-lg text-gray-900">{admin.adminName}</h3>
+                            <h3 className="font-semibold text-base sm:text-lg text-gray-900">{admin.schoolName || admin.adminName}</h3>
                             <p className="text-gray-600">{admin.adminEmail || `${admin.totalStudents} students`}</p>
+                            <p className="text-xs text-gray-500">{admin.totalStudents} students · {admin.totalExams} exams · {admin.totalAttempts} results</p>
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-gray-900 text-base sm:text-lg">{admin.averageScore}%</p>
