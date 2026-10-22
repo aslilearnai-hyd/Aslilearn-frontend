@@ -1271,6 +1271,7 @@ export default function BookKnowledgeBase() {
                 {(viewBook?.chapters || []).map((ch, i) => (
                   <li key={i} className="text-slate-700">
                     {ch.title} {ch.wordCount ? `(${ch.wordCount} words)` : ""}
+                    {ch.topic && ch.topic !== ch.title ? <span className="text-slate-500"> → mapped to {ch.topic}</span> : null}
                   </li>
                 ))}
               </ul>

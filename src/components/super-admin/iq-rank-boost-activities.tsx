@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,9 @@ import {
   Star,
   Clock,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { API_BASE_URL } from '@/lib/api-config';
@@ -68,6 +70,54 @@ export default function IQRankBoostActivities() {
   const { toast } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
   const [activities, setActivities] = useState<IQActivity[]>([]);
+  // Daily quiz bank questions per class. Cards used to add up the 5-question
+  // daily set, so a 1000-question bank looked like ~30 questions in total.
+  const [bankCounts, setBankCounts] = useState<Record<string, number>>({});
+  const [isUploadingBank, setIsUploadingBank] = useState(false);
+  const bankFileRef = useRef<HTMLInputElement | null>(null);
+
+  const fetchBankCounts = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/super-admin/iq-rank-activities/bank-counts`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      });
+      const json = await res.json().catch(() => null);
+      setBankCounts(res.ok && json?.data && typeof json.data === 'object' ? json.data : {});
+    } catch {
+      setBankCounts({});
+    }
+  };
+
+  const uploadQuestionBank = async (file: File) => {
+    setIsUploadingBank(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_BASE_URL}/api/super-admin/iq-rank-activities/bank-upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+        body: form,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Upload failed');
+      const r = json.data || {};
+      toast({
+        title: 'Question bank uploaded',
+        description: `${r.imported || 0} questions saved for Class ${(r.classes || []).join(', ') || '—'}${r.skipped ? `, ${r.skipped} rows skipped` : ''}.`,
+      });
+      setBankCounts(r.bankCounts || {});
+      void fetchActivities();
+    } catch (error) {
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Could not upload the question bank',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingBank(false);
+      if (bankFileRef.current) bankFileRef.current.value = '';
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -102,6 +152,7 @@ export default function IQRankBoostActivities() {
   });
 
   useEffect(() => {
+    void fetchBankCounts();
     fetchActivities();
     fetchSubjects();
     fetchBoards();
@@ -484,17 +535,43 @@ export default function IQRankBoostActivities() {
             Create daily or weekly quizzes for schools, trial users, or specific members.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm();
-            setIsCreateModalOpen(true);
-          }}
-          className="shrink-0 bg-teal-600 text-white hover:bg-teal-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create quiz
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <input
+            ref={bankFileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void uploadQuestionBank(file);
+            }}
+          />
+          <Button
+            variant="outline"
+            disabled={isUploadingBank}
+            onClick={() => bankFileRef.current?.click()}
+            title="Excel with columns Q_ID, Class, Question, Option_A–D, Correct_Answer (A–D), Difficulty, Category, Explanation, Active"
+            className="border-teal-200 text-teal-800 hover:bg-teal-50"
+          >
+            {isUploadingBank ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+            {isUploadingBank ? 'Uploading…' : 'Upload question bank'}
+          </Button>
+          <Button
+            onClick={() => {
+              resetForm();
+              setIsCreateModalOpen(true);
+            }}
+            className="bg-teal-600 text-white hover:bg-teal-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create quiz
+          </Button>
+        </div>
       </div>
+      <p className="-mt-3 text-xs text-slate-500 sm:-mt-5">
+        Question bank file: Excel sheet “Question Bank” with Q_ID, Class (6–10), Question, Option_A–Option_D,
+        Correct_Answer (A–D), Difficulty, Category, Explanation, Active. Re-uploading updates questions by Q_ID.
+      </p>
 
       {/* Class Cards Grid — equal height tiles */}
       <div className="grid auto-rows-fr grid-cols-[repeat(auto-fit,minmax(min(100%,250px),1fr))] gap-4">
@@ -533,7 +610,8 @@ export default function IQRankBoostActivities() {
                 {[
                   { label: 'Activities', value: classActivities.length },
                   { label: 'Active', value: activeCount },
-                  { label: 'Questions', value: totalQuestions },
+                  { label: 'Bank questions', value: bankCounts[String(classNum)] ?? 0 },
+                  { label: 'Quiz questions', value: totalQuestions },
                   { label: 'Participants', value: totalParticipants },
                 ].map((stat) => (
                   <div

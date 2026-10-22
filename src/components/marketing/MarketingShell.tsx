@@ -56,7 +56,8 @@ export function MarketingNav({ scrolled = false }: { scrolled?: boolean }) {
           ))}
         </div>
 
-        <div className="hidden items-center gap-2 sm:flex">
+        {/* Tablet widths hide the nav links, so justify-between floated these buttons mid-header; keep them beside the menu button. */}
+        <div className="ml-auto hidden items-center gap-2 sm:flex lg:ml-0">
           <Button
             asChild
             variant="outline"
