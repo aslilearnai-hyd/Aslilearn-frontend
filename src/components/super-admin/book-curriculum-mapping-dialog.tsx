@@ -168,6 +168,24 @@ function formatPages(start?: number | null, end?: number | null) {
 
 /** Select values must be non-empty: encode the target kind in the value. */
 const subValue = (id: string) => `sub:${id}`;
+
+/** "6.3 6.3 Important Sites": many subtopic names already start with their number. */
+function subLabel(sub: { number?: string; name: string }) {
+  const num = String(sub.number || "").trim();
+  return num && !sub.name.trim().startsWith(num) ? `${num} ${sub.name}` : sub.name;
+}
+
+/**
+ * Books without headings give every section the book's own name ("Social
+ * Science", "Social Science", …). Show where it is and how it starts instead.
+ */
+function sectionLabel(section: { number?: string; title?: string; chapterTitle?: string; preview?: string }) {
+  const title = String(section.title || "").trim();
+  const generic = !title || title.toLowerCase() === String(section.chapterTitle || "").trim().toLowerCase();
+  if (!generic) return `${section.number ? `${section.number} ` : ""}${title}`;
+  const opening = String(section.preview || "").split(/\s+/).slice(0, 9).join(" ");
+  return opening ? `“${opening}…”` : title || "(untitled)";
+}
 const topicValue = (key: string) => `topic:${key}`;
 
 /** Searchable topic / subtopic picker (a book can have 80+ subtopics). */
@@ -188,7 +206,7 @@ function CurriculumTargetPicker({
     for (const topic of curriculum) {
       if (value === topicValue(topic.aiTopicKey)) return `${topic.topicName} (chapter-general)`;
       const sub = topic.subtopics.find((s) => value === subValue(s.aiSubtopicId));
-      if (sub) return `${sub.number ? `${sub.number} ` : ""}${sub.name}`;
+      if (sub) return subLabel(sub);
     }
     return "";
   }, [curriculum, value]);
@@ -240,8 +258,7 @@ function CurriculumTargetPicker({
                     className="pl-6"
                   >
                     <Check className={cn("mr-2 h-4 w-4", value === subValue(sub.aiSubtopicId) ? "opacity-100" : "opacity-0")} />
-                    {sub.number ? `${sub.number} ` : ""}
-                    {sub.name}
+                    {subLabel(sub)}
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -565,8 +582,7 @@ export function BookCurriculumMappingDialog({
                         >
                           <div className="min-w-0 flex-1 space-y-1">
                             <p className="break-words text-sm font-medium text-slate-900">
-                              {section.number ? `${section.number} ` : ""}
-                              {section.title || "(untitled)"}
+                              {sectionLabel(section)}
                             </p>
                             <div className="flex flex-wrap gap-1.5 text-xs text-slate-500">
                               {section.chapterTitle ? <span className="break-words">{section.chapterTitle}</span> : null}
@@ -885,7 +901,7 @@ function SectionAssignPicker({
               {ordered.map((section) => (
                 <CommandItem
                   key={section.sectionKey}
-                  value={`${section.number || ""} ${section.title || ""} ${section.chapterTitle || ""} ${section.sectionKey}`}
+                  value={`${sectionLabel(section)} ${section.chapterTitle || ""} ${section.sectionKey}`}
                   onSelect={() => {
                     onAssign(section);
                     setOpen(false);
@@ -893,8 +909,7 @@ function SectionAssignPicker({
                   className="flex flex-col items-start gap-0.5"
                 >
                   <span className="text-sm">
-                    {section.number ? `${section.number} ` : ""}
-                    {section.title || "(untitled)"}
+                    {sectionLabel(section)}
                   </span>
                   <span className="text-[11px] text-slate-500">
                     {[section.chapterTitle, formatPages(section.pageStart, section.pageEnd), section.aiSubtopicName ? `now: ${section.aiSubtopicName}` : section.mappingStatus]
@@ -948,8 +963,7 @@ function FragmentRows({
           )}
         >
           <td className="px-3 py-1.5 pl-8 text-slate-700">
-            {sub.number ? `${sub.number} ` : ""}
-            {sub.name}
+            {subLabel(sub)}
           </td>
           <td className={cn("px-3 py-1.5 text-right", sub.chunkCount ? "text-slate-700" : "font-semibold text-amber-700")}>
             {sub.chunkCount || 0}
