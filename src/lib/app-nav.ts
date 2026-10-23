@@ -86,6 +86,7 @@ export const adminNav: NavItem[] = [
   { id: "timetable", label: "Timetable", icon: CalendarDays, href: "/admin/dashboard?tab=timetable" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/admin/dashboard?tab=calendar" },
   { id: "vidya-ai", label: "Vidya AI", icon: Sparkles, href: "/admin/dashboard?tab=vidya-ai" },
+  { id: "settings", label: "Settings", icon: Settings, href: "/admin/dashboard?tab=settings" },
 ];
 
 /** Maps legacy / internal dashboard tab values onto sidebar nav ids. */

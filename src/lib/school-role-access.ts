@@ -219,8 +219,8 @@ export function filterNavByFeatures<T extends { id: string }>(
   for (const f of features || []) {
     for (const id of featureToNav[f] || []) allowedNav.add(id);
   }
-  // Always keep subscription if present (B2C)
-  return nav.filter((item) => item.id === 'subscription' || allowedNav.has(item.id));
+  // Always keep subscription (B2C) and settings (own profile / password).
+  return nav.filter((item) => item.id === 'subscription' || item.id === 'settings' || allowedNav.has(item.id));
 }
 
 export type RoleVidyaState = VidyaUsageFields & { enabled: boolean };

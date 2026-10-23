@@ -72,9 +72,10 @@ export function EduOTTVideoPlayerDialog({
                       return (
                         <iframe
                           title={video.title}
-                          src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1`}
+                          // No web-share permission: YouTube's Share button can no longer open the device share sheet.
+                          src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&playsinline=1`}
                           className="absolute inset-0 box-border h-full w-full border-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
                       );

@@ -225,11 +225,13 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
               <Button
                 type="button"
                 className="rounded-xl bg-sky-500 text-white hover:bg-sky-600"
-                disabled={!pendingFile || uploadMutation.isPending}
-                onClick={() => void handleUpload()}
+                // Was disabled (looked unclickable) whenever the class already had a
+                // saved photo; without a new photo it now opens the picker to replace it.
+                disabled={uploadMutation.isPending}
+                onClick={() => (pendingFile ? void handleUpload() : fileInputRef.current?.click())}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                {uploadMutation.isPending ? 'Saving…' : 'Save timetable'}
+                {uploadMutation.isPending ? 'Saving…' : pendingFile ? 'Save timetable' : existingPhoto ? 'Replace photo' : 'Save timetable'}
               </Button>
             </div>
           </div>

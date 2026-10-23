@@ -11,7 +11,7 @@ import { API_BASE_URL } from '@/lib/api-config';
 import { formatSeatUsage } from '@/hooks/use-account-seats';
 import { useToast } from '@/hooks/use-toast';
 import { AtRiskStudentsPanel } from '@/components/admin/AtRiskStudentsPanel';
-import { getAuthToken } from '@/lib/auth-utils';
+import { getAuthToken, getUser } from '@/lib/auth-utils';
 import {
   BookOpen,
   Users,
@@ -39,6 +39,7 @@ const AdminCalendar = lazy(() => import('@/components/admin/admin-calendar'));
 const TimetableManagement = lazy(() => import('@/components/admin/TimetablePhotoManagement'));
 const OmrResultsManagement = lazy(() => import('@/components/admin/omr-results-management'));
 const AIChat = lazy(() => import('@/components/ai-chat'));
+const AdminSettingsPanel = lazy(() => import('@/components/admin/AdminSettingsPanel'));
 
 const lazySectionFallback = (
   <div className="rounded-xl border border-sky-100 bg-white p-3 sm:p-4 lg:p-6 text-xs sm:text-sm text-slate-600 shadow-sm">
@@ -59,6 +60,7 @@ const VALID_ADMIN_TABS = new Set([
   'calendar',
   'timetable',
   'vidya-ai',
+  'settings',
 ]);
 
 const AdminDashboard = () => {
@@ -93,18 +95,33 @@ const AdminDashboard = () => {
           } else {
             window.location.href = '/signin';
           }
-        } else {
-          const errorText = await response.text();
-          toast({
-            title: 'Authentication failed',
-            description: `Status: ${response.status}, Response: ${errorText}`,
-            variant: 'destructive',
-          });
+        } else if (response.status === 401 || response.status === 403) {
           window.location.href = '/signin';
+        } else {
+          // Server hiccup (5xx / deploy restart): keep the admin signed in with
+          // the cached profile instead of throwing them back to the login page.
+          const cached = getUser();
+          if (cached?.role === 'admin') {
+            setUserData(cached);
+            setAdminId(cached._id || cached.id || null);
+            setIsAuthenticated(true);
+          }
+          toast({
+            title: 'Server is busy',
+            description: 'Some data may load slowly. Refresh in a minute if anything is missing.',
+          });
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        window.location.href = '/signin';
+        // Network drop: stay on the dashboard with the cached profile.
+        const cached = getUser();
+        if (cached?.role === 'admin') {
+          setUserData(cached);
+          setAdminId(cached._id || cached.id || null);
+          setIsAuthenticated(true);
+        } else {
+          window.location.href = '/signin';
+        }
       } finally {
         setIsLoading(false);
       }
@@ -650,6 +667,11 @@ const AdminDashboard = () => {
           {activeTab === 'timetable' && (
             <Suspense fallback={lazySectionFallback}>
               <TimetableManagement />
+            </Suspense>
+          )}
+          {activeTab === 'settings' && (
+            <Suspense fallback={lazySectionFallback}>
+              <AdminSettingsPanel />
             </Suspense>
           )}
           {activeTab === 'vidya-ai' && (
