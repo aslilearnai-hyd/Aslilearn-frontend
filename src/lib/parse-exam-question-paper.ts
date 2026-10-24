@@ -52,7 +52,9 @@ function cleanText(value: unknown): string {
   );
 }
 
-const MCQ_OPTION_LABEL_RE = /^([A-Da-d])[\).:\-\s]+/;
+// "A) -13" lost its minus sign (options showed 13, 13, 17, 17): only a real
+// label separator is stripped, never the option's own leading "-".
+const MCQ_OPTION_LABEL_RE = /^([A-Da-d])(?:\s*[\).:]\s*|\s+-\s+)/;
 
 function stripEmbeddedExamTail(text: string): string {
   const raw = cleanText(text);

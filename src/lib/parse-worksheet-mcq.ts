@@ -3,6 +3,7 @@
  */
 
 import { renumberSectionQuestionLists } from '@/lib/renumber-questions';
+import { reconcileInstructionCounts } from '@/lib/reconcile-instructions';
 import { protectMultiplication } from '@/lib/strip-markdown-syntax';
 import {
   cleanWorksheetQuestionText,
@@ -265,11 +266,11 @@ function sectionsArrayHasQuestions(sectionsRaw: unknown): boolean {
 function cleanMcqOptionAnswerBleed(option: string, answer: string, index = 0): string {
   const raw = stripInlineMarkdown(String(option || '').trim());
   if (!raw) return '';
-  const labeled = raw.match(/^([A-D])\s*[\).:\-]?\s*(.+)$/i);
+  const labeled = raw.match(/^([A-D])\s*[\).:]\s*(.+)$/i);
   const letter = labeled?.[1]?.toUpperCase() || String.fromCharCode(65 + index);
-  let text = (labeled?.[2] || raw.replace(/^[A-D][\).:\-\s]+/i, '')).trim();
+  let text = (labeled?.[2] || raw).trim();
   const ans = stripInlineMarkdown(answer)
-    .replace(/^[A-D][\).:\-\s]+/i, '')
+    .replace(/^[A-D](?:\s*[\).:]\s*|\s+-\s+)/i, '')
     .trim();
   if (ans.length >= 4 && text.endsWith(ans) && text.length > ans.length + 3) {
     text = text.slice(0, -ans.length).trim();
@@ -331,7 +332,7 @@ function toWorksheetQuestions(value: unknown): WorksheetQuestion[] {
     if (matchPairs.length < 2 && !isValidWorksheetQuestionInput(question, options)) continue;
     const marksRaw = entry.marks ?? entry.mark;
     // "1 mark" / "2 Marks" were dropped as non-numeric, so the badge vanished.
-    const marksNum = marksRaw != null ? Number(String(marksRaw).match(/d+(?:.d+)?/)?.[0]) : NaN;
+    const marksNum = marksRaw != null ? Number(String(marksRaw).match(/\d+(?:\.\d+)?/)?.[0]) : NaN;
     const marks = Number.isFinite(marksNum) && marksNum > 0 ? marksNum : undefined;
     const answer =
       stripInlineMarkdown(String(entry.answer || entry.correctAnswer || '').trim()) ||
@@ -1067,6 +1068,25 @@ export function worksheetHasVisibleContent(w: NormalizedWorksheet): boolean {
 
 export function countWorksheetQuestions(w: NormalizedWorksheet): number {
   return w.sections.reduce((n, s) => n + s.questions.length, 0);
+}
+
+/** Sum of question marks, or 0 when any question has no marks (a partial sum would mislead). */
+export function worksheetTotalMarks(w: NormalizedWorksheet): number {
+  const questions = w.sections.flatMap((s) => s.questions);
+  if (!questions.length || questions.some((q) => !(Number(q.marks) > 0))) return 0;
+  return questions.reduce((n, q) => n + Number(q.marks), 0);
+}
+
+/**
+ * Instructions are written before the questions are final, so they said
+ * "Attempt all 20 questions … Total Marks: 18" next to 19 questions worth 19
+ * marks. Show the paper's real counts (screen and downloads).
+ */
+export function reconciledWorksheetInstructions(w: NormalizedWorksheet): string {
+  return reconcileInstructionCounts(w.instructions || '', {
+    total: countWorksheetQuestions(w),
+    totalMarks: worksheetTotalMarks(w),
+  });
 }
 
 export function resolveWorksheetFromPayload(

@@ -785,6 +785,8 @@ function InlineQuestionEditor({
           placeholder="Case passage / AR directions / Match directions"
           onChange={(e) => patch({ sharedMatterText: e.target.value })}
         />
+        {/* Shared matter had no rendered preview, unlike the question and options. */}
+        <MathEditorPreview text={form.sharedMatterText} />
         {form.sharedMatterId ? (
           <p className="mt-1 text-[10px] text-slate-500">
             Group id: {form.sharedMatterId} — saving updates this text for all questions in the group.
@@ -2489,6 +2491,7 @@ export default function ExamManagement() {
       const failedIndexes = new Set<number>();
       let created = 0;
       let skippedDuplicates = 0;
+      let reviewCount = 0;
       const headers = {
         ...authBearerHeaders(),
         'Content-Type': 'application/json',
@@ -2544,17 +2547,17 @@ export default function ExamManagement() {
                 return {
                   ok: false,
                   idx,
-                  error: `Row ${idx + 1}: ${data?.message || `failed (${res.status})`}`,
+                  error: `Q${(rows[idx] as any)?.questionNumber ?? idx + 1}: ${data?.message || `failed (${res.status})`}`,
                 };
               }
               const warn =
                 payload?.questionType === 'integer' &&
                 /Integer answer needs review/i.test(String(payload?.explanation || ''))
-                  ? `Row ${idx + 1}: Integer answer missing/invalid — saved as 0 (needs review)`
+                  ? `Q${(rows[idx] as any)?.questionNumber ?? idx + 1}: saved, but the integer answer was missing — set to 0, please review`
                   : undefined;
               return { ok: true, idx, warn };
             } catch (e: any) {
-              return { ok: false, idx, error: `Row ${idx + 1}: ${e?.message || 'network error'}` };
+              return { ok: false, idx, error: `Q${(rows[idx] as any)?.questionNumber ?? idx + 1}: ${e?.message || 'network error'}` };
             }
           }),
         );
@@ -2562,7 +2565,10 @@ export default function ExamManagement() {
           if (r.ok) {
             if (r.skippedDuplicate) skippedDuplicates += 1;
             else created += 1;
-            if (r.warn) errors.push(r.warn);
+            if (r.warn) {
+              errors.push(r.warn);
+              reviewCount += 1;
+            }
           } else if (r.error) {
             failedIndexes.add(r.idx);
             errors.push(r.error);
@@ -2603,8 +2609,10 @@ export default function ExamManagement() {
         description:
           `Created ${created} question(s)` +
           (skippedDuplicates ? `, skipped ${skippedDuplicates} already uploaded duplicate(s)` : '') +
-          (errors.length ? `, ${errors.length} error(s)` : '') + '.' +
-          (failedIndexes.size ? ` ${failedIndexes.size} failed row(s) remain in the preview for retry.` : '') +
+          (reviewCount ? `, ${reviewCount} saved but need review` : '') + '.' +
+          (failedIndexes.size
+            ? ` ${failedIndexes.size} question(s) failed and stay in the preview — the reason is listed under "Row issues".`
+            : '') +
           (remainingPoolCount
             ? ` ${remainingPoolCount} figure(s) are at the top — click Select photo on a question, then pick an image.`
             : ''),

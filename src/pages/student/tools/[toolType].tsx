@@ -54,12 +54,9 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
-/** Downloads showed raw "2sqrt(19)", "cbrt(x^3)", "x^2": use the same symbols as the screen (√, ∛, ²). Lines keep their layout. */
-const classroomMathForExport = (text: string): string =>
-  String(text || '')
-    .split(/\r?\n/)
-    .map((line) => (line.trim() ? formatClassroomScienceText(line) : line))
-    .join('\n');
+import { exportMathText } from '@/lib/export-math';
+// Downloads showed raw "$\sqrt[3]{\frac{125}{343}}$", "2sqrt(19)", "x^2": same maths as the screen.
+const classroomMathForExport = exportMathText;
 
 import { saveAs } from 'file-saver';
 import { AiToolResultShell } from '@/components/ai-tool-result-shell';

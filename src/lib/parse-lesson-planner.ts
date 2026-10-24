@@ -359,10 +359,11 @@ function coalesceLines(v: unknown): string[] {
         }
         return stripOrderedPrefix(textOf(x));
       })
-      .filter(Boolean);
+      // Records saved before the fix can hold the literal text "[object Object]".
+      .filter((line) => Boolean(line) && !/^\[object \w+\]$/i.test(line));
   }
   if (typeof v === 'string' && v.trim()) {
-    return v.split(/\n+/).map(stripOrderedPrefix).filter(Boolean);
+    return v.split(/\n+/).map(stripOrderedPrefix).filter((line) => Boolean(line) && !/^\[object \w+\]$/i.test(line));
   }
   return [];
 }

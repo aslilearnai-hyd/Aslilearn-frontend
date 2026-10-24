@@ -1,7 +1,11 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { resolveWorksheetFromPayload, type NormalizedWorksheet } from '@/lib/parse-worksheet-mcq';
+import {
+  reconciledWorksheetInstructions,
+  resolveWorksheetFromPayload,
+  type NormalizedWorksheet,
+} from '@/lib/parse-worksheet-mcq';
 import { resolveHomeworkFromPayload, type NormalizedHomework } from '@/lib/parse-homework-creator';
 import {
   formatLabeledMcqOptions,
@@ -250,7 +254,7 @@ function formatWorksheetAsMarkdown(worksheet: NormalizedWorksheet, subject?: str
     lines.push('');
   }
 
-  pushBlock(lines, 'Instructions', fmt(worksheet.instructions, subject));
+  pushBlock(lines, 'Instructions', fmt(reconciledWorksheetInstructions(worksheet), subject));
 
   for (const section of worksheet.sections) {
     if (!section.questions.length) continue;

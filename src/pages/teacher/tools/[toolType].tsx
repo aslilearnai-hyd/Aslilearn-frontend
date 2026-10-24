@@ -44,12 +44,9 @@ import { renderMarkdown } from '@/lib/render-teacher-markdown';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ImageRun, ExternalHyperlink, InternalHyperlink } from 'docx';
 import { saveAs } from 'file-saver';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
-/** Downloads showed raw "2sqrt(19)", "cbrt(x^3)", "x^2": use the same symbols as the screen (√, ∛, ²). Lines keep their layout. */
-const classroomMathForExport = (text: string): string =>
-  String(text || '')
-    .split(/\r?\n/)
-    .map((line) => (line.trim() ? formatClassroomScienceText(line) : line))
-    .join('\n');
+import { exportMathText } from '@/lib/export-math';
+// Downloads showed raw "$\sqrt[3]{\frac{125}{343}}$", "2sqrt(19)", "x^2": same maths as the screen.
+const classroomMathForExport = exportMathText;
 
 import {
   DropdownMenu,
