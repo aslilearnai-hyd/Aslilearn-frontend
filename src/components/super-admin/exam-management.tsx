@@ -49,6 +49,7 @@ import {
   AdminExamPreviewTriggerButton,
   AdminExamStudentPreview,
 } from '@/components/super-admin/AdminExamStudentPreview';
+import { exportMathText } from '@/lib/export-math';
 import { Plus, Trash2, Edit, Eye, Calendar, Clock, BookOpen, FileQuestion, X, Upload, Download, School, GraduationCap, Loader2, ChevronUp, ChevronDown, Save, Search, Maximize2 } from 'lucide-react';
 import {
   Popover,
@@ -630,6 +631,58 @@ function resolveArStemFields(form: typeof EMPTY_QUESTION_FORM): {
     }
   }
   return { assertionText, reasonText };
+}
+
+/**
+ * Uploaded papers stored maths as "$…$", which showed as dollar signs in the
+ * editor, previews and student views. Convert it to plain readable symbols
+ * (√, ∛, ², ⁵⁄₉, ×, ≤ …) before saving, so no "$" is ever stored.
+ */
+function plainPaperText(value: unknown): string {
+  return exportMathText(String(value ?? '')).trim();
+}
+
+/** Text as compared for answers: no $, LaTeX spacing, case or trailing dots. */
+function answerMatchKey(value: unknown): string {
+  return plainPaperText(value)
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[.;:]+$/, '');
+}
+
+/**
+ * Which options an extracted answer refers to. Answers arrive as letters
+ * ("b", "a, c", "A and D"), as the option text (often with "$" or different
+ * spacing), or as several option texts joined by commas. Splitting on commas
+ * broke answers like "The HCF(a, b) is always…" (Q15 failed), and an unmatched
+ * single answer left no option correct, so students who chose it were marked wrong.
+ */
+export function matchAnswerToOptions(answer: unknown, optionTexts: string[], multiple: boolean): number[] {
+  const raw = String(answer ?? '').trim();
+  if (!raw || !optionTexts.length) return [];
+  const keys = optionTexts.map(answerMatchKey);
+  const whole = answerMatchKey(raw);
+  const exact = keys.findIndex((k) => k && k === whole);
+  if (exact >= 0) return [exact];
+  const toIndex = (letter: string) => letter.toUpperCase().charCodeAt(0) - 65;
+  // "b", "(a), (c)", "A and D", "a/b" — whole answer is letters only.
+  const letterList = /^\(?[a-f]\)?(?:\s*(?:,|&|and|\/)\s*\(?[a-f]\)?)*\.?$/i.test(raw)
+    ? [...raw.matchAll(/\b([a-f])\b/gi)].map((m) => toIndex(m[1]))
+    : [];
+  // "B) …" / "Option C." — a labelled single letter (never "a line …").
+  const labelled = raw.match(/^(?:option\s*)?\(?([a-f])(?:\)|\.|:|$)/i);
+  const letters = letterList.length ? letterList : labelled ? [toIndex(labelled[1])] : [];
+  const validLetters = letters.filter((i) => i >= 0 && i < optionTexts.length);
+  if (validLetters.length) return multiple ? [...new Set(validLetters)] : [validLetters[0]];
+  // Option texts contained in the answer (longest first so "x+1" does not steal "x+10").
+  const contained = keys
+    .map((k, i) => ({ k, i }))
+    .filter(({ k }) => k.length >= 1 && whole.includes(k))
+    .sort((a, b) => b.k.length - a.k.length);
+  if (contained.length) return multiple ? contained.map((c) => c.i).sort((a, b) => a - b) : [contained[0].i];
+  // Answer is a shortened form of one option ("The HCF(a, b) is always 1" vs the full option).
+  const prefixed = keys.findIndex((k) => whole.length >= 6 && k.startsWith(whole));
+  return prefixed >= 0 ? [prefixed] : [];
 }
 
 const HAS_LATEX_MATH = /(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/;
@@ -2153,7 +2206,7 @@ export default function ExamManagement() {
 
   const mapPdfRowToQuestionPayload = (row: PdfQuestionRow) => {
     const optionTexts = [row.option1, row.option2, row.option3, row.option4]
-      .map((x) => String(x || '').trim())
+      .map((x) => plainPaperText(x))
       .filter(Boolean);
     const options = optionTexts.map((text) => ({ text, isCorrect: false }));
     let type = row.questionType;
@@ -2170,7 +2223,7 @@ export default function ExamManagement() {
     if (looksAr) type = 'assertion_reason';
 
     const imageUrl = String(row.questionImage || '').trim();
-    let sharedMatterText = String(row.sharedMatterText || row.passageText || '').trim();
+    let sharedMatterText = plainPaperText(row.sharedMatterText || row.passageText || '');
     let sharedMatterId = String(row.sharedMatterId || row.passageId || '').trim();
     let sharedMatterKind = String(row.sharedMatterKind || '').trim();
     if (looksAr) {
@@ -2181,20 +2234,20 @@ export default function ExamManagement() {
       sharedMatterId = sharedMatterId || 'AR1';
     }
     const base = {
-      questionText: String(row.questionText || '').trim(),
+      questionText: plainPaperText(row.questionText),
       questionType: type,
       subject: String(row.subject || availableQuestionSubjects[0] || 'maths').trim().toLowerCase(),
       marks: Number(row.marks || 1) || 1,
       negativeMarks: 0,
-      explanation: String(row.explanation || '').trim() || undefined,
+      explanation: plainPaperText(row.explanation) || undefined,
       board: selectedExam?.board,
       sharedMatterId: sharedMatterId || undefined,
       sharedMatterText: sharedMatterText || undefined,
       sharedMatterKind: sharedMatterKind || undefined,
-      assertionText: String(row.assertionText || '').trim() || undefined,
-      reasonText: String(row.reasonText || '').trim() || undefined,
-      matchColumnI: Array.isArray(row.matchColumnI) && row.matchColumnI.length ? row.matchColumnI : undefined,
-      matchColumnII: Array.isArray(row.matchColumnII) && row.matchColumnII.length ? row.matchColumnII : undefined,
+      assertionText: plainPaperText(row.assertionText) || undefined,
+      reasonText: plainPaperText(row.reasonText) || undefined,
+      matchColumnI: Array.isArray(row.matchColumnI) && row.matchColumnI.length ? row.matchColumnI.map((c: any) => (typeof c === 'string' ? plainPaperText(c) : c?.text != null ? { ...c, text: plainPaperText(c.text) } : c)) : undefined,
+      matchColumnII: Array.isArray(row.matchColumnII) && row.matchColumnII.length ? row.matchColumnII.map((c: any) => (typeof c === 'string' ? plainPaperText(c) : c?.text != null ? { ...c, text: plainPaperText(c.text) } : c)) : undefined,
       ...(imageUrl && type !== 'assertion_reason'
         ? {
             questionImage: imageUrl.startsWith('http')
@@ -2230,38 +2283,22 @@ export default function ExamManagement() {
     }
 
     const answerText = String(row.correctAnswer || '').trim();
+    const matched = matchAnswerToOptions(answerText, optionTexts, type === 'multiple');
+    matched.forEach((i) => {
+      if (options[i]) options[i].isCorrect = true;
+    });
     if (type === 'multiple') {
-      const answerSet = new Set(
-        answerText
-          .split(',')
-          .map((x) => x.trim().toLowerCase())
-          .filter(Boolean),
-      );
-      options.forEach((opt) => {
-        if (answerSet.has(String(opt.text || '').trim().toLowerCase())) opt.isCorrect = true;
-      });
       return {
         ...base,
         options,
         correctAnswer: options.filter((o) => o.isCorrect).map((o) => o.text),
       };
     }
-
-    // mcq / assertion_reason / match_following
-    const idx = options.findIndex((o) => String(o.text || '').trim().toLowerCase() === answerText.toLowerCase());
-    if (idx >= 0) options[idx].isCorrect = true;
-    else {
-      // letter answer a/b/c/d
-      const letter = answerText.match(/^([a-dA-D])(?:[\).:]|$)/)?.[1];
-      if (letter) {
-        const li = letter.toUpperCase().charCodeAt(0) - 65;
-        if (li >= 0 && li < options.length) options[li].isCorrect = true;
-      }
-    }
+    // mcq / assertion_reason / match_following: the stored answer is always an option.
     return {
       ...base,
       options,
-      correctAnswer: options.find((o) => o.isCorrect)?.text || answerText,
+      correctAnswer: options.find((o) => o.isCorrect)?.text || '',
     };
   };
 
@@ -3019,11 +3056,17 @@ export default function ExamManagement() {
         });
         return;
       }
-      correctAnswer = resolveAnswerAgainstOptions(raw, form.options) || raw;
+      // An answer that is not one of the options can never be chosen, so every
+      // student was marked wrong. It must resolve to an option.
+      const filledOptions = form.options.filter((opt) => opt.trim() !== '');
+      const matchedIndex = matchAnswerToOptions(raw, filledOptions, false)[0];
+      correctAnswer =
+        resolveAnswerAgainstOptions(raw, form.options) ||
+        (matchedIndex != null ? filledOptions[matchedIndex] : '');
       if (!correctAnswer) {
         toast({
           title: 'Validation Error',
-          description: 'Please select a correct answer',
+          description: 'The correct answer must be one of the options — click the circle next to the right option.',
           variant: 'destructive',
         });
         return;
@@ -3036,7 +3079,7 @@ export default function ExamManagement() {
         ? []
         : form.options
             .filter((opt) => opt.trim() !== '')
-            .map((opt) => ({ text: opt.trim(), isCorrect: false }));
+            .map((opt) => ({ text: plainPaperText(opt), isCorrect: false }));
 
     const buildQuestionPayload = (replaceDuplicate = false) => {
       const editingRow = editingQuestionId
@@ -3050,21 +3093,26 @@ export default function ExamManagement() {
 
       return {
         // AR may save with empty questionText — stem lives in assertionText / reasonText
-        questionText: String(form.questionText || '').trim(),
+        // Maths is saved as plain symbols, never "$…$" (same as uploads).
+        questionText: plainPaperText(form.questionText),
         questionImage: String(form.questionImage || '').trim(),
         questionType: form.questionType,
         options: formattedOptions,
-        correctAnswer,
+        correctAnswer: Array.isArray(correctAnswer)
+          ? correctAnswer.map((a: unknown) => plainPaperText(a))
+          : typeof correctAnswer === 'string'
+            ? plainPaperText(correctAnswer)
+            : correctAnswer,
         marks: Math.max(0, Number(form.marks) || 1),
         negativeMarks: Math.max(0, Math.abs(Number(form.negativeMarks) || 0)),
-        explanation: form.explanation.trim() || undefined,
+        explanation: plainPaperText(form.explanation) || undefined,
         subject: form.subject,
         sectionHeading,
         ...(displayOrder != null ? { displayOrder } : {}),
         board: selectedExam.board,
         sharedMatterId: form.sharedMatterId.trim() || undefined,
         sharedMatterText:
-          form.sharedMatterText.trim() ||
+          plainPaperText(form.sharedMatterText) ||
           (form.questionType === 'assertion_reason' ? DEFAULT_ASSERTION_REASON_DIRECTIONS : '') ||
           undefined,
         sharedMatterKind: form.sharedMatterKind || undefined,
