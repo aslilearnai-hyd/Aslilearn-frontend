@@ -204,7 +204,16 @@ export function ImpactReportsPanel() {
   const [studentReports, setStudentReports] = useState<StudentReportRow[]>([]);
   const [dayBreakdown, setDayBreakdown] = useState<DayBreakdownRow[]>([]);
   const [studentFilter, setStudentFilter] = useState<"active" | "all">("active");
-  const [schoolQuery, setSchoolQuery] = useState("");
+  // "Open school report" on the dashboard pre-fills the school search.
+  const [schoolQuery, setSchoolQuery] = useState(() => {
+    try {
+      const q = window.sessionStorage.getItem("superAdmin.impactSchoolQuery") || "";
+      window.sessionStorage.removeItem("superAdmin.impactSchoolQuery");
+      return q;
+    } catch {
+      return "";
+    }
+  });
   const visibleSchools = useMemo(() => {
     const q = schoolQuery.trim().toLowerCase();
     return q ? schools.filter((sc) => String(sc.schoolName || "").toLowerCase().includes(q)) : schools;

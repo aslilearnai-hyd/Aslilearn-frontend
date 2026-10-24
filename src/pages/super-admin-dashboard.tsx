@@ -68,6 +68,38 @@ const lazySectionFallback = (
   </div>
 );
 
+/**
+ * Per-school usage for the Admin Performance cards: what the score is built
+ * from, the latest weekly impact report (teacher logins, students active,
+ * sessions, time spent) and a link to the full school report.
+ */
+function SchoolUsageLine({ admin, onOpenReport }: { admin: any; onOpenReport: (name: string) => void }) {
+  const u = admin?.usage;
+  const name = admin?.schoolName || admin?.adminName || '';
+  const minutes = Math.max(0, Math.round(Number(u?.minutesSpent) || 0));
+  const time = minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+  return (
+    <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs text-gray-700">
+      <p>
+        <span className="font-medium">Score from:</span> {admin.totalStudents} students · {admin.totalExams} exams ·{' '}
+        {admin.totalAttempts ?? 0} results · {admin.totalMarksObtained ?? 0}/{admin.totalMarksPossible ?? 0} marks
+      </p>
+      {u ? (
+        <p>
+          <span className="font-medium">{u.periodLabel || 'Latest week'}:</span> teachers logged in{' '}
+          {u.teachersLoggedIn}/{u.teachersIssued} · students active {u.studentsAccessed}/{u.studentsIssued} ·{' '}
+          {u.sessions} sessions · time spent {time}
+        </p>
+      ) : (
+        <p className="text-gray-500">No weekly usage report yet for this school.</p>
+      )}
+      <button type="button" onClick={() => onOpenReport(name)} className="font-semibold text-sky-700 hover:underline">
+        Open school report →
+      </button>
+    </div>
+  );
+}
+
 export default function SuperAdminDashboard() {
   const { toast } = useToast();
   const superAdminDrawerNav = useSuperAdminDrawerNav();
@@ -195,6 +227,16 @@ export default function SuperAdminDashboard() {
   const handleViewChange = (view: SuperAdminView) => {
     setCurrentView(view);
     clearSuperAdminDashboardQueryFromUrl();
+  };
+
+  // Impact Reports opens filtered to this school.
+  const openSchoolReport = (schoolName: string) => {
+    try {
+      window.sessionStorage.setItem('superAdmin.impactSchoolQuery', schoolName);
+    } catch {
+      /* private mode: open unfiltered */
+    }
+    handleViewChange('impact-reports');
   };
 
   // Fetch dashboard stats only on the home dashboard view (avoids slow/noisy calls on other tabs).
@@ -763,9 +805,7 @@ export default function SuperAdminDashboard() {
                         <div>
                           <p className="font-semibold text-gray-900">{admin.schoolName || admin.adminName}</p>
                           <p className="text-xs sm:text-sm text-gray-600">{admin.schoolName ? `${admin.adminName} · ${admin.adminEmail}` : admin.adminEmail}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {admin.totalStudents} students • {admin.totalExams} exams
-                          </p>
+                          <SchoolUsageLine admin={admin} onOpenReport={openSchoolReport} />
                         </div>
                         <div className="text-right">
                           <p className="text-base sm:text-lg font-bold text-red-600">{admin.averageScore}%</p>
@@ -799,7 +839,7 @@ export default function SuperAdminDashboard() {
                           <div>
                             <h3 className="font-semibold text-base sm:text-lg text-gray-900">{admin.schoolName || admin.adminName}</h3>
                             <p className="text-gray-600">{admin.adminEmail || `${admin.totalStudents} students`}</p>
-                            <p className="text-xs text-gray-500">{admin.totalStudents} students · {admin.totalExams} exams · {admin.totalAttempts} results</p>
+                            <SchoolUsageLine admin={admin} onOpenReport={openSchoolReport} />
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-gray-900 text-base sm:text-lg">{admin.averageScore}%</p>
