@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { canonicalTeacherSubjectLabel, isIitTeacherSubjectTrack } from '@/lib/subject-names';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -150,6 +151,33 @@ export default function IQRankBoostActivities() {
     targetSchools: [] as string[],
     targetUserIdsText: '',
   });
+
+  // The quiz form listed every subject row of every board and class ("BIO",
+  // "Biology" twice, "Biology IIT", "Biology_10", "Biology_6"…). Show one entry
+  // per subject (and IIT track) for the chosen class.
+  const subjectOptions = useMemo(() => {
+    const cls = String(formData.classNumber || '').match(/\d+/)?.[0] || '';
+    const classOf = (sub: any) =>
+      String(sub?.classNumber ?? '').match(/\d+/)?.[0] || String(sub?.name || '').match(/_(\d+)$/)?.[1] || '';
+    const seen = new Map<string, { _id: string; label: string }>();
+    for (const sub of subjects as any[]) {
+      if (!sub?._id) continue;
+      const subClass = classOf(sub);
+      if (cls && subClass && subClass !== cls) continue;
+      const iit = isIitTeacherSubjectTrack(sub);
+      const label = `${canonicalTeacherSubjectLabel(sub.name || '')}${iit ? ' · IIT / NEET' : ''}`;
+      const key = label.toLowerCase();
+      // Prefer the row for this exact class over a class-less one.
+      if (!seen.has(key) || (cls && subClass === cls)) seen.set(key, { _id: sub._id, label });
+    }
+    const options = [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const current = (subjects as any[]).find((sub) => sub?._id === formData.subject);
+    if (current && !options.some((o) => o._id === current._id)) {
+      options.unshift({ _id: current._id, label: canonicalTeacherSubjectLabel(current.name || '') });
+    }
+    return options;
+  }, [subjects, formData.classNumber, formData.subject]);
+
 
   useEffect(() => {
     void fetchBankCounts();
@@ -835,9 +863,9 @@ export default function IQRankBoostActivities() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">None</SelectItem>
-                    {subjects.map((subject) => (
+                    {subjectOptions.map((subject) => (
                       <SelectItem key={subject._id} value={subject._id}>
-                        {subject.name}
+                        {subject.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1084,9 +1112,9 @@ export default function IQRankBoostActivities() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">None</SelectItem>
-                    {subjects.map((subject) => (
+                    {subjectOptions.map((subject) => (
                       <SelectItem key={subject._id} value={subject._id}>
-                        {subject.name}
+                        {subject.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
