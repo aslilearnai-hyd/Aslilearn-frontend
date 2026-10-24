@@ -590,7 +590,11 @@ export function BookCurriculumMappingDialog({
                                 <span>· {formatPages(section.pageStart, section.pageEnd)}</span>
                               ) : null}
                               <span>· {section.wordCount || 0} words</span>
-                              {section.mappingMethod ? <span>· {section.mappingMethod}</span> : null}
+                              {section.mappingMethod === "chapter_title_mismatch" ? (
+                                <span className="font-medium text-amber-700">· chapter title does not match any curriculum chapter — check the PDF or the AI Tool Topics</span>
+                              ) : section.mappingMethod ? (
+                                <span>· {section.mappingMethod}</span>
+                              ) : null}
                               <span>· {Math.round((section.mappingConfidence || 0) * 100)}%</span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
