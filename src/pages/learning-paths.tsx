@@ -745,7 +745,7 @@ export default function LearningPaths() {
         {activeTab === 'subjects' && (
         <div className="mb-8">
           <h2 className="mb-6 font-display text-2xl font-bold text-ink">Browse by Subject</h2>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {isLoadingSubjects ? (
               <div className="col-span-full flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 text-sky-500 animate-spin mb-3" aria-hidden />
@@ -808,7 +808,7 @@ export default function LearningPaths() {
                 return (
                   <div
                     key={subject._id || subject.id}
-                    className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+                    className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-elevated"
                     onMouseEnter={prefetchSubjectPage}
                   >
                     <div className="flex items-center gap-3">
@@ -909,7 +909,7 @@ export default function LearningPaths() {
                     <button
                       type="button"
                       onClick={() => handleSubjectClick(subject)}
-                      className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${theme.btn}`}
+                      className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${theme.btn}`}
                     >
                       View Content
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />

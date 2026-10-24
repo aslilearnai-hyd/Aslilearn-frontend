@@ -555,7 +555,8 @@ export default function AdminLearningPaths() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {/* Cards fit their own content; stretching to the tallest card left blank boxes. */}
+                  <div className="grid grid-cols-1 items-start md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {group.subjects.map((subject: any) => {
                       const Icon = getSubjectIcon(subject.name);
                       const displayName = extractPlainSubjectName(subject.name || '');
@@ -585,9 +586,9 @@ export default function AdminLearningPaths() {
                       return (
                         <Card
                           key={mergedIds.slice().sort((a, b) => String(a).localeCompare(String(b))).join('-')}
-                          className="border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 h-full"
+                          className="border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                         >
-                          <CardContent className="p-4 h-full flex flex-col gap-3">
+                          <CardContent className="p-4 flex flex-col gap-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-400 to-teal-500 flex items-center justify-center shrink-0">
@@ -631,7 +632,7 @@ export default function AdminLearningPaths() {
                               ) : null}
                             </div>
 
-                            <div className="space-y-1.5 min-h-[52px]">
+                            <div className="space-y-1.5">
                               {subject.asliPrepContent?.slice(0, 2).map((content: any, idx: number) => (
                                 <div
                                   key={content._id || idx}
@@ -652,7 +653,7 @@ export default function AdminLearningPaths() {
                             </div>
 
                             <Button
-                              className="w-full mt-auto bg-gradient-to-r from-sky-400 to-teal-500 hover:from-sky-500 hover:to-teal-600 text-white"
+                              className="w-full mt-1 bg-gradient-to-r from-sky-400 to-teal-500 hover:from-sky-500 hover:to-teal-600 text-white"
                               onClick={() => setLocation(viewHref)}
                             >
                               View Content

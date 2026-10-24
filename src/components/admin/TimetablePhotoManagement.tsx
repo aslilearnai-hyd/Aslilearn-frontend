@@ -239,11 +239,13 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
           <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-inner">
             {displayImage ? (
               <div className="relative">
-                <img
-                  src={displayImage}
-                  alt={selectedClass ? `${classLabel(selectedClass)} timetable` : 'Timetable'}
-                  className="mx-auto max-h-[min(70vh,720px)] w-full object-contain bg-slate-50"
-                />
+                <a href={displayImage} target="_blank" rel="noreferrer" title="Open full size" className="block cursor-zoom-in">
+                  <img
+                    src={displayImage}
+                    alt={selectedClass ? `${classLabel(selectedClass)} timetable` : 'Timetable'}
+                    className="mx-auto max-h-[min(70vh,720px)] w-full object-contain bg-slate-50"
+                  />
+                </a>
                 {pendingFile ? (
                   <div className="absolute left-3 top-3 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
                     Preview — click Save timetable
