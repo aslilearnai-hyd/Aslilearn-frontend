@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -472,6 +472,53 @@ function subjectSectionLabel(subject?: string) {
 function resolveQuestionSectionHeading(q: { sectionHeading?: string; subject?: string }) {
   const custom = String(q?.sectionHeading || '').trim();
   return custom || subjectSectionLabel(q?.subject);
+}
+
+/** A 120-question / 120-mark exam is one mark each; null when marks are not uniform. */
+function uniformMarksPerQuestion(exam: { totalQuestions?: unknown; totalMarks?: unknown } | null | undefined): number | null {
+  const questions = Number(exam?.totalQuestions);
+  const marks = Number(exam?.totalMarks);
+  if (!(questions > 0) || !(marks > 0)) return null;
+  const per = marks / questions;
+  return Number.isInteger(per) ? per : null;
+}
+
+/**
+ * Add a blank, flagged row for every printed question number the extractor
+ * could not read, so the admin can type it in instead of losing it.
+ */
+function withMissingPdfRows(rows: PdfQuestionRow[], missingNumbers: number[], marks: number | null): PdfQuestionRow[] {
+  const present = new Set(rows.map((r) => Number(r.questionNumber)).filter((n) => n > 0));
+  const missing = [...new Set(missingNumbers)].filter((n) => !present.has(n));
+  if (!missing.length) return rows;
+  const subjectNear = (n: number) => {
+    const before = rows
+      .filter((r) => Number(r.questionNumber) > 0 && Number(r.questionNumber) < n && r.subject)
+      .sort((a, b) => Number(b.questionNumber) - Number(a.questionNumber))[0];
+    return before?.subject || rows.find((r) => r.subject)?.subject || '';
+  };
+  const blanks: PdfQuestionRow[] = missing.map((n) => ({
+    row: n,
+    questionNumber: n,
+    questionText: '',
+    questionType: 'mcq',
+    subject: subjectNear(n),
+    marks: marks ?? 1,
+    option1: '',
+    option2: '',
+    option3: '',
+    option4: '',
+    correctAnswer: '',
+    explanation: '',
+    solvable: false,
+    validationFlags: ['missing_from_pdf'],
+    validationNote: 'Not found in the PDF — click Edit to type this question in, or Remove the row.',
+  }));
+  return [...rows, ...blanks].sort((a, b) => {
+    const an = Number(a.questionNumber) > 0 ? Number(a.questionNumber) : Number.MAX_SAFE_INTEGER;
+    const bn = Number(b.questionNumber) > 0 ? Number(b.questionNumber) : Number.MAX_SAFE_INTEGER;
+    return an - bn;
+  });
 }
 
 function clampAddQuestionNumber(value: unknown, existingCount: number): number {
@@ -1444,6 +1491,7 @@ export default function ExamManagement() {
     Array<{ url: string; name?: string; order?: number; key?: string }>
   >([]);
   const [pdfAssignTargetIdx, setPdfAssignTargetIdx] = useState<number | null>(null);
+  const [pdfEditingIdx, setPdfEditingIdx] = useState<number | null>(null);
   const [figureAssignQuestionId, setFigureAssignQuestionId] = useState<string | null>(null);
   const [pdfAnswerKeyMeta, setPdfAnswerKeyMeta] = useState<{
     found?: boolean;
@@ -2254,7 +2302,8 @@ export default function ExamManagement() {
       questionText: plainPaperText(row.questionText),
       questionType: type,
       subject: String(row.subject || availableQuestionSubjects[0] || 'maths').trim().toLowerCase(),
-      marks: Number(row.marks || 1) || 1,
+      // Uniform papers (120 Q / 120 marks) ignore a stray "2 marks" read from the PDF.
+      marks: uniformMarksPerQuestion(selectedExam) ?? (Number(row.marks || 1) || 1),
       negativeMarks: 0,
       explanation: plainPaperText(row.explanation) || undefined,
       board: selectedExam?.board,
@@ -2412,11 +2461,16 @@ export default function ExamManagement() {
         }
       }
 
-      const rows = normalizeExtractedPdfRows(Array.isArray(data?.data) ? data.data : []);
-      if (rows.length === 0) {
+      const extractedRows = normalizeExtractedPdfRows(Array.isArray(data?.data) ? data.data : []);
+      if (extractedRows.length === 0) {
         throw new Error('No extractable questions found in this PDF. Please try a clearer PDF or different pages.');
       }
+      const missingNumbers: number[] = Array.isArray(data?.meta?.missingNumbers)
+        ? data.meta.missingNumbers.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
+        : [];
+      const rows = withMissingPdfRows(extractedRows, missingNumbers, uniformMarksPerQuestion(selectedExam));
       setPdfQuestionRows(rows);
+      setPdfEditingIdx(null);
       const paperImages = Array.isArray(data?.meta?.paperImages)
         ? data.meta.paperImages
             .map((img: any) => ({
@@ -2437,7 +2491,10 @@ export default function ExamManagement() {
       toast({
         title: keyUnusable ? 'Extracted — check the answers' : 'Extraction complete',
         description:
-          `Extracted ${rows.length} question(s)` +
+          `Extracted ${extractedRows.length} question(s)` +
+          (missingNumbers.length
+            ? `. Not found in the PDF: ${missingNumbers.map((n) => `Q${n}`).join(', ')} — blank rows added, click Edit to type them in`
+            : '') +
           (paperImages.length
             ? `, ${paperImages.length} figure(s) ready — assign from the strip above`
             : '') +
@@ -2521,6 +2578,17 @@ export default function ExamManagement() {
 
   const handleUploadExtractedQuestions = async () => {
     if (!selectedExam || pdfQuestionRows.length === 0) return;
+    const blankRows = pdfQuestionRows.filter((r) => !String(r.questionText || '').trim());
+    if (blankRows.length) {
+      toast({
+        title: 'Some questions are still blank',
+        description: `Type in or remove ${blankRows
+          .map((r, i) => (Number(r.questionNumber) > 0 ? `Q${r.questionNumber}` : `row ${i + 1}`))
+          .join(', ')} (Edit / Remove in the preview table), then upload.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     if (pdfSubjectInvalidForUpload) {
       toast({
         title: 'Subject required',
@@ -5367,8 +5435,12 @@ export default function ExamManagement() {
                             const answers = pdfFlaggedRows.filter((r) =>
                               (r.validationFlags || []).includes('answer_conflict'),
                             ).length;
-                            const context = pdfFlaggedRows.length - answers;
+                            const missing = pdfFlaggedRows.filter((r) =>
+                              (r.validationFlags || []).includes('missing_from_pdf'),
+                            ).length;
+                            const context = pdfFlaggedRows.length - answers - missing;
                             const parts = [
+                              missing ? `${missing} not found in the PDF — click Edit to type them in` : '',
                               answers ? `${answers} where the answer needs checking` : '',
                               context ? `${context} missing a case passage or diagram` : '',
                             ].filter(Boolean);
@@ -5443,15 +5515,33 @@ export default function ExamManagement() {
                               .map(({ row, idx: globalIdx }) => {
                               const imgSrc = String(row.questionImage || '').trim();
                               const flagged = row.solvable === false;
+                              const editing = pdfEditingIdx === globalIdx;
                               return (
-                              <tr
-                                key={`${row.row}-${globalIdx}`}
-                                className={`border-t ${flagged ? 'bg-amber-50/80' : ''}`}
-                              >
+                              <Fragment key={`${row.row}-${globalIdx}`}>
+                              <tr className={`border-t ${flagged ? 'bg-amber-50/80' : ''}`}>
                                 <td className="p-2 whitespace-nowrap align-top">
                                   {/* the paper's printed number, so it matches the PDF */}
                                   {Number(row.questionNumber) > 0 ? `Q${row.questionNumber}` : globalIdx + 1}
                                   {flagged ? <span className="ml-1 text-amber-700">⚠</span> : null}
+                                  <div className="mt-1 flex flex-col items-start gap-0.5">
+                                    <button
+                                      type="button"
+                                      className="text-[11px] font-semibold text-indigo-700 underline underline-offset-2"
+                                      onClick={() => setPdfEditingIdx(editing ? null : globalIdx)}
+                                    >
+                                      {editing ? 'Done' : 'Edit'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-[11px] text-red-600 underline underline-offset-2"
+                                      onClick={() => {
+                                        setPdfEditingIdx(null);
+                                        setPdfQuestionRows((prev) => prev.filter((_, j) => j !== globalIdx));
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
                                 </td>
                                 <td className="p-2 max-w-[360px]">
                                   <div className="truncate" title={row.questionText}>
@@ -5579,7 +5669,7 @@ export default function ExamManagement() {
                                     onChange={(e) => updatePdfRow(globalIdx, { subject: e.target.value })}
                                   />
                                 </td>
-                                <td className="p-2">{row.marks}</td>
+                                <td className="p-2">{uniformMarksPerQuestion(selectedExam) ?? row.marks}</td>
                                 <td className="p-1 align-middle min-w-[200px]">
                                   {(() => {
                                     const opts = [row.option1, row.option2, row.option3, row.option4]
@@ -5619,6 +5709,100 @@ export default function ExamManagement() {
                                   })()}
                                 </td>
                               </tr>
+                              {editing ? (
+                                <tr className="border-t bg-indigo-50/60">
+                                  <td colSpan={7} className="p-3">
+                                    <div className="grid gap-2">
+                                      <label className="text-[11px] font-semibold text-slate-700">
+                                        Question text
+                                        <Textarea
+                                          className="mt-1 min-h-[80px] text-xs"
+                                          value={row.questionText}
+                                          placeholder="Type the question exactly as printed"
+                                          onChange={(e) => {
+                                            const text = e.target.value;
+                                            setPdfQuestionRows((prev) =>
+                                              prev.map((x, j) => {
+                                                if (j !== globalIdx) return x;
+                                                const flags = (x.validationFlags || []).filter(
+                                                  (f) => !(f === 'missing_from_pdf' && text.trim()),
+                                                );
+                                                return {
+                                                  ...x,
+                                                  questionText: text,
+                                                  validationFlags: flags,
+                                                  validationNote: flags.length ? x.validationNote : '',
+                                                  solvable: flags.length === 0 && x.solvable === false ? true : x.solvable,
+                                                };
+                                              }),
+                                            );
+                                          }}
+                                        />
+                                      </label>
+                                      <div className="grid gap-2 sm:grid-cols-2">
+                                        {(['option1', 'option2', 'option3', 'option4'] as const).map((key, k) => (
+                                          <label key={key} className="text-[11px] font-semibold text-slate-700">
+                                            Option {String.fromCharCode(97 + k)})
+                                            <Input
+                                              className="mt-1 h-8 text-xs"
+                                              value={String(row[key] || '')}
+                                              onChange={(e) => {
+                                                const value = e.target.value;
+                                                setPdfQuestionRows((prev) =>
+                                                  prev.map((x, j) => {
+                                                    if (j !== globalIdx) return x;
+                                                    // Keep the chosen answer pointing at the edited option.
+                                                    const wasAnswer = String(x.correctAnswer || '') === String(x[key] || '') && x[key];
+                                                    return { ...x, [key]: value, ...(wasAnswer ? { correctAnswer: value } : {}) };
+                                                  }),
+                                                );
+                                              }}
+                                            />
+                                          </label>
+                                        ))}
+                                      </div>
+                                      <div className="flex flex-wrap items-end gap-3">
+                                        <label className="text-[11px] font-semibold text-slate-700">
+                                          Type
+                                          <select
+                                            className="mt-1 block h-8 rounded-md border border-slate-300 bg-white px-2 text-xs"
+                                            value={row.questionType}
+                                            onChange={(e) =>
+                                              updatePdfRow(globalIdx, {
+                                                questionType: e.target.value as PdfQuestionRow['questionType'],
+                                              })
+                                            }
+                                          >
+                                            <option value="mcq">MCQ (single)</option>
+                                            <option value="multiple">Multiple correct</option>
+                                            <option value="integer">Integer</option>
+                                            <option value="assertion_reason">Assertion–Reason</option>
+                                            <option value="match_following">Match the following</option>
+                                          </select>
+                                        </label>
+                                        {uniformMarksPerQuestion(selectedExam) == null ? (
+                                          <label className="text-[11px] font-semibold text-slate-700">
+                                            Marks
+                                            <Input
+                                              type="number"
+                                              min={1}
+                                              className="mt-1 h-8 w-20 text-xs"
+                                              value={String(row.marks ?? 1)}
+                                              onChange={(e) =>
+                                                updatePdfRow(globalIdx, { marks: Math.max(1, Number(e.target.value) || 1) })
+                                              }
+                                            />
+                                          </label>
+                                        ) : null}
+                                        <span className="text-[11px] text-slate-500">
+                                          Pick the correct answer in the Answer column above.
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                              </Fragment>
                               );
                             })}
                           </tbody>
