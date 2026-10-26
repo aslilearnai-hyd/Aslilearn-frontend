@@ -474,6 +474,13 @@ function resolveQuestionSectionHeading(q: { sectionHeading?: string; subject?: s
   return custom || subjectSectionLabel(q?.subject);
 }
 
+function clampAddQuestionNumber(value: unknown, existingCount: number): number {
+  const max = Math.max(1, Number(existingCount) + 1);
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) return max;
+  return Math.min(max, Math.max(1, parsed));
+}
+
 const EMPTY_QUESTION_FORM = {
   questionText: '',
   questionImage: '',
@@ -1621,6 +1628,8 @@ export default function ExamManagement() {
   const questionFormDataLiveRef = useRef(questionFormData);
   questionFormDataLiveRef.current = questionFormData;
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [addQuestionNumber, setAddQuestionNumber] = useState(1);
+  const addQuestionNumberTouchedRef = useRef(false);
   const availableExamFigurePool = useMemo(() => {
     const editingImage = editingQuestionId
       ? String(questionFormData.questionImage || '').trim()
@@ -1659,6 +1668,14 @@ export default function ExamManagement() {
     fetchExams();
     fetchClassOptions();
   }, []);
+
+  useEffect(() => {
+    if (!addQuestionNumberTouchedRef.current) {
+      setAddQuestionNumber(Math.max(1, questions.length + 1));
+      return;
+    }
+    setAddQuestionNumber((prev) => clampAddQuestionNumber(prev, questions.length));
+  }, [questions.length]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('examCalendarPrefill');
@@ -2923,6 +2940,8 @@ export default function ExamManagement() {
     setQuestionFormData({ ...EMPTY_QUESTION_FORM });
     setQuestionImageFile(null);
     setEditingQuestionId(null);
+    addQuestionNumberTouchedRef.current = false;
+    setAddQuestionNumber(Math.max(1, questions.length + 1));
   };
 
   /**
@@ -2950,7 +2969,10 @@ export default function ExamManagement() {
     resetQuestionForm();
   };
 
-  const handleAddQuestion = async (formOverride?: typeof EMPTY_QUESTION_FORM) => {
+  const handleAddQuestion = async (
+    formOverride?: typeof EMPTY_QUESTION_FORM,
+    options?: { fromAddForm?: boolean },
+  ) => {
     if (!selectedExam) return;
 
     // Prefer explicit form from the inline editor. Ignore click-event accidental args.
@@ -2962,9 +2984,14 @@ export default function ExamManagement() {
         ? formOverride
         : questionFormDataLiveRef.current;
 
-    // In PDF upload mode, treat "Add Question" as final save action
-    // for extracted rows so users can confirm before persistence.
-    if (!editingQuestionId && bulkQuestionUploadMode === 'pdf' && pdfQuestionRows.length > 0) {
+    // Footer "Add Question" in PDF upload mode confirms extracted rows.
+    // The Add New Question form always saves the single question being authored.
+    if (
+      !options?.fromAddForm &&
+      !editingQuestionId &&
+      bulkQuestionUploadMode === 'pdf' &&
+      pdfQuestionRows.length > 0
+    ) {
       await handleUploadExtractedQuestions();
       return;
     }
@@ -3125,6 +3152,44 @@ export default function ExamManagement() {
       };
     };
 
+    const createdQuestionIdFromPayload = (payload: any): string | null => {
+      const id =
+        payload?.data?._id ||
+        payload?.question?._id ||
+        (Array.isArray(payload?.questions)
+          ? payload.questions[payload.questions.length - 1]?._id
+          : null);
+      return id ? String(id) : null;
+    };
+
+    const applyCreatedQuestionOrder = async (questionId: string, desiredOrder: number) => {
+      const appendSlot = questions.length + 1;
+      if (!questionId || desiredOrder === appendSlot) return null;
+      const fallback =
+        `Question was added, but it could not be moved to position ${desiredOrder}. It may appear at the end. Set Order on the question card and click Save.`;
+      try {
+        const token = getAuthToken();
+        const orderResponse = await fetch(
+          `${API_BASE_URL}/api/super-admin/exams/${selectedExam._id}/questions/${questionId}`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ displayOrder: desiredOrder }),
+          },
+        );
+        const orderData = await orderResponse.json().catch(() => ({}));
+        if (!orderResponse.ok || orderData.success === false) {
+          return orderData.message || fallback;
+        }
+        return null;
+      } catch (error: any) {
+        return error?.message || fallback;
+      }
+    };
+
     const handleQuestionSaved = (savedQuestionId?: string | null) => {
       const focusId = savedQuestionId ? String(savedQuestionId) : editingQuestionId;
       resetQuestionForm();
@@ -3158,20 +3223,36 @@ export default function ExamManagement() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast({
-          title: 'Success',
-          description: isEditing ? 'Question updated successfully' : 'Question added successfully'
-        });
         if (isEditing) {
+          toast({
+            title: 'Success',
+            description: 'Question updated successfully'
+          });
           handleQuestionSaved(editingIdSnapshot);
         } else {
-          const createdId =
-            data?.data?._id ||
-            data?.question?._id ||
-            (Array.isArray(data?.questions)
-              ? data.questions[data.questions.length - 1]?._id
-              : null);
-          handleQuestionSaved(createdId ? String(createdId) : null);
+          const createdId = createdQuestionIdFromPayload(data);
+          const desiredOrder = clampAddQuestionNumber(addQuestionNumber, questions.length);
+          const orderError = createdId
+            ? await applyCreatedQuestionOrder(createdId, desiredOrder)
+            : desiredOrder !== questions.length + 1
+              ? `Question was added, but it could not be moved to position ${desiredOrder} because the new question id was missing. Set Order on the question card and click Save.`
+              : null;
+          if (orderError) {
+            toast({
+              title: 'Question added, but order was not updated',
+              description: orderError,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Success',
+              description:
+                desiredOrder === questions.length + 1
+                  ? 'Question added successfully'
+                  : `Question added at position ${desiredOrder}`,
+            });
+          }
+          handleQuestionSaved(createdId);
         }
       } else if (
         !isEditing &&
@@ -3201,15 +3282,24 @@ export default function ExamManagement() {
         const replaceData = await replaceResponse.json();
 
         if (replaceResponse.ok && replaceData.success) {
-          toast({
-            title: 'Success',
-            description: 'Duplicate question replaced successfully'
-          });
-          const replacedId =
-            replaceData?.data?._id ||
-            replaceData?.question?._id ||
-            null;
-          handleQuestionSaved(replacedId ? String(replacedId) : null);
+          const replacedId = createdQuestionIdFromPayload(replaceData);
+          const desiredOrder = clampAddQuestionNumber(addQuestionNumber, questions.length);
+          const orderError = replacedId
+            ? await applyCreatedQuestionOrder(replacedId, desiredOrder)
+            : null;
+          if (orderError) {
+            toast({
+              title: 'Duplicate replaced, but order was not updated',
+              description: orderError,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Success',
+              description: 'Duplicate question replaced successfully',
+            });
+          }
+          handleQuestionSaved(replacedId);
         } else {
           toast({
             title: 'Error',
@@ -6616,6 +6706,39 @@ export default function ExamManagement() {
                   rows={3}
                 />
                 <MathEditorPreview text={questionFormData.explanation} />
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3 rounded-lg border border-amber-200 bg-amber-50/40 p-3">
+                <div className="w-40">
+                  <Label htmlFor="add-question-number">Question Number</Label>
+                  <Input
+                    id="add-question-number"
+                    type="number"
+                    min={1}
+                    max={Math.max(1, questions.length + 1)}
+                    step={1}
+                    value={addQuestionNumber}
+                    className="h-10 bg-white"
+                    disabled={isAddingQuestion}
+                    onChange={(e) => {
+                      addQuestionNumberTouchedRef.current = true;
+                      setAddQuestionNumber(
+                        clampAddQuestionNumber(e.target.value, questions.length),
+                      );
+                    }}
+                  />
+                  <p className="mt-1 text-mini text-gray-500">
+                    Position 1 to {Math.max(1, questions.length + 1)}. Default is{' '}
+                    {Math.max(1, questions.length + 1)} (end of paper).
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => void handleAddQuestion(undefined, { fromAddForm: true })}
+                  disabled={isAddingQuestion || isUploadingQuestionImage}
+                >
+                  {isAddingQuestion ? 'Adding...' : 'Add Question'}
+                </Button>
               </div>
               </>
               ) : null}
