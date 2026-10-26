@@ -846,7 +846,7 @@ export default function ExamViewOnly() {
                         setSelectedAttemptByStudent({});
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full whitespace-nowrap bg-white text-xs sm:w-[220px] [&>span]:truncate">
+                      <SelectTrigger className="h-9 min-h-9 w-[200px] shrink-0 items-center py-1.5 bg-white text-xs sm:w-[220px] [&>span]:!whitespace-nowrap [&>span]:overflow-hidden [&>span]:text-ellipsis [&>svg]:mt-0">
                         <SelectValue placeholder="Select attempt" />
                       </SelectTrigger>
                       <SelectContent>

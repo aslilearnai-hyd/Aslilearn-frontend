@@ -141,6 +141,33 @@ const SUPERSCRIPT_DIGITS: Record<string, string> = {
   ')': '⁾',
 };
 
+/** Letter exponents used in classroom algebra: a^m, a^n, x^(mn). */
+const SUPERSCRIPT_LETTERS: Record<string, string> = {
+  a: 'ᵃ', b: 'ᵇ', c: 'ᶜ', d: 'ᵈ', e: 'ᵉ', f: 'ᶠ', g: 'ᵍ', h: 'ʰ', i: 'ⁱ', j: 'ʲ', k: 'ᵏ',
+  l: 'ˡ', m: 'ᵐ', n: 'ⁿ', o: 'ᵒ', p: 'ᵖ', r: 'ʳ', s: 'ˢ', t: 'ᵗ', u: 'ᵘ', v: 'ᵛ', w: 'ʷ',
+  x: 'ˣ', y: 'ʸ', z: 'ᶻ',
+};
+
+/** Superscript a short exponent only when every character has a superscript form. */
+function superscriptExponent(body: string): string | null {
+  const chars = String(body || '').replace(/\s+/g, '').split('');
+  if (!chars.length) return null;
+  const out = chars.map((ch) => SUPERSCRIPT_DIGITS[ch] ?? SUPERSCRIPT_LETTERS[ch]);
+  return out.every(Boolean) ? out.join('') : null;
+}
+
+/**
+ * Answer keys write multiplication as "23 * 23 * 23". Markdown cleanup reads
+ * "* 23 *" as italics and deletes both stars, leaving "23 23 23" — so turn an
+ * arithmetic star between numbers/brackets into × first. Bold "**" is untouched.
+ */
+export function arithmeticStarsToTimes(text: string): string {
+  return String(text || '').replace(
+    /([0-9)\]⁰¹²³⁴⁵⁶⁷⁸⁹ⁿᵐ])[ \t]*(?<!\*)\*(?!\*)[ \t]*(?=[0-9(√∛A-Za-z])/g,
+    '$1 × ',
+  );
+}
+
 const GREEK_WORD_MAP: Array<[RegExp, string]> = [
   [/\btheta\b/gi, 'θ'],
   [/\balpha\b/gi, 'α'],
@@ -194,13 +221,18 @@ export function formatAsciiMathToUnicode(text: string): string {
       for (const [re, sym] of GREEK_WORD_MAP) out = out.replace(re, sym);
 
       // Fractional powers must be handled before integer powers (x^1/2 -> x¹⁄₂).
+      out = out.replace(/\^\(\s*(-?\d+)\s*\/\s*(\d+)\s*\)/g, (_m, numerator: string, denominator: string) =>
+        `${toSuperscriptRun(numerator)}⁄${toSubscriptRun(denominator)}`,
+      );
       out = out.replace(/\^(-?\d+)\/(\d+)/g, (_m, numerator: string, denominator: string) =>
         `${toSuperscriptRun(numerator)}⁄${toSubscriptRun(denominator)}`,
       );
+      // Bracketed exponents: a^(mn) -> aᵐⁿ, 2^(n+1) -> 2ⁿ⁺¹.
+      out = out.replace(/\^\(([A-Za-z0-9+\-−\s]{1,8})\)/g, (m, body: string) => superscriptExponent(body) ?? m);
       out = out.replace(/\^\{([^{}]+)\}/g, (_m, body: string) => toSuperscriptRun(body));
       out = out.replace(/\^(-?\d+)/g, (_m, digits: string) => toSuperscriptRun(digits));
-      out = out.replace(/\^([A-Za-z])/g, (_m, letter: string) => {
-        const mapped = SUPERSCRIPT_DIGITS[letter];
+      out = out.replace(/\^([A-Za-z])(?![A-Za-z])/g, (_m, letter: string) => {
+        const mapped = SUPERSCRIPT_DIGITS[letter] || SUPERSCRIPT_LETTERS[letter];
         return mapped || `^${letter}`;
       });
 
@@ -231,6 +263,9 @@ export function formatChemicalFormulasInText(text: string): string {
     if (!/\d/.test(token)) return token;
     // Avoid rewriting short codes like IIT6 / NEET2
     if (/^[A-Z]{3,}\d+$/.test(token) && token.length <= 6) return token;
+    // Question/section labels (Q1, A2, D3) are not formulas; only real
+    // one-letter elements (H2, O2, N2…) take subscripts.
+    if (/^[A-Z]\d+$/.test(token) && !/^[HBCNOFPSKVYIWU]/.test(token)) return token;
     return token.replace(/([A-Za-z\)])(\d+)/g, (_m, prefix: string, digits: string) => {
       return `${prefix}${toSubscriptRun(digits)}`;
     });
@@ -254,7 +289,7 @@ export function formatChemistryDisplayText(text: string, subject?: string): stri
 
 /** Classroom display: mojibake repair + Unicode math powers + chemistry subscripts. */
 export function formatClassroomScienceText(value: unknown, subject?: string): string {
-  const base = normalizeExamDisplayText(value);
+  const base = arithmeticStarsToTimes(normalizeExamDisplayText(value));
   return formatChemistryDisplayText(formatAsciiMathToUnicode(base), subject);
 }
 

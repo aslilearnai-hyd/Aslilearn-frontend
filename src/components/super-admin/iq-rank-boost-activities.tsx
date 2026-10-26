@@ -162,6 +162,8 @@ export default function IQRankBoostActivities() {
     const seen = new Map<string, { _id: string; label: string }>();
     for (const sub of subjects as any[]) {
       if (!sub?._id) continue;
+      // Not subjects: activity names ("Daily Quiz") and combined groups ("PHY/CHE").
+      if (/\b(quiz|test|exam)\b|\//i.test(String(sub.name || ''))) continue;
       const subClass = classOf(sub);
       if (cls && subClass && subClass !== cls) continue;
       const iit = isIitTeacherSubjectTrack(sub);
