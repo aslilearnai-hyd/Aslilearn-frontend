@@ -474,20 +474,11 @@ function resolveQuestionSectionHeading(q: { sectionHeading?: string; subject?: s
   return custom || subjectSectionLabel(q?.subject);
 }
 
-/** A 120-question / 120-mark exam is one mark each; null when marks are not uniform. */
-function uniformMarksPerQuestion(exam: { totalQuestions?: unknown; totalMarks?: unknown } | null | undefined): number | null {
-  const questions = Number(exam?.totalQuestions);
-  const marks = Number(exam?.totalMarks);
-  if (!(questions > 0) || !(marks > 0)) return null;
-  const per = marks / questions;
-  return Number.isInteger(per) ? per : null;
-}
-
 /**
  * Add a blank, flagged row for every printed question number the extractor
  * could not read, so the admin can type it in instead of losing it.
  */
-function withMissingPdfRows(rows: PdfQuestionRow[], missingNumbers: number[], marks: number | null): PdfQuestionRow[] {
+function withMissingPdfRows(rows: PdfQuestionRow[], missingNumbers: number[]): PdfQuestionRow[] {
   const present = new Set(rows.map((r) => Number(r.questionNumber)).filter((n) => n > 0));
   const missing = [...new Set(missingNumbers)].filter((n) => !present.has(n));
   if (!missing.length) return rows;
@@ -503,7 +494,7 @@ function withMissingPdfRows(rows: PdfQuestionRow[], missingNumbers: number[], ma
     questionText: '',
     questionType: 'mcq',
     subject: subjectNear(n),
-    marks: marks ?? 1,
+    marks: 1,
     option1: '',
     option2: '',
     option3: '',
@@ -2302,8 +2293,8 @@ export default function ExamManagement() {
       questionText: plainPaperText(row.questionText),
       questionType: type,
       subject: String(row.subject || availableQuestionSubjects[0] || 'maths').trim().toLowerCase(),
-      // Uniform papers (120 Q / 120 marks) ignore a stray "2 marks" read from the PDF.
-      marks: uniformMarksPerQuestion(selectedExam) ?? (Number(row.marks || 1) || 1),
+      // Every question uploaded from a PDF/Word paper is worth 1 mark.
+      marks: 1,
       negativeMarks: 0,
       explanation: plainPaperText(row.explanation) || undefined,
       board: selectedExam?.board,
@@ -2468,7 +2459,7 @@ export default function ExamManagement() {
       const missingNumbers: number[] = Array.isArray(data?.meta?.missingNumbers)
         ? data.meta.missingNumbers.map(Number).filter((n: number) => Number.isInteger(n) && n > 0)
         : [];
-      const rows = withMissingPdfRows(extractedRows, missingNumbers, uniformMarksPerQuestion(selectedExam));
+      const rows = withMissingPdfRows(extractedRows, missingNumbers);
       setPdfQuestionRows(rows);
       setPdfEditingIdx(null);
       const paperImages = Array.isArray(data?.meta?.paperImages)
@@ -5669,7 +5660,7 @@ export default function ExamManagement() {
                                     onChange={(e) => updatePdfRow(globalIdx, { subject: e.target.value })}
                                   />
                                 </td>
-                                <td className="p-2">{uniformMarksPerQuestion(selectedExam) ?? row.marks}</td>
+                                <td className="p-2">1</td>
                                 <td className="p-1 align-middle min-w-[200px]">
                                   {(() => {
                                     const opts = [row.option1, row.option2, row.option3, row.option4]
@@ -5780,20 +5771,6 @@ export default function ExamManagement() {
                                             <option value="match_following">Match the following</option>
                                           </select>
                                         </label>
-                                        {uniformMarksPerQuestion(selectedExam) == null ? (
-                                          <label className="text-[11px] font-semibold text-slate-700">
-                                            Marks
-                                            <Input
-                                              type="number"
-                                              min={1}
-                                              className="mt-1 h-8 w-20 text-xs"
-                                              value={String(row.marks ?? 1)}
-                                              onChange={(e) =>
-                                                updatePdfRow(globalIdx, { marks: Math.max(1, Number(e.target.value) || 1) })
-                                              }
-                                            />
-                                          </label>
-                                        ) : null}
                                         <span className="text-[11px] text-slate-500">
                                           Pick the correct answer in the Answer column above.
                                         </span>
