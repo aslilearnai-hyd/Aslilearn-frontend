@@ -498,10 +498,11 @@ function PdfPageJumpBar({
           className="h-10 w-14 rounded-xl text-center text-sm font-semibold tabular-nums sm:h-11 sm:w-16"
           aria-label="Go to page number"
         />
-        {bookPageOffset != null ? (
-          <span className="text-xs font-medium tabular-nums text-stone-500">
-            {bookPage == null ? 'front matter · ' : ''}PDF {page}
-            {knownCount ? ` of ${pageCount}` : ''}
+        {knownCount && bookPageOffset != null ? (
+          // Fixed width: the label used to grow/shrink between front matter and
+          // body pages, sliding the Next button out from under the cursor.
+          <span className="min-w-[9.5rem] text-left text-xs font-medium tabular-nums text-stone-500">
+            of {pageCount} · {bookPage == null ? 'front matter' : `book p. ${bookPage}`}
           </span>
         ) : knownCount ? (
           <span className="text-sm font-semibold tabular-nums text-stone-700">
@@ -885,11 +886,11 @@ export default function PdfPreviewPanel({
     updateContainerSize();
   }, [isFullscreen, useCanvasRendering, updateContainerSize]);
 
-  // The box shows the page number printed in the book when it is known.
+  // The box always shows the PDF page so numbering never restarts after the
+  // front matter (1, 2, 1, 2…); the printed book page is shown beside it.
   useEffect(() => {
-    const book = bookPageOffset != null && readerPage - bookPageOffset >= 1 ? readerPage - bookPageOffset : null;
-    setPageJumpDraft(String(book ?? readerPage));
-  }, [readerPage, bookPageOffset]);
+    setPageJumpDraft(String(readerPage));
+  }, [readerPage]);
 
   useEffect(() => {
     const stored = readStoredPdfPage(normalizeContentFileUrl(fileUrl) || fileUrl);
@@ -906,7 +907,7 @@ export default function PdfPreviewPanel({
 
   const submitPageJump = useCallback(() => {
     const typed = Number.parseInt(pageJumpDraft.replace(/[^\d]/g, ''), 10);
-    const parsed = bookPageOffset != null && Number.isFinite(typed) ? typed + bookPageOffset : typed;
+    const parsed = typed;
     if (!Number.isFinite(parsed) || parsed < 1) {
       setPageJumpDraft(String(readerPage));
       return;
@@ -914,7 +915,7 @@ export default function PdfPreviewPanel({
     const knownMax = readerPageCount || totalPages;
     const next = knownMax > 0 ? Math.min(parsed, knownMax) : parsed;
     jumpReaderPage(next);
-  }, [pageJumpDraft, readerPage, readerPageCount, totalPages, jumpReaderPage, bookPageOffset]);
+  }, [pageJumpDraft, readerPage, readerPageCount, totalPages, jumpReaderPage]);
 
   const destroyPdfDoc = useCallback(async () => {
     if (!pdfDocRef.current) return;
