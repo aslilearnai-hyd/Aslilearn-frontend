@@ -170,6 +170,18 @@ function isAnswerProvidedForQuestion(question: Question, raw: any): boolean {
 export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExamProps) {
   const { toast } = useToast();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const navigatorGridRef = useRef<HTMLDivElement | null>(null);
+  // Keep the current question number visible in the navigator (Q61 of 80 was
+  // off-screen). Scroll only the grid, never the page.
+  useEffect(() => {
+    const grid = navigatorGridRef.current;
+    const btn = grid?.querySelector<HTMLElement>(`[data-qnav="${currentQuestionIndex}"]`);
+    if (!grid || !btn) return;
+    const top = btn.offsetTop; // grid is the offsetParent (relative)
+    if (top < grid.scrollTop || top + btn.offsetHeight > grid.scrollTop + grid.clientHeight) {
+      grid.scrollTo({ top: Math.max(0, top - grid.clientHeight / 2 + btn.offsetHeight / 2), behavior: 'smooth' });
+    }
+  }, [currentQuestionIndex]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
   const [timeLeft, setTimeLeft] = useState(0);
@@ -1478,8 +1490,8 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
                   </div>
                 </div>
 
-                {/* Number grid */}
-                <div className="grid grid-cols-5 gap-2">
+                {/* Number grid — scrolls on its own so the current number stays in view */}
+                <div ref={navigatorGridRef} className="relative grid max-h-[50vh] grid-cols-5 gap-2 overflow-y-auto p-0.5 lg:max-h-[calc(100vh-22rem)]">
                   {exam.questions.map((_: Question, index: number) => {
                     const q = exam.questions[index];
                     const isAnswered = isAnswerProvidedForQuestion(q, answers[answerKey(q)]);
@@ -1489,6 +1501,7 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
                     return (
                       <button
                         key={index}
+                        data-qnav={index}
                         onClick={() => animateToQuestion(index)}
                         disabled={isAnimating}
                         title={`Question ${index + 1}${isFlagged ? ' · Marked for review' : ''}${
@@ -1605,6 +1618,11 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
                     >
                       {currentQuestion.marks || 0} Mark{(currentQuestion.marks || 0) === 1 ? '' : 's'}
                     </Badge>
+                    {['multiple', 'multi', 'msq'].includes(String(currentQuestion.questionType || '').toLowerCase()) ? (
+                      <Badge className="rounded-full border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-800 hover:bg-amber-50">
+                        Multiple answers · select all that apply
+                      </Badge>
+                    ) : null}
                     {currentQuestion.subject ? (
                       <Badge
                         variant="outline"
