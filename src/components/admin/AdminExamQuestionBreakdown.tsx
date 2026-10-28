@@ -35,7 +35,7 @@ export function AdminExamQuestionBreakdown({ questions, examTitle }: Props) {
             {hardest.correct} correct · {hardest.wrong} wrong · {hardest.unattempted} blank among{' '}
             {hardest.totalStudents} students
             {hardest.questionText ? (
-              <span className="block mt-1 text-amber-800/80 line-clamp-2">{hardest.questionText}</span>
+              <span data-no-title-case className="block mt-1 text-amber-800/80 line-clamp-2">{hardest.questionText}</span>
             ) : null}
           </div>
         ) : null}
@@ -63,7 +63,7 @@ export function AdminExamQuestionBreakdown({ questions, examTitle }: Props) {
                         </Badge>
                       ) : null}
                     </div>
-                    <p className="mt-1.5 text-sm text-slate-800 line-clamp-2">{q.questionText}</p>
+                    <p data-no-title-case className="mt-1.5 text-sm text-slate-800 line-clamp-2">{q.questionText}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-slate-900">{q.classCorrectPct}%</p>

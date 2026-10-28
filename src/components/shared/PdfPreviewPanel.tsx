@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Maximize2, Minimize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Loader2, Maximize2, Minimize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getAuthToken } from '@/lib/auth-utils';
@@ -477,7 +477,7 @@ function PdfPageJumpBar({
         onClick={onPrev}
         aria-label="Previous page"
       >
-        <ChevronLeft className="h-5 w-5" />
+        <ChevronUp className="h-5 w-5" />
       </Button>
       <form
         className="flex items-center gap-1.5 sm:gap-2"
@@ -522,7 +522,7 @@ function PdfPageJumpBar({
         onClick={onNext}
         aria-label="Next page"
       >
-        <ChevronRight className="h-5 w-5" />
+        <ChevronDown className="h-5 w-5" />
       </Button>
       {showZoom ? (
         <>

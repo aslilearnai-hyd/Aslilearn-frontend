@@ -35,7 +35,7 @@ export default function ExamMathText({ text, className }: Props) {
   const displayText = formatClassroomScienceText(text);
   const parts = displayText.split(MATH_SEGMENTS).filter(Boolean);
   return (
-    <span className={className}>
+    <span className={className} data-no-title-case>
       {parts.map((part, index) => {
         const dollarMath = part.startsWith('$') && part.endsWith('$');
         const parenMath = part.startsWith('\\(') && part.endsWith('\\)');

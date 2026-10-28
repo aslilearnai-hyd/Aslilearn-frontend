@@ -1650,8 +1650,8 @@ export default function AnimatedExam({ examId, onComplete, onExit }: AnimatedExa
                   </button>
                 </div>
 
-                {/* Question Content */}
-                <div className="mb-6">
+                {/* Question Content — natural case so maths (sin θ, bc/ck) is not title-cased */}
+                <div className="mb-6" data-no-title-case>
                   <div className="flex items-start space-x-3">
                     <div className="flex-1">
                       {arMatterText ? (

@@ -221,7 +221,8 @@ export function formatAsciiMathToUnicode(text: string): string {
       for (const [re, sym] of GREEK_WORD_MAP) out = out.replace(re, sym);
 
       // Fractional powers must be handled before integer powers (x^1/2 -> x¹⁄₂).
-      out = out.replace(/\^\(\s*(-?\d+)\s*\/\s*(\d+)\s*\)/g, (_m, numerator: string, denominator: string) =>
+      // AI output also writes the slash as U+2044 / U+2215: (2⁹)^(1⁄3).
+      out = out.replace(/\^\(\s*(-?\d+)\s*[\/⁄∕]\s*(\d+)\s*\)/g, (_m, numerator: string, denominator: string) =>
         `${toSuperscriptRun(numerator)}⁄${toSubscriptRun(denominator)}`,
       );
       out = out.replace(/\^(-?\d+)\/(\d+)/g, (_m, numerator: string, denominator: string) =>

@@ -273,7 +273,9 @@
     samp,
     .normal-case,
     [data-no-title-case],
-    [data-no-title-case] *
+    [data-no-title-case] *,
+    .katex,
+    .katex *
   ) {
     text-transform: none !important;
   }

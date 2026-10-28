@@ -92,6 +92,8 @@ export function SchoolImpactReportCard() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [snap, setSnap] = useState<SchoolSnap | null>(null);
+  const [showAllTeachers, setShowAllTeachers] = useState(false);
+  const [showAllStudents, setShowAllStudents] = useState(false);
   const [mode, setMode] = useState<Mode>("weekly");
   const [weekStart, setWeekStart] = useState(() => toInputDate(startOfIsoWeekLocal(new Date())));
   const [fromDate, setFromDate] = useState(() => toInputDate(yesterdayLocal()));
@@ -292,43 +294,46 @@ export function SchoolImpactReportCard() {
               </div>
             ) : null}
 
+            {/* Teachers / students as a card grid with "Show all" — the old
+                nested scroll boxes were cramped and hard to read. */}
             {Array.isArray(snap.teachers) && snap.teachers.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                  Teachers ({snap.teachers.length})
-                </p>
-                <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-sm divide-y">
-                  {snap.teachers.map((t, idx) => (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    Teachers ({snap.teachers.length})
+                  </p>
+                  {snap.teachers.length > 6 ? (
+                    <Button variant="ghost" size="sm" className="h-8 text-sky-700" onClick={() => setShowAllTeachers((v) => !v)}>
+                      {showAllTeachers ? "Show less" : `Show all ${snap.teachers.length}`}
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                  {(showAllTeachers ? snap.teachers : snap.teachers.slice(0, 6)).map((t, idx) => (
                     <div
                       key={`${t.email || t.name}-${idx}`}
-                      className="flex items-center justify-between gap-3 px-3.5 py-2.5"
+                      className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-slate-900">
-                          {t.name || "Teacher"}
-                        </p>
-                        {t.email ? (
-                          <p className="truncate text-sm text-slate-500">{t.email}</p>
-                        ) : null}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <Badge
-                          variant="outline"
-                          className={
-                            t.status === "active"
-                              ? "border-emerald-200 text-emerald-700 bg-emerald-50 text-sm"
-                              : t.status === "occasional"
-                                ? "border-amber-200 text-amber-700 bg-amber-50 text-sm"
-                                : "border-slate-200 text-slate-600 text-sm"
-                          }
-                        >
-                          {t.status || "—"}
-                        </Badge>
-                        <p className="mt-0.5 text-sm text-slate-500">
-                          {t.generationsCreated || 0} AI resource
-                          {(t.generationsCreated || 0) === 1 ? "" : "s"}
+                        <p className="truncate text-sm font-semibold text-slate-900">{t.name || "Teacher"}</p>
+                        {t.email ? <p className="truncate text-xs text-slate-500">{t.email}</p> : null}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {t.generationsCreated || 0} AI resource{(t.generationsCreated || 0) === 1 ? "" : "s"}
                         </p>
                       </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          "shrink-0 capitalize text-xs " +
+                          (t.status === "active"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : t.status === "occasional"
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-slate-200 bg-slate-50 text-slate-600")
+                        }
+                      >
+                        {t.status || "—"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -337,42 +342,56 @@ export function SchoolImpactReportCard() {
 
             {Array.isArray(snap.studentReports) && snap.studentReports.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                  Students ({snap.activeStudentCount ?? snap.studentReports.filter((s) => s.accessed).length}
-                  {" / "}
-                  {snap.totalStudents ?? snap.studentReports.length} active)
-                </p>
-                <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-sm divide-y">
-                  {snap.studentReports.slice(0, 40).map((s, idx) => (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    Students ({snap.activeStudentCount ?? snap.studentReports.filter((s) => s.accessed).length}
+                    {" / "}
+                    {snap.totalStudents ?? snap.studentReports.length} active)
+                  </p>
+                  {snap.studentReports.length > 9 ? (
+                    <Button variant="ghost" size="sm" className="h-8 text-sky-700" onClick={() => setShowAllStudents((v) => !v)}>
+                      {showAllStudents ? "Show less" : `Show ${Math.min(40, snap.studentReports.length)}`}
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                  {snap.studentReports.slice(0, showAllStudents ? 40 : 9).map((s, idx) => (
                     <div
                       key={`${s.name}-${idx}`}
-                      className="flex items-start justify-between gap-3 px-3.5 py-2.5"
+                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm"
                     >
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-slate-900">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 truncate text-sm font-semibold text-slate-900">
                           {s.name || "Student"}
                           {s.classNumber ? (
-                            <span className="ml-1.5 text-sm font-normal text-slate-500">
-                              Class {s.classNumber}
-                            </span>
+                            <span className="ml-1.5 text-xs font-normal text-slate-500">Class {s.classNumber}</span>
                           ) : null}
                         </p>
-                        <p className="line-clamp-2 text-sm text-slate-500">
-                          {s.summary ||
+                        <Badge
+                          variant="outline"
+                          className={
+                            "shrink-0 text-xs " +
                             (s.accessed
-                              ? `${s.sessions || 0} sessions · ${s.minutes || 0} min`
-                              : "No activity this period")}
-                        </p>
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-slate-50 text-slate-600")
+                          }
+                        >
+                          {s.accessed ? "Active" : "Inactive"}
+                        </Badge>
                       </div>
-                      <div className="shrink-0 text-right text-sm text-slate-600">
-                        <p className="font-medium">{s.accessed ? "Active" : "Inactive"}</p>
-                        <p>{s.examAttempts || 0} exams</p>
-                        <p>{s.aiDoubts || 0} AI</p>
-                      </div>
+                      <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                        {s.summary ||
+                          (s.accessed
+                            ? `${s.sessions || 0} sessions · ${s.minutes || 0} min`
+                            : "No activity this period")}
+                      </p>
+                      <p className="mt-1.5 text-xs text-slate-600">
+                        {s.examAttempts || 0} exams · {s.aiDoubts || 0} AI doubts
+                      </p>
                     </div>
                   ))}
                 </div>
-                {snap.studentReports.length > 40 ? (
+                {showAllStudents && snap.studentReports.length > 40 ? (
                   <p className="text-sm text-slate-500">
                     Showing first 40 — download PDF for the full school report.
                   </p>

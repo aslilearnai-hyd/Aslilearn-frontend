@@ -3,6 +3,7 @@ import { ImagePlus, Trash2, Upload, Camera, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [zoomOpen, setZoomOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
@@ -239,13 +241,24 @@ export default function TimetablePhotoManagement({ forTeacher = false }: Props) 
           <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-inner">
             {displayImage ? (
               <div className="relative">
-                <a href={displayImage} target="_blank" rel="noreferrer" title="Open full size" className="block cursor-zoom-in">
+                {/* Opens full size on this page — a new browser tab lost the admin's place. */}
+                <button type="button" onClick={() => setZoomOpen(true)} title="View full size" className="block w-full cursor-zoom-in">
                   <img
                     src={displayImage}
                     alt={selectedClass ? `${classLabel(selectedClass)} timetable` : 'Timetable'}
                     className="mx-auto max-h-[min(70vh,720px)] w-full object-contain bg-slate-50"
                   />
-                </a>
+                </button>
+                <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
+                  <DialogContent className="max-w-[96vw] w-auto border-0 bg-black/95 p-2 sm:max-w-[96vw]">
+                    <DialogTitle className="sr-only">Timetable full size</DialogTitle>
+                    <img
+                      src={displayImage}
+                      alt={selectedClass ? `${classLabel(selectedClass)} timetable` : 'Timetable'}
+                      className="max-h-[90vh] max-w-full object-contain"
+                    />
+                  </DialogContent>
+                </Dialog>
                 {pendingFile ? (
                   <div className="absolute left-3 top-3 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
                     Preview — click Save timetable
