@@ -231,7 +231,20 @@ export function mergeTimeSlots(...lists: DailyPlanTimeSlot[][]): DailyPlanTimeSl
     }
   }
   const timed = out.filter((s) => /\d+\s*min/i.test(String(s.time || '')));
-  return timed.length ? timed : out;
+  return renumberRepeatedPeriods(timed.length ? timed : out);
+}
+
+/** Slots from different sources each start at "Period 1"; number them in order. */
+function renumberRepeatedPeriods(slots: DailyPlanTimeSlot[]): DailyPlanTimeSlot[] {
+  const periodRe = /^(\s*Period\s+)(\d+)/i;
+  const nums = slots.map((s) => String(s.time || '').match(periodRe)?.[2]).filter(Boolean);
+  if (new Set(nums).size === nums.length) return slots;
+  let n = 0;
+  return slots.map((s) =>
+    periodRe.test(String(s.time || ''))
+      ? { ...s, time: String(s.time).replace(periodRe, (_m, lead) => `${lead}${++n}`) }
+      : s,
+  );
 }
 
 function parseTimeSlotsFromMarkdown(block: string): DailyPlanTimeSlot[] {
