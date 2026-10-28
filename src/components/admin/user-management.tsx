@@ -1304,16 +1304,6 @@ const UserManagement = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Button
-                  variant="outline"
-                  className={adminBtn.secondary}
-                  onClick={handleExportStudents}
-                >
-                <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                  Export Data
-              </Button>
-            </div>
           </div>
         </div>
         

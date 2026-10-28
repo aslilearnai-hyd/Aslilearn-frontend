@@ -183,6 +183,23 @@ export default function AdminCalendar() {
     return date.toDateString() === today.toDateString();
   };
 
+  // True when the day is before today (local time). Accepts a Date or a
+  // "YYYY-MM-DD" string (parsed as a local calendar day, not UTC).
+  const isPastDay = (value: Date | string) => {
+    let day: Date;
+    if (typeof value === 'string') {
+      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      day = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
+    } else {
+      day = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+    if (Number.isNaN(day.getTime())) return false;
+    day.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return day < todayStart;
+  };
+
   // Check if date is in current month
   const isCurrentMonth = (date: Date) => {
     return date.getMonth() === currentDate.getMonth() && 
@@ -242,6 +259,16 @@ export default function AdminCalendar() {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // New events can't be created on past dates (local "today" cutoff).
+    if (!isEditMode && isPastDay(eventForm.date)) {
+      toast({
+        title: "Past date",
+        description: "New events can only be added for today or future dates.",
         variant: "destructive",
       });
       return;
@@ -605,7 +632,7 @@ export default function AdminCalendar() {
                             +{dayEvents.length - 3} more
                           </div>
                         )}
-                        {dayEvents.length === 0 && (
+                        {dayEvents.length === 0 && !isPastDay(date) && (
                           <div className="text-micro sm:text-xs text-gray-400 text-center py-1">
                             Tap to add
                           </div>

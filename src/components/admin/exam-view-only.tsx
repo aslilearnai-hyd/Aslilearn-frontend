@@ -850,7 +850,7 @@ export default function ExamViewOnly() {
                         <SelectValue placeholder="Select attempt" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Best attempt / student</SelectItem>
+                        <SelectItem value="all" className="whitespace-nowrap">Best attempt</SelectItem>
                         {availableAttemptNumbers.map((attempt) => (
                           <SelectItem key={attempt} value={String(attempt)}>
                             Attempt {attempt}

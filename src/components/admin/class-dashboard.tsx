@@ -843,7 +843,10 @@ const ClassDashboard = () => {
     return [...byKey.values()].sort(compareSubjectFilterLabels);
   })();
 
-  const schoolSubjectCount = subjects.length > 0 ? subjects.length : classSubjects.length;
+  // Unique subjects actually on the school's classes (deduped by canonical
+  // name — the catalog holds one row per class variant, e.g. Maths_6, Maths_7),
+  // matching the mobile app's Classes "Subjects" stat.
+  const schoolSubjectCount = classSubjects.length;
 
   return (
     <div className="min-h-0 w-full overflow-x-hidden">

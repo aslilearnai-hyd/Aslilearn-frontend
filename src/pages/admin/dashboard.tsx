@@ -185,7 +185,21 @@ const AdminDashboard = () => {
 
   // Memoize sliced arrays to avoid recalculating on every render
   const topClassDistribution = useMemo(() => {
-    return studentAnalytics.classDistribution?.slice(0, 5) || [];
+    // Drop junk labels (a real class label contains a number), keep the 5
+    // largest classes, then display them in class-number order (6, 7, 8...).
+    const classNumber = (item: any): number => {
+      const match = String(item?.className || item?.class || '').match(/\d+/);
+      return match ? parseInt(match[0], 10) : NaN;
+    };
+    return (studentAnalytics.classDistribution || [])
+      .filter((item: any) => Number.isFinite(classNumber(item)))
+      .sort((a: any, b: any) => (Number(b?.count) || 0) - (Number(a?.count) || 0))
+      .slice(0, 5)
+      .sort((a: any, b: any) => {
+        const diff = classNumber(a) - classNumber(b);
+        if (diff !== 0) return diff;
+        return String(a?.className || a?.class || '').localeCompare(String(b?.className || b?.class || ''));
+      });
   }, [studentAnalytics.classDistribution]);
 
   const topSubjectPerformance = useMemo(() => {

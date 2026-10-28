@@ -1201,7 +1201,11 @@ Jane Smith,jane.smith@school.edu,TeacherPass2,1234567891,Science,MSc in Chemistr
 
   const totalTeachers = teachers.length;
   const activeTeachers = teachers.filter(t => t.isActive).length;
-  const totalSubjects = teachers.reduce((total, teacher) => total + (teacher.subjects?.length ?? 0), 0);
+  // Unique subjects taught across all teachers (same subject on two teachers,
+  // or per-class variants like Maths_6/Maths_7, counts once).
+  const totalSubjects = dedupeSubjectsForDisplay(
+    teachers.flatMap((teacher) => teacher.subjects ?? []),
+  ).length;
 
   return (
     <div className="min-h-0 w-full overflow-x-hidden">
@@ -1237,7 +1241,7 @@ Jane Smith,jane.smith@school.edu,TeacherPass2,1234567891,Science,MSc in Chemistr
               value: totalSubjects,
               icon: <BookOpen className="h-5 w-5" />,
               tone: 'green',
-              footLabel: 'Subject assignments',
+              footLabel: 'Unique subjects taught',
             },
             {
               label: 'Assigned Classes',
