@@ -802,6 +802,9 @@ export default function LearningPaths() {
                 ];
                 const cardTotal =
                   boardStats.textbooks + boardStats.materials + boardStats.videos + iitCount;
+                // Empty subjects (e.g. "Second Language Telugu · 0 Items") only
+                // padded the grid; hide them once the library has loaded.
+                if (cardTotal === 0 && allLibraryContent.length > 0) return null;
                 const recentBoard = boardMine.slice(0, 2);
                 const recentIit = iitMine.slice(0, 2);
 

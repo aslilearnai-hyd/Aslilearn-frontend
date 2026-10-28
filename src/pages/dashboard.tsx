@@ -1859,9 +1859,9 @@ export default function Dashboard() {
     return `${year}-${month}-${day}`;
   };
 
-  const handleJumpToDate = () => {
-    if (!calendarJumpDate) return;
-    const [yearStr, monthStr, dayStr] = calendarJumpDate.split("-");
+  const handleJumpToDate = (value: string = calendarJumpDate) => {
+    if (!value) return;
+    const [yearStr, monthStr, dayStr] = value.split("-");
     const year = Number(yearStr);
     const month = Number(monthStr);
     const day = Number(dayStr);
@@ -2212,11 +2212,15 @@ export default function Dashboard() {
                       <input
                         type="date"
                         value={calendarJumpDate}
-                        onChange={(e) => setCalendarJumpDate(e.target.value)}
+                        onChange={(e) => {
+                          setCalendarJumpDate(e.target.value);
+                          // Picking a day jumps there; Go stays for typed dates.
+                          if (e.target.value) handleJumpToDate(e.target.value);
+                        }}
                         aria-label="Jump to date"
-                        className="asli-date-input h-9 w-full min-w-0 max-w-[12rem] rounded-md border border-gray-200 bg-white py-1.5 pl-3 pr-3 text-xs text-gray-700 sm:text-sm"
+                        className="h-9 w-[9.5rem] min-w-0 rounded-md border border-gray-200 bg-white py-1.5 pl-3 pr-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm"
                       />
-                      <Button size="sm" className="whitespace-nowrap" onClick={handleJumpToDate}>
+                      <Button size="sm" className="whitespace-nowrap" onClick={() => handleJumpToDate()}>
                         Go
                       </Button>
                     </div>
