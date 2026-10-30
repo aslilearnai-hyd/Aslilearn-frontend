@@ -144,7 +144,7 @@ const UserManagement = () => {
     name: '',
     email: '',
     classNumber: '',
-    section: 'A',
+    section: '',
     phone: '',
     password: '',
   });
@@ -247,6 +247,23 @@ const UserManagement = () => {
     }
   };
 
+  // Sections that already exist for a class number. A stray default section
+  // (it used to be pre-filled "A") silently auto-created classes like "7-A"
+  // in schools whose only section is "C".
+  const existingSectionsFor = (classNumberRaw: string) => {
+    const num = String(classNumberRaw || '').replace(/^class\s*/i, '').trim();
+    if (!num) return [] as string[];
+    return Array.from(
+      new Set(
+        availableClasses
+          .filter((c: any) => String(c?.classNumber || '').replace(/^class\s*/i, '').trim() === num)
+          .map((c: any) => String(c?.section || '').trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ).sort();
+  };
+  const newStudentExistingSections = existingSectionsFor(newStudent.classNumber);
+
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -257,6 +274,16 @@ const UserManagement = () => {
     }
     if (!newStudent.password.trim() || newStudent.password.trim().length < 6) {
       notify('Password is required and must be at least 6 characters.');
+      return;
+    }
+    const knownSections = existingSectionsFor(newStudent.classNumber);
+    if (
+      knownSections.length > 0 &&
+      !knownSections.includes(newStudent.section.trim().toUpperCase()) &&
+      !window.confirm(
+        `Class ${newStudent.classNumber.trim()} has section(s) ${knownSections.join(', ')}. Create a new section ${newStudent.section.trim().toUpperCase()}?`,
+      )
+    ) {
       return;
     }
 
@@ -298,7 +325,7 @@ const UserManagement = () => {
       
       if (response.ok && (responseData.success === true || responseData.success === undefined)) {
         // Reset form and close dialog
-        setNewStudent({ name: '', email: '', classNumber: '', section: 'A', phone: '', password: '' });
+        setNewStudent({ name: '', email: '', classNumber: '', section: '', phone: '', password: '' });
         setShowNewStudentPassword(false);
         setIsAddDialogOpen(false);
         fetchStudents();
@@ -1186,7 +1213,16 @@ const UserManagement = () => {
                   <Input
                     id="classNumber"
                     value={newStudent.classNumber}
-                    onChange={(e) => setNewStudent({ ...newStudent, classNumber: e.target.value })}
+                    onChange={(e) => {
+                      const classNumber = e.target.value;
+                      const sections = existingSectionsFor(classNumber);
+                      setNewStudent({
+                        ...newStudent,
+                        classNumber,
+                        // Auto-pick when the class has exactly one section.
+                        section: sections.length === 1 ? sections[0] : newStudent.section,
+                      });
+                    }}
                     className={cn(STUDENT_FORM_FIELD_CLASS, 'rounded-xl')}
                     required
                     placeholder="e.g. 7, 8, 10"
@@ -1210,6 +1246,11 @@ const UserManagement = () => {
                     placeholder="A, B, or C"
                     maxLength={1}
                   />
+                  {newStudentExistingSections.length > 0 ? (
+                    <p className="text-[11px] text-sky-600">
+                      Existing sections: {newStudentExistingSections.join(', ')}
+                    </p>
+                  ) : null}
                 </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
