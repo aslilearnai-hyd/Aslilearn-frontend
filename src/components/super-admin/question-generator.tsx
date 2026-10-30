@@ -309,15 +309,19 @@ export default function QuestionGenerator({ classNumber, onBack }: QuestionGener
                 {isLoadingTopics ? (
                   <Skeleton className="h-10 w-full" />
                 ) : topics.length > 0 ? (
+                  // Radix Select throws on an empty-string item value, which blanked
+                  // the whole "Add Questions" page as soon as a subject had topics.
                   <Select
-                    value={formData.topic}
-                    onValueChange={(value) => setFormData({ ...formData, topic: value, subtopic: '' })}
+                    value={formData.topic || '__all__'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, topic: value === '__all__' ? '' : value, subtopic: '' })
+                    }
                   >
                     <SelectTrigger id="topic">
                       <SelectValue placeholder="Select topic (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Topics</SelectItem>
+                      <SelectItem value="__all__">All Topics</SelectItem>
                       {topics.map((topic) => (
                         <SelectItem key={topic} value={topic}>
                           {topic}

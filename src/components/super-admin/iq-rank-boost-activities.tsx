@@ -35,6 +35,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/hooks/use-confirm';
 import { Skeleton } from '@/components/ui/skeleton';
 import QuestionGenerator from './question-generator';
+import QuizQuestionsDialog, { type QuizQuestionsTarget } from './quiz-questions-dialog';
+import { normalizeSubjectDisplayKey } from '@/lib/subject-names';
 
 interface IQActivity {
   _id: string;
@@ -129,6 +131,9 @@ export default function IQRankBoostActivities() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [boards, setBoards] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<number | null>(null);
+  // Counts were shown but neither a quiz's questions nor the uploaded bank
+  // could be opened from this page.
+  const [questionsTarget, setQuestionsTarget] = useState<QuizQuestionsTarget | null>(null);
 
   const [schools, setSchools] = useState<Array<{ _id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
@@ -155,30 +160,63 @@ export default function IQRankBoostActivities() {
   // The quiz form listed every subject row of every board and class ("BIO",
   // "Biology" twice, "Biology IIT", "Biology_10", "Biology_6"…). Show one entry
   // per subject (and IIT track) for the chosen class.
+  // The Subject dropdown also ignored the chosen Board, so a Class 8 quiz listed
+  // Science, "Second Language Hindi", "SL HINDI", "SL TELUGU"… from every board.
+  const subjectBoardKey = (sub: any) => String(sub?.board || '').trim().toUpperCase();
+  const subjectMatchesBoard = (sub: any, board: string) =>
+    !board || subjectBoardKey(sub) === String(board).trim().toUpperCase();
+  const subjectOptionLabel = (sub: any) => {
+    const key = normalizeSubjectDisplayKey(sub?.name || '');
+    // "SL HINDI" / "2nd Language Hindi" share a key with "Second Language Hindi".
+    const base = /^(second|third) language /.test(key)
+      ? key.replace(/\b\w/g, (c) => c.toUpperCase())
+      : canonicalTeacherSubjectLabel(sub?.name || '');
+    return `${base}${isIitTeacherSubjectTrack(sub) ? ' · IIT / NEET' : ''}`;
+  };
+
   const subjectOptions = useMemo(() => {
     const cls = String(formData.classNumber || '').match(/\d+/)?.[0] || '';
     const classOf = (sub: any) =>
       String(sub?.classNumber ?? '').match(/\d+/)?.[0] || String(sub?.name || '').match(/_(\d+)$/)?.[1] || '';
-    const seen = new Map<string, { _id: string; label: string }>();
+    const seen = new Map<string, { _id: string; label: string; exactClass: boolean }>();
     for (const sub of subjects as any[]) {
       if (!sub?._id) continue;
       // Not subjects: activity names ("Daily Quiz") and combined groups ("PHY/CHE").
       if (/\b(quiz|test|exam)\b|\//i.test(String(sub.name || ''))) continue;
+      if (!subjectMatchesBoard(sub, formData.board)) continue;
       const subClass = classOf(sub);
       if (cls && subClass && subClass !== cls) continue;
       const iit = isIitTeacherSubjectTrack(sub);
-      const label = `${canonicalTeacherSubjectLabel(sub.name || '')}${iit ? ' · IIT / NEET' : ''}`;
-      const key = label.toLowerCase();
+      const label = subjectOptionLabel(sub);
+      const key = `${normalizeSubjectDisplayKey(sub.name || '') || label.toLowerCase()}|${iit ? 'iit' : ''}`;
+      const exactClass = Boolean(cls && subClass === cls);
+      const prev = seen.get(key);
       // Prefer the row for this exact class over a class-less one.
-      if (!seen.has(key) || (cls && subClass === cls)) seen.set(key, { _id: sub._id, label });
+      if (!prev || (exactClass && !prev.exactClass)) seen.set(key, { _id: sub._id, label, exactClass });
     }
-    const options = [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+    const options = [...seen.values()]
+      .map(({ _id, label }) => ({ _id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
     const current = (subjects as any[]).find((sub) => sub?._id === formData.subject);
     if (current && !options.some((o) => o._id === current._id)) {
-      options.unshift({ _id: current._id, label: canonicalTeacherSubjectLabel(current.name || '') });
+      const currentLabel = subjectOptionLabel(current);
+      // Keep the saved subject selectable, but don't show it as a duplicate.
+      const dupe = options.findIndex((o) => o.label === currentLabel);
+      if (dupe >= 0) options.splice(dupe, 1, { _id: current._id, label: currentLabel });
+      else options.unshift({ _id: current._id, label: currentLabel });
     }
     return options;
-  }, [subjects, formData.classNumber, formData.subject]);
+  }, [subjects, formData.classNumber, formData.subject, formData.board]);
+
+  /** Changing the board drops a subject that belongs to another board. */
+  const handleBoardChange = (value: string) => {
+    const board = value === '__none__' ? '' : value;
+    setFormData((prev) => {
+      const current = (subjects as any[]).find((sub) => sub?._id === prev.subject);
+      const keepSubject = !prev.subject || !current || subjectMatchesBoard(current, board);
+      return { ...prev, board, subject: keepSubject ? prev.subject : '' };
+    });
+  };
 
 
   useEffect(() => {
@@ -552,6 +590,13 @@ export default function IQRankBoostActivities() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {ConfirmDialog}
+      <QuizQuestionsDialog
+        target={questionsTarget}
+        onOpenChange={(open) => {
+          if (!open) setQuestionsTarget(null);
+        }}
+        onChanged={() => void fetchActivities()}
+      />
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
@@ -658,14 +703,24 @@ export default function IQRankBoostActivities() {
                 ))}
               </div>
 
-              <Button
-                className="mt-4 w-full border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 hover:text-teal-900"
-                variant="outline"
-                onClick={() => setSelectedClass(classNum)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Questions
-              </Button>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button
+                  className="w-full border border-slate-200 text-slate-700"
+                  variant="outline"
+                  onClick={() => setQuestionsTarget({ kind: 'bank', classNumber: classNum })}
+                >
+                  <Search className="mr-1.5 h-4 w-4" />
+                  View bank
+                </Button>
+                <Button
+                  className="w-full border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 hover:text-teal-900"
+                  variant="outline"
+                  onClick={() => setSelectedClass(classNum)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add Questions
+                </Button>
+              </div>
             </div>
           );
         })}
@@ -737,7 +792,22 @@ export default function IQRankBoostActivities() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="space-x-2 text-right">
+                      <TableCell className="space-x-2 whitespace-nowrap text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-slate-200"
+                          onClick={() =>
+                            setQuestionsTarget({
+                              kind: 'quiz',
+                              quizId: activity._id,
+                              title: activity.title,
+                              classNumber: activity.classNumber,
+                            })
+                          }
+                        >
+                          Questions
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -877,7 +947,7 @@ export default function IQRankBoostActivities() {
                 <Label>Board (Optional)</Label>
                 <Select
                   value={formData.board || '__none__'}
-                  onValueChange={(value) => setFormData({ ...formData, board: value === '__none__' ? '' : value })}
+                  onValueChange={handleBoardChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select board" />
@@ -1126,7 +1196,7 @@ export default function IQRankBoostActivities() {
                 <Label>Board (Optional)</Label>
                 <Select
                   value={formData.board || '__none__'}
-                  onValueChange={(value) => setFormData({ ...formData, board: value === '__none__' ? '' : value })}
+                  onValueChange={handleBoardChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select board" />
@@ -1155,9 +1225,17 @@ export default function IQRankBoostActivities() {
                 <Checkbox
                   checked={formData.trialOnly}
                   onCheckedChange={(v) =>
+                    // buildPayload derives trialOnly from audienceType, so the
+                    // checkbox alone was silently ignored on save.
                     setFormData({
                       ...formData,
                       trialOnly: v === true,
+                      audienceType:
+                        v === true
+                          ? 'trial'
+                          : formData.audienceType === 'trial'
+                            ? 'all_schools'
+                            : formData.audienceType,
                       promptOnLogin: v === true ? formData.promptOnLogin : false,
                     })
                   }
@@ -1180,7 +1258,24 @@ export default function IQRankBoostActivities() {
               </label>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              variant="outline"
+              className="border-teal-200 text-teal-800"
+              disabled={!selectedActivity}
+              onClick={() => {
+                if (!selectedActivity) return;
+                setIsEditModalOpen(false);
+                setQuestionsTarget({
+                  kind: 'quiz',
+                  quizId: selectedActivity._id,
+                  title: selectedActivity.title,
+                  classNumber: selectedActivity.classNumber,
+                });
+              }}
+            >
+              View questions
+            </Button>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
