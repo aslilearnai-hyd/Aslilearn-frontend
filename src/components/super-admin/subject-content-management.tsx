@@ -1114,17 +1114,25 @@ export default function SubjectContentManagement() {
         return sid != null && String(sid) === String(subj._id);
       });
       if (subjClass === normClass || linkedViaContent) {
-        const rowClass = subjClass || normClass;
+        const nativeToClass = subjClass === normClass || !subjClass;
+        // Key by the class being viewed: a material filed under Class 6 but linked
+        // to another class's "Chemistry" must merge into Class 6's own Chemistry
+        // row, not show up as a second "Chemistry" (the duplicate-subject report).
         const groupKey = subjectSidebarKey(
           subj.name,
-          rowClass,
+          normClass,
           normBoard || subjBoard,
           resolveSubjectProductCategory(subj),
         );
         const existing = map.get(groupKey);
+        const existingNative =
+          !!existing &&
+          (!existing.classNumber || normalizeClassNumber(existing.classNumber) === normClass);
         const preferThis =
           !existing ||
-          (isInferredSubjectId(existing._id) && isMongoObjectId(subj._id));
+          (isInferredSubjectId(existing._id) && isMongoObjectId(subj._id)) ||
+          (nativeToClass && !existingNative);
+        const rowClass = nativeToClass ? normClass : subjClass;
         if (preferThis) {
           map.set(groupKey, {
             ...subj,
@@ -1154,7 +1162,7 @@ export default function SubjectContentManagement() {
             normClass;
         const groupKey = subjectSidebarKey(
           linked.name,
-          subjClass || normClass,
+          normClass,
           normBoard || normalizeBoardKey(linked.board || ''),
           resolveSubjectProductCategory(linked),
         );
