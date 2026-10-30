@@ -38,6 +38,7 @@ import {
   Brain
 } from 'lucide-react';
 import { StudentRiskAnalysisModal } from './StudentRiskAnalysisModal';
+import { AssignSubjectsToClassPanel } from './assign-subjects-to-class-panel';
 import { Trophy } from 'lucide-react';
 import { AdminPageHero, AdminStatGrid, AdminFooterBanner, adminBtn } from './ui/AdminUiKit';
 import { cn } from '@/lib/utils';
@@ -907,6 +908,13 @@ const ClassDashboard = () => {
               Classes
             </TabsTrigger>
             <TabsTrigger
+              value="assign-subjects"
+              className="rounded-2xl px-4 py-2.5 text-sm font-semibold sm:px-6 sm:py-3 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
+            >
+              <BookOpen className="mr-2 h-5 w-5 sm:h-6 sm:w-6" />
+              Assign Subjects
+            </TabsTrigger>
+            <TabsTrigger
               value="promote-class"
               className="rounded-2xl px-4 py-2.5 text-sm font-semibold sm:px-6 sm:py-3 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
             >
@@ -1308,6 +1316,16 @@ const ClassDashboard = () => {
             </div>
           )}
           </div>
+          </TabsContent>
+
+          <TabsContent value="assign-subjects" className="mt-0">
+            <AssignSubjectsToClassPanel
+              classes={classes}
+              onSaved={() => {
+                fetchClasses();
+                fetchSubjects();
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="promote-class" className="mt-0 space-y-3 sm:space-y-4 lg:space-y-6">
