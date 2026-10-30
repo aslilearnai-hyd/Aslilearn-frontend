@@ -383,30 +383,50 @@ function isUsableTopicLabel(raw: string): boolean {
   return true;
 }
 
-const TOPIC_INFER_PATTERNS: Array<{ topic: string; regex: RegExp }> = [
-  { topic: 'Rational Numbers', regex: /\brational numbers?\b|\bterminating decimals?\b|\bnon[- ]terminating\b|\badditive inverse\b/i },
-  { topic: 'Comparing Numbers', regex: /\bgreatest among\b|\bleast among\b|\bwhich is (?:the )?(?:greatest|least|largest|smallest)\b/i },
-  { topic: 'Fractions and Decimals', regex: /\bfractions?\b|\bdecimals?\b|\bnumerator\b|\bdenominator\b/i },
-  { topic: 'Arithmetic Progression', regex: /\barithmetic progression\b|\ba\.?p\.?\b/i },
-  { topic: 'Quadrilateral Properties', regex: /\bquadrilateral\b|\bparallelogram\b|\brhombus\b|\btrapez/i },
-  { topic: 'Polygon Angles', regex: /\bpolygon\b|\binterior angles?\b|\bexterior angles?\b/i },
-  { topic: 'Ratio and Proportion', regex: /\bratios?\b|\bproportions?\b/i },
-  { topic: 'Linear Equations', regex: /\blinear equations?\b|\bsolve for\b/i },
-  { topic: 'Probability', regex: /\bprobability\b|\bchance\b|\boutcomes?\b/i },
-  { topic: 'Force and Laws of Motion', regex: /\bnet force\b|\bnewton\b|\baccelerat/i },
-  { topic: 'Motion and Kinematics', regex: /\bmotion\b|\bvelocity\b|\bacceleration\b|\bdisplacement\b/i },
-  { topic: 'Pressure and Hydraulics', regex: /\bhydraulic\b|\bpiston\b|\bpascal\b|\bpressure\b/i },
-  { topic: 'Atomic Structure', regex: /\batomic numbers?\b|\bmass numbers?\b|\bneutrons?\b|\bprotons?\b|\belectrons?\b/i },
-  { topic: 'Electricity and Circuits', regex: /\bohm\b|\bcurrent\b|\bvoltage\b|\bresistance\b|\bcircuits?\b/i },
-  { topic: 'Hybridization', regex: /\bhybridization\b|\bhybrid orbital\b|\bsp\s*3\b|\bsp\s*2\b/i },
-  { topic: 'Oxidation States', regex: /\boxidation states?\b|\boxidation numbers?\b/i },
-  { topic: 'Molar Mass and Stoichiometry', regex: /\bmolar mass\b|\bmolecular mass\b|\bmolarity\b|\bmoles?\b/i },
-  { topic: 'Acids, Bases and Salts', regex: /\bacids?\b|\bbases?\b|\bsalts?\b|\bph\b/i },
-  { topic: 'Carbon Compounds', regex: /\bcarbon\b|\bhydrocarbons?\b|\borganic\b/i },
-  { topic: 'Cell Structure', regex: /\bcell membrane\b|\bcytoplasm\b|\bnucleus\b|\borganelles?\b/i },
-  { topic: 'Life Processes', regex: /\bphotosynthesis\b|\brespiration\b|\bexcretion\b|\bnutrition\b/i },
-  { topic: 'Heredity and Evolution', regex: /\bheredity\b|\bevolution\b|\bgenes?\b|\bdna\b/i },
+type TopicSubject = 'maths' | 'physics' | 'chemistry' | 'biology';
+
+/** Keyword fallbacks — each owned by a subject so a stem never gets another subject's topic. */
+const TOPIC_INFER_PATTERNS: Array<{ subject: TopicSubject; topic: string; regex: RegExp }> = [
+  { subject: 'maths', topic: 'Rational Numbers', regex: /\brational numbers?\b|\bterminating decimals?\b|\bnon[- ]terminating\b|\badditive inverse\b/i },
+  { subject: 'maths', topic: 'Comparing Numbers', regex: /\bgreatest among\b|\bleast among\b|\bwhich is (?:the )?(?:greatest|least|largest|smallest)\b/i },
+  { subject: 'maths', topic: 'Fractions and Decimals', regex: /\bfractions?\b|\bdecimals?\b|\bnumerator\b|\bdenominator\b/i },
+  { subject: 'maths', topic: 'Arithmetic Progression', regex: /\barithmetic progression\b|\ba\.?p\.?\b/i },
+  { subject: 'maths', topic: 'Quadrilateral Properties', regex: /\bquadrilateral\b|\bparallelogram\b|\brhombus\b|\btrapez/i },
+  { subject: 'maths', topic: 'Polygon Angles', regex: /\bpolygon\b|\binterior angles?\b|\bexterior angles?\b/i },
+  { subject: 'maths', topic: 'Ratio and Proportion', regex: /\bratios?\b|\bproportions?\b/i },
+  { subject: 'maths', topic: 'Linear Equations', regex: /\blinear equations?\b|\bsolve for\b/i },
+  { subject: 'maths', topic: 'Probability', regex: /\bprobability\b|\bchance\b|\boutcomes?\b/i },
+  { subject: 'physics', topic: 'Force and Laws of Motion', regex: /\bnet force\b|\bnewton\b|\baccelerat/i },
+  { subject: 'physics', topic: 'Motion and Kinematics', regex: /\bmotion\b|\bvelocity\b|\bacceleration\b|\bdisplacement\b/i },
+  { subject: 'physics', topic: 'Pressure and Hydraulics', regex: /\bhydraulic\b|\bpiston\b|\bpascal\b|\bpressure\b/i },
+  { subject: 'physics', topic: 'Electricity and Circuits', regex: /\bohm\b|\bcurrent\b|\bvoltage\b|\bresistance\b|\bcircuits?\b/i },
+  { subject: 'chemistry', topic: 'Atomic Structure', regex: /\batomic numbers?\b|\bmass numbers?\b|\bneutrons?\b|\bprotons?\b|\belectrons?\b/i },
+  { subject: 'chemistry', topic: 'Hybridization', regex: /\bhybridization\b|\bhybrid orbital\b|\bsp\s*3\b|\bsp\s*2\b/i },
+  { subject: 'chemistry', topic: 'Oxidation States', regex: /\boxidation states?\b|\boxidation numbers?\b/i },
+  { subject: 'chemistry', topic: 'Molar Mass and Stoichiometry', regex: /\bmolar mass\b|\bmolecular mass\b|\bmolarity\b|\bmoles?\b/i },
+  { subject: 'chemistry', topic: 'Acids, Bases and Salts', regex: /\bacids?\b|\bbases?\b|\bsalts?\b|\bph\b/i },
+  { subject: 'chemistry', topic: 'Carbon Compounds', regex: /\bcarbon\b|\bhydrocarbons?\b|\borganic\b/i },
+  { subject: 'biology', topic: 'Cell Structure', regex: /\bcell membrane\b|\bcytoplasm\b|\bnucleus\b|\borganelles?\b/i },
+  { subject: 'biology', topic: 'Life Processes', regex: /\bphotosynthesis\b|\brespiration\b|\bexcretion\b|\bnutrition\b/i },
+  { subject: 'biology', topic: 'Heredity and Evolution', regex: /\bheredity\b|\bevolution\b|\bgenes?\b|\bdna\b/i },
 ];
+
+/** Subjects whose keyword topics may label a question of `subject`; null = unknown subject (any). */
+function allowedTopicSubjects(subject: unknown): Set<string> | null {
+  const key = normalizeSubjectKey(subject);
+  if (key === 'maths' || key === 'physics' || key === 'chemistry' || key === 'biology') return new Set([key]);
+  if (key === 'science') return new Set(['physics', 'chemistry', 'biology']);
+  return null;
+}
+
+/** True when `label` is a known keyword topic owned by a different subject than `subject`. */
+function topicBelongsToOtherSubject(label: string, subject: unknown): boolean {
+  const allowed = allowedTopicSubjects(subject);
+  if (!allowed) return false;
+  const t = String(label || '').trim().toLowerCase();
+  const owner = TOPIC_INFER_PATTERNS.find((p) => p.topic.toLowerCase() === t);
+  return Boolean(owner && !allowed.has(owner.subject));
+}
 
 function inferTopicFromQuestionText(q: Question): string {
   const text = String(q.questionText || '')
@@ -416,31 +436,62 @@ function inferTopicFromQuestionText(q: Question): string {
     .replace(/\s+/g, ' ')
     .trim();
   if (!text) return '';
-  const matched = TOPIC_INFER_PATTERNS.find((item) => item.regex.test(text));
+  const allowed = allowedTopicSubjects(q.subject);
+  const matched = TOPIC_INFER_PATTERNS.find(
+    (item) => (!allowed || allowed.has(item.subject)) && item.regex.test(text)
+  );
   return matched?.topic || '';
+}
+
+/**
+ * Insight for the question at 0-based `i`. Backend insights use a 1-based `index`, so
+ * never match `index === i` — that is the previous question, often another subject.
+ */
+function findQuestionInsight<T extends { index?: number; questionId?: unknown }>(
+  insights: T[] | undefined | null,
+  q: Question | undefined,
+  i: number
+): T | undefined {
+  if (!insights?.length) return undefined;
+  const qid = normalizeMongoId((q as { _id?: unknown } | undefined)?._id);
+  if (qid) {
+    const byId = insights.find((x) => normalizeMongoId(x.questionId) === qid);
+    if (byId) return byId;
+  }
+  return insights.find((x) => Number(x.index) === i + 1);
 }
 
 function resolveQuestionTopicLabel(
   q: Question,
   insight?: { conceptGap?: string; subject?: string; topic?: string } | null
 ): string {
+  // An insight written for a different subject (misaligned row) must not label this question.
+  const qSubj = normalizeSubjectKey(q.subject);
+  const insightSubj = insight?.subject ? normalizeSubjectKey(insight.subject) : '';
+  const usableInsight =
+    insight && (!insightSubj || insightSubj === 'general' || qSubj === 'general' || insightSubj === qSubj)
+      ? insight
+      : null;
+  const isOwnSubjectLabel = (label: string) =>
+    isUsableTopicLabel(label) && !topicBelongsToOtherSubject(label, q.subject);
+
   const candidates = [
     q.chapter,
     q.topic,
     (q as { subTopic?: string }).subTopic,
     q.sectionHeading,
-    insight?.topic,
+    usableInsight?.topic,
   ];
   for (const c of candidates) {
-    if (isUsableTopicLabel(String(c || ''))) return String(c).trim();
+    if (isOwnSubjectLabel(String(c || ''))) return String(c).trim();
   }
 
   // Prefer explicit Topic: "…" from analysis text — not the stem quote.
-  const gap = String(insight?.conceptGap || '');
+  const gap = String(usableInsight?.conceptGap || '');
   const topicTagged =
     gap.match(/\bTopic:\s*[“"]([^”"]{2,48})[”"]/i) ||
     gap.match(/\([“"]([^”"]{2,48})[”"]\s*,\s*(?:maths|physics|chemistry|biology)\b/i);
-  if (topicTagged?.[1] && isUsableTopicLabel(topicTagged[1])) {
+  if (topicTagged?.[1] && isOwnSubjectLabel(topicTagged[1])) {
     return topicTagged[1].trim();
   }
 
@@ -1614,9 +1665,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
           : avgTimePerQuestion > 0 && avgTimePerQuestion < 30
             ? avgTimePerQuestion
             : null;
-      const qi = aiAnalysis?.questionInsights?.find(
-        (x) => x.index === i + 1 || x.index === i
-      );
+      const qi = findQuestionInsight(aiAnalysis?.questionInsights, analysisQuestions[i], i);
       const err = classifyErrorType(q, ua, t, {
         isCorrect: correct,
         isAttempted: attempted,
@@ -1729,7 +1778,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
       const correct = attempted && compareAnswers(q, ua, q.correctAnswer);
       const subj = normalizeSubjectKey(q.subject);
       const heatmapSubj = subj in bySubject ? subj : 'maths';
-      const qi = aiAnalysis?.questionInsights?.find((x) => x.index === i + 1 || x.index === i);
+      const qi = findQuestionInsight(aiAnalysis?.questionInsights, analysisQuestions[i], i);
       const topic = resolveQuestionTopicLabel(q, qi);
       const key = `${heatmapSubj}::${topic.toLowerCase()}`;
       const cur = topicAcc.get(key) || {
@@ -1785,7 +1834,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
       const correct = attempted && compareAnswers(q, ua, q.correctAnswer);
       if (!attempted || correct) return;
 
-      const qi = aiAnalysis?.questionInsights?.find((x) => x.index === i + 1 || x.index === i);
+      const qi = findQuestionInsight(aiAnalysis?.questionInsights, analysisQuestions[i], i);
       const label = resolveQuestionTopicLabel(q, qi);
       const qSubj = normalizeSubjectKey(q.subject);
       const matchesTopic = topicLabelMatches(label, topicTitle);
@@ -2586,7 +2635,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
                   const isCorrect = compareAnswers(question, userAnswer, question.correctAnswer);
                   const isAttempted = userAnswer !== undefined && userAnswer !== null && userAnswer !== '';
                   const t = getQuestionTimeForIndex(question, index, userAnswer);
-                  const qi = aiAnalysis?.questionInsights?.find((x) => x.index === index + 1 || x.index === index);
+                  const qi = findQuestionInsight(aiAnalysis?.questionInsights, analysisQuestions[index], index);
                   const err = classifyErrorType(question, userAnswer, t, {
                     isCorrect,
                     isAttempted,
