@@ -34,6 +34,7 @@ import {
   type CurriculumMappingSummary,
 } from "@/components/super-admin/book-curriculum-mapping-dialog";
 import { API_BASE_URL } from "@/lib/api-config";
+import { mappingStatusReason } from "@/lib/book-curriculum-status";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirm } from "@/hooks/use-confirm";
 import { useCurriculumCascade } from "@/hooks/use-curriculum-cascade";
@@ -154,6 +155,7 @@ const BOOK_FILTER_FIELDS: Array<{ key: BookFilterKey; label: string; plural: str
 ];
 const CURRICULUM_FILTER_LABELS: Record<string, string> = {
   ready: "Mapped",
+  formula_check: "Mapped · formulas to check",
   needs_review: "Needs review",
   unmapped: "Unmapped",
   no_curriculum: "No curriculum",
@@ -173,7 +175,10 @@ function bookFilterValue(book: BookRow, key: BookFilterKey): string {
     case "status":
       return String(book.processingStatus || "pending");
     case "curriculum":
-      return String(book.curriculumMapping?.status || "not_mapped");
+      // Fully mapped books held back only by damaged formulas are not "Needs review".
+      return mappingStatusReason(book.curriculumMapping) === "formula_check"
+        ? "formula_check"
+        : String(book.curriculumMapping?.status || "not_mapped");
     case "source":
       return book.contentId ? "learning_path" : "uploaded";
     default:

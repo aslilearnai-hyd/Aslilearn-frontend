@@ -12,6 +12,7 @@ import { Check, CheckCircle2, ChevronsUpDown, Loader2, RefreshCw, Search, XCircl
 import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { cleanCurriculumLabel, failingGates, mappingBadgeInfo, mappingStatusReason, NOTATION_HIT_LABEL } from "@/lib/book-curriculum-status";
 
 export type SubtopicCoverageStatus = "mapped" | "not_covered_by_source" | "mapping_gap";
 
@@ -29,6 +30,9 @@ export type CurriculumMappingStatus = "ready" | "needs_review" | "unmapped" | "n
 
 export type CurriculumMappingSummary = {
   status?: CurriculumMappingStatus;
+  /** Why status is needs_review: "mapping" or only damaged formulas ("formula_check"). */
+  statusReason?: "" | "mapping" | "formula_check";
+  failingGates?: string[];
   coverage?: number;
   mappedTopics?: number;
   totalTopics?: number;
@@ -112,20 +116,11 @@ type TestResult = {
   chunks: Array<{ chunkId: string; score: number; aiSubtopicName?: string; pages?: Array<number | null>; preview?: string }>;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  ready: "Mapped",
-  needs_review: "Needs review",
-  unmapped: "Unmapped",
-  no_curriculum: "No curriculum",
-  not_mapped: "Not mapped",
-};
-
-const STATUS_CLASS: Record<string, string> = {
+const TONE_CLASS: Record<string, string> = {
   ready: "bg-emerald-100 text-emerald-800",
-  needs_review: "bg-amber-100 text-amber-800",
-  unmapped: "bg-red-100 text-red-800",
-  no_curriculum: "bg-slate-100 text-slate-700",
-  not_mapped: "bg-slate-100 text-slate-700",
+  warn: "bg-amber-100 text-amber-800",
+  error: "bg-red-100 text-red-800",
+  neutral: "bg-slate-100 text-slate-700",
 };
 
 const SECTION_STATUS_CLASS: Record<string, string> = {
@@ -136,17 +131,16 @@ const SECTION_STATUS_CLASS: Record<string, string> = {
   rejected: "bg-slate-100 text-slate-500 border-slate-200",
 };
 
-/** Small badge for book cards; falls back to "Not mapped" for pre-migration books. */
+/**
+ * Small badge for book cards; falls back to "Not mapped" for pre-migration books.
+ * A fully mapped book whose only failing gate is "Maths notation" reads
+ * "Mapped · 38/38 · 2 formula sections to check" (hover names the gate).
+ */
 export function CurriculumMappingBadge({ mapping }: { mapping?: CurriculumMappingSummary | null }) {
-  const status = mapping?.status || "not_mapped";
-  const subtopics =
-    mapping?.totalSubtopics && status !== "no_curriculum"
-      ? ` · ${mapping.mappedSubtopics || 0}/${mapping.totalSubtopics} subtopics`
-      : "";
+  const info = mappingBadgeInfo(mapping);
   return (
-    <Badge className={STATUS_CLASS[status] || STATUS_CLASS.not_mapped}>
-      Curriculum: {STATUS_LABEL[status] || status}
-      {subtopics}
+    <Badge className={cn("cursor-help", TONE_CLASS[info.tone])} title={info.explanation} aria-label={`Curriculum: ${info.text}. ${info.explanation}`}>
+      Curriculum: {info.text}
     </Badge>
   );
 }
@@ -172,7 +166,8 @@ const subValue = (id: string) => `sub:${id}`;
 /** "6.3 6.3 Important Sites": many subtopic names already start with their number. */
 function subLabel(sub: { number?: string; name: string }) {
   const num = String(sub.number || "").trim();
-  return num && !sub.name.trim().startsWith(num) ? `${num} ${sub.name}` : sub.name;
+  const name = cleanCurriculumLabel(sub.name);
+  return num && !name.trim().startsWith(num) ? `${num} ${name}` : name;
 }
 
 /**
@@ -180,8 +175,8 @@ function subLabel(sub: { number?: string; name: string }) {
  * Science", "Social Science", …). Show where it is and how it starts instead.
  */
 function sectionLabel(section: { number?: string; title?: string; chapterTitle?: string; preview?: string }) {
-  const title = String(section.title || "").trim();
-  const generic = !title || title.toLowerCase() === String(section.chapterTitle || "").trim().toLowerCase();
+  const title = cleanCurriculumLabel(section.title).trim();
+  const generic = !title || title.toLowerCase() === cleanCurriculumLabel(section.chapterTitle).trim().toLowerCase();
   if (!generic) return `${section.number ? `${section.number} ` : ""}${title}`;
   const opening = String(section.preview || "").split(/\s+/).slice(0, 9).join(" ");
   return opening ? `“${opening}…”` : title || "(untitled)";
@@ -204,7 +199,7 @@ function CurriculumTargetPicker({
   const label = useMemo(() => {
     if (!value) return "";
     for (const topic of curriculum) {
-      if (value === topicValue(topic.aiTopicKey)) return `${topic.topicName} (chapter-general)`;
+      if (value === topicValue(topic.aiTopicKey)) return `${cleanCurriculumLabel(topic.topicName)} (chapter-general)`;
       const sub = topic.subtopics.find((s) => value === subValue(s.aiSubtopicId));
       if (sub) return subLabel(sub);
     }
@@ -234,7 +229,7 @@ function CurriculumTargetPicker({
           <CommandList className="max-h-80">
             <CommandEmpty>No match.</CommandEmpty>
             {curriculum.map((topic) => (
-              <CommandGroup key={topic.aiTopicKey} heading={topic.topicName}>
+              <CommandGroup key={topic.aiTopicKey} heading={cleanCurriculumLabel(topic.topicName)}>
                 <CommandItem
                   value={`${topic.topicName} whole topic ${topic.aiTopicKey}`}
                   onSelect={() => {
@@ -244,7 +239,7 @@ function CurriculumTargetPicker({
                   className="font-semibold"
                 >
                   <Check className={cn("mr-2 h-4 w-4", value === topicValue(topic.aiTopicKey) ? "opacity-100" : "opacity-0")} />
-                  {topic.topicName} (chapter-general)
+                  {cleanCurriculumLabel(topic.topicName)} (chapter-general)
                 </CommandItem>
                 {topic.subtopics.map((sub) => (
                   <CommandItem
@@ -455,6 +450,9 @@ export function BookCurriculumMappingDialog({
   };
 
   const coveragePct = Math.round((Number(mapping.coverage) || 0) * 100);
+  const statusReason = mappingStatusReason(mapping);
+  const failing = failingGates(mapping);
+  const formulaSections = Number(mapping.mathQa?.flaggedSections) || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -482,6 +480,23 @@ export function BookCurriculumMappingDialog({
               </p>
             ) : null}
 
+            {statusReason ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                {statusReason === "formula_check" ? (
+                  <>
+                    <strong>Curriculum mapping is complete.</strong> The book is not marked Ready only because of the{" "}
+                    <strong>Maths notation</strong> gate: {formulaSections || "some"} section(s) have formulas that look damaged in
+                    the PDF text. See <em>Damaged formulas</em> below; nothing is waiting in Review mappings.
+                  </>
+                ) : (
+                  <>
+                    <strong>Needs review:</strong>{" "}
+                    {failing.map((g) => `${g.label}${g.detail ? ` (${g.detail})` : ""}`).join("; ") || "see the readiness gates below"}.
+                  </>
+                )}
+              </p>
+            ) : null}
+
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-600">
                 <span>Mapped section text</span>
@@ -506,7 +521,12 @@ export function BookCurriculumMappingDialog({
                 warn={(mapping.mappedSubtopics || 0) < (mapping.totalSubtopics || 0)}
               />
               <Stat label="Unmapped sections" value={mapping.unmappedSections || 0} warn={(mapping.unmappedSections || 0) > 0} />
-              <Stat label="Needs review" value={mapping.needsReviewSections || 0} warn={(mapping.needsReviewSections || 0) > 0} />
+              <Stat
+                label="Sections to review"
+                value={mapping.needsReviewSections || 0}
+                warn={(mapping.needsReviewSections || 0) > 0}
+                hint={statusReason === "formula_check" ? `Mapping review only · ${formulaSections} formula section(s) to check below` : undefined}
+              />
               <Stat label="Chunks" value={mapping.chunkCount || 0} />
               <Stat
                 label="Chunks w/o subtopic"
@@ -585,7 +605,7 @@ export function BookCurriculumMappingDialog({
                               {sectionLabel(section)}
                             </p>
                             <div className="flex flex-wrap gap-1.5 text-xs text-slate-500">
-                              {section.chapterTitle ? <span className="break-words">{section.chapterTitle}</span> : null}
+                              {section.chapterTitle ? <span className="break-words">{cleanCurriculumLabel(section.chapterTitle)}</span> : null}
                               {formatPages(section.pageStart, section.pageEnd) ? (
                                 <span>· {formatPages(section.pageStart, section.pageEnd)}</span>
                               ) : null}
@@ -693,7 +713,7 @@ export function BookCurriculumMappingDialog({
                       <SelectTrigger><SelectValue placeholder="Select topic" /></SelectTrigger>
                       <SelectContent className="max-h-80">
                         {curriculum.map((t) => (
-                          <SelectItem key={t.aiTopicKey} value={t.aiTopicKey}>{t.topicName}</SelectItem>
+                          <SelectItem key={t.aiTopicKey} value={t.aiTopicKey}>{cleanCurriculumLabel(t.topicName)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -713,7 +733,7 @@ export function BookCurriculumMappingDialog({
                         <SelectItem value="__whole__">Whole topic</SelectItem>
                         {(testTopicRow?.subtopics || []).map((s) => (
                           <SelectItem key={s.aiSubtopicId} value={s.aiSubtopicId}>
-                            {s.number ? `${s.number} ` : ""}{s.name}
+                            {subLabel(s)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -745,7 +765,7 @@ export function BookCurriculumMappingDialog({
                     {testResult.chunks.map((c) => (
                       <div key={c.chunkId} className="rounded border border-slate-200 p-2 text-xs text-slate-600">
                         <div className="flex flex-wrap gap-2 font-medium text-slate-800">
-                          <span>{c.aiSubtopicName || "(topic-level)"}</span>
+                          <span>{cleanCurriculumLabel(c.aiSubtopicName) || "(topic-level)"}</span>
                           <span className="text-slate-400">score {c.score}</span>
                           {formatPages(c.pages?.[0], c.pages?.[1]) ? (
                             <span className="text-slate-400">{formatPages(c.pages?.[0], c.pages?.[1])}</span>
@@ -834,15 +854,36 @@ function ReadinessPanel({
       ) : null}
       {qa?.applicable && (qa.samples || []).length ? (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-700">
-            Damaged formulas: fix the source PDF and reindex, or exclude the section from retrieval
-          </p>
+          <div className="space-y-1 text-xs text-slate-700">
+            <p className="font-semibold">Damaged formulas: {qa.samples?.length} section(s) to check</p>
+            <p className="text-slate-600">
+              The PDF text of these sections lost maths symbols (for example √ or superscripts), so AI-generated content
+              could quote the formulas wrongly. For each section, choose one:
+            </p>
+            <ul className="list-disc space-y-0.5 pl-5 text-slate-600">
+              <li>
+                <strong>Exclude section</strong>: removes only that section from AI retrieval (generators never see its
+                text; other sections are unaffected). The gate passes once every flagged section is excluded or fixed.
+              </li>
+              <li>
+                <strong>Fix the source</strong>: re-upload a PDF with selectable maths text, then press{" "}
+                <strong>Reindex</strong> (the <RefreshCw className="inline h-3 w-3 align-[-2px]" aria-label="refresh" /> icon on the
+                book card). The check runs again automatically.
+              </li>
+              <li>If the text below reads fine, it is a false alarm: Reindex re-checks it with the latest detector.</li>
+            </ul>
+          </div>
           {(qa.samples || []).map((sample) => {
             const section = sections.find((s) => s.sectionKey === sample.sectionKey);
             return (
               <div key={sample.sectionKey} className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2 sm:flex-row sm:items-start">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-slate-800">{sample.title || "(untitled section)"}</p>
+                  <p className="text-xs font-medium text-slate-800">{cleanCurriculumLabel(sample.title) || "(untitled section)"}</p>
+                  {sample.hits && Object.keys(sample.hits).length ? (
+                    <p className="mt-0.5 text-[11px] text-amber-800">
+                      Found: {Object.keys(sample.hits).map((k) => NOTATION_HIT_LABEL[k] || k.replace(/_/g, " ")).join(", ")}
+                    </p>
+                  ) : null}
                   {sample.snippet ? (
                     <p data-no-title-case className="mt-0.5 break-words font-mono text-[11px] text-slate-600">{sample.snippet}</p>
                   ) : null}
@@ -854,6 +895,7 @@ function ReadinessPanel({
                     variant="outline"
                     className="h-7 shrink-0 px-2 text-xs"
                     disabled={savingKey != null || section.mappingStatus === "rejected"}
+                    title="Remove this section from AI retrieval (generators will not use its text)"
                     onClick={() => onExclude(section)}
                   >
                     {section.mappingStatus === "rejected" ? "Excluded" : "Exclude section"}
@@ -916,7 +958,7 @@ function SectionAssignPicker({
                     {sectionLabel(section)}
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    {[section.chapterTitle, formatPages(section.pageStart, section.pageEnd), section.aiSubtopicName ? `now: ${section.aiSubtopicName}` : section.mappingStatus]
+                    {[cleanCurriculumLabel(section.chapterTitle), formatPages(section.pageStart, section.pageEnd), section.aiSubtopicName ? `now: ${cleanCurriculumLabel(section.aiSubtopicName)}` : section.mappingStatus]
                       .filter(Boolean)
                       .join(" · ")}
                   </span>
@@ -952,7 +994,7 @@ function FragmentRows({
   return (
     <>
       <tr className="border-t border-slate-200 bg-slate-50/60">
-        <td className="px-3 py-2 font-semibold text-slate-800">{topic.topicName}</td>
+        <td className="px-3 py-2 font-semibold text-slate-800">{cleanCurriculumLabel(topic.topicName)}</td>
         <td className="px-3 py-2 text-right text-slate-600" title="Topic-level chunks (whole-chapter use)">
           {topic.topicLevelChunks || 0}
         </td>
