@@ -703,9 +703,9 @@ export default function IQRankBoostActivities() {
                 ))}
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 2xl:grid-cols-2">
                 <Button
-                  className="w-full border border-slate-200 text-slate-700"
+                  className="w-full min-w-0 border border-slate-200 px-3 text-slate-700"
                   variant="outline"
                   onClick={() => setQuestionsTarget({ kind: 'bank', classNumber: classNum })}
                 >
@@ -713,7 +713,7 @@ export default function IQRankBoostActivities() {
                   View bank
                 </Button>
                 <Button
-                  className="w-full border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 hover:text-teal-900"
+                  className="w-full min-w-0 border border-teal-200 bg-teal-50 px-3 text-teal-800 hover:bg-teal-100 hover:text-teal-900"
                   variant="outline"
                   onClick={() => setSelectedClass(classNum)}
                 >

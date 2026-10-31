@@ -2218,7 +2218,7 @@ export default function Dashboard() {
                           if (e.target.value) handleJumpToDate(e.target.value);
                         }}
                         aria-label="Jump to date"
-                        className="h-9 w-[9.5rem] min-w-0 rounded-md border border-gray-200 bg-white py-1.5 pl-3 pr-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm"
+                        className="h-9 w-[10.5rem] shrink-0 rounded-md border border-gray-200 bg-white py-1.5 pl-2 pr-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 sm:text-sm"
                       />
                       <Button size="sm" className="whitespace-nowrap" onClick={() => handleJumpToDate()}>
                         Go

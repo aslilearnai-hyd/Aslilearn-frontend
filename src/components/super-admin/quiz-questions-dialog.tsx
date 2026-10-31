@@ -10,6 +10,7 @@ import { Loader2, Search, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-utils';
 import { useToast } from '@/hooks/use-toast';
+import ExamMathText from '@/components/exam/ExamMathText';
 
 export interface QuizQuestionRow {
   _id: string;
@@ -56,7 +57,7 @@ function QuestionCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <p className="text-sm font-medium text-slate-900">
-              {index}. {q.questionText}
+              {index}. <ExamMathText text={q.questionText} />
             </p>
             <div className="flex shrink-0 flex-wrap gap-1">
               {q.sourceId ? (
@@ -87,12 +88,12 @@ function QuestionCard({
                   }`}
                 >
                   <span className="mr-1 font-semibold">{String.fromCharCode(65 + i)}.</span>
-                  {opt.text}
+                  <ExamMathText text={opt.text} />
                 </li>
               );
             })}
           </ol>
-          {q.explanation ? <p className="mt-2 text-xs text-slate-500">{q.explanation}</p> : null}
+          {q.explanation ? <p className="mt-2 text-xs text-slate-500"><ExamMathText text={q.explanation} /></p> : null}
         </div>
       </div>
     </div>
