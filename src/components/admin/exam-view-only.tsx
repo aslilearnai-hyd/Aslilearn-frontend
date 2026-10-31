@@ -1025,7 +1025,6 @@ export default function ExamViewOnly() {
           individual={studentReport}
           examTitle={selectedExam?.title}
           attemptResult={selectedAttemptResult}
-          classQuestionStats={classQuestionStats}
         />
       </div>
     );

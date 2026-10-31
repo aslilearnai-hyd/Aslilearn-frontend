@@ -12,7 +12,6 @@ import {
   buildHandoffQuestionRows,
   formatHandoffNumber,
   formatHandoffPct,
-  type ClassQuestionStat,
   type HandoffIndividualReport,
 } from '@/lib/exam-analytics-handoff';
 import type { SchoolAnalysisExamResult } from '@/lib/school-performance-analysis-data';
@@ -24,8 +23,6 @@ type Props = {
   examTitle?: string;
   /** Raw attempt row — used for question-by-question detail. */
   attemptResult?: SchoolAnalysisExamResult | null;
-  /** Class-level counts per question (same paper / cohort). */
-  classQuestionStats?: ClassQuestionStat[];
 };
 
 type TabId = 'snapshot' | 'questions' | 'subjects' | 'behaviour' | 'actions';
@@ -74,7 +71,6 @@ export function StudentExamHandoffModal({
   individual,
   examTitle,
   attemptResult = null,
-  classQuestionStats = [],
 }: Props) {
   const [tab, setTab] = useState<TabId>('questions');
 
@@ -83,12 +79,6 @@ export function StudentExamHandoffModal({
     if ((individual.questions?.length ?? 0) > 0) return individual.questions;
     return buildHandoffQuestionRows(attemptResult);
   }, [individual, attemptResult]);
-
-  const classByNumber = useMemo(() => {
-    const map = new Map<number, ClassQuestionStat>();
-    for (const row of classQuestionStats) map.set(row.questionNumber, row);
-    return map;
-  }, [classQuestionStats]);
 
   if (!individual) return null;
   const { student, subjectDiagnostics, behaviour, actions } = individual;
@@ -185,14 +175,13 @@ export function StudentExamHandoffModal({
               ) : (
                 <>
                   <p className="text-xs text-slate-500 mb-3">
-                    This student’s answer on each question, plus how the class did on the same item
-                    (correct / wrong / blank).
+                    This student’s result on each question (correct / wrong / unattempted) and time
+                    spent.
                   </p>
                   <ul className="space-y-2.5">
                     {questionRows.map((q) => {
                       const meta = statusMeta(q.status);
                       const Icon = meta.Icon;
-                      const classStat = classByNumber.get(q.questionNumber);
                       return (
                         <li
                           key={`${q.questionId}-${q.questionNumber}`}
@@ -228,44 +217,6 @@ export function StudentExamHandoffModal({
                             </div>
                           </div>
 
-                          {classStat ? (
-                            <div className="mt-2.5 rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-2">
-                              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
-                                Class on this question ({classStat.totalStudents} students)
-                              </p>
-                              <div className="grid grid-cols-3 gap-2 text-xs">
-                                <span className="text-emerald-700">
-                                  <span className="font-semibold">{classStat.correct}</span> correct
-                                </span>
-                                <span className="text-rose-600">
-                                  <span className="font-semibold">{classStat.wrong}</span> wrong
-                                </span>
-                                <span className="text-slate-600">
-                                  <span className="font-semibold">{classStat.unattempted}</span> blank
-                                </span>
-                              </div>
-                              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-slate-200 mt-2">
-                                <div
-                                  className="bg-emerald-500"
-                                  style={{
-                                    width: `${(classStat.correct / Math.max(1, classStat.totalStudents)) * 100}%`,
-                                  }}
-                                />
-                                <div
-                                  className="bg-rose-400"
-                                  style={{
-                                    width: `${(classStat.wrong / Math.max(1, classStat.totalStudents)) * 100}%`,
-                                  }}
-                                />
-                                <div
-                                  className="bg-slate-400/60"
-                                  style={{
-                                    width: `${(classStat.unattempted / Math.max(1, classStat.totalStudents)) * 100}%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          ) : null}
                         </li>
                       );
                     })}
@@ -281,16 +232,13 @@ export function StudentExamHandoffModal({
                 Subject diagnostic
               </div>
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[560px] text-sm">
+                <table className="w-full min-w-[360px] text-sm">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-3 py-2 text-left">Subject</th>
                       <th className="px-3 py-2 text-left">Marks</th>
-                      <th className="px-3 py-2 text-left">Student</th>
-                      <th className="px-3 py-2 text-left">Class</th>
-                      <th className="px-3 py-2 text-left">Gap</th>
-                      <th className="px-3 py-2 text-left">Rank</th>
-                      <th className="px-3 py-2 text-left">Position</th>
+                      <th className="px-3 py-2 text-left">Accuracy</th>
+                      <th className="px-3 py-2 text-left">Subject rank</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -299,10 +247,7 @@ export function StudentExamHandoffModal({
                         <td className="px-3 py-2 font-medium">{row.label}</td>
                         <td className="px-3 py-2">{formatHandoffNumber(row.studentMarks)}</td>
                         <td className="px-3 py-2">{formatHandoffPct(row.studentAccuracy)}</td>
-                        <td className="px-3 py-2">{formatHandoffPct(row.classAccuracy)}</td>
-                        <td className="px-3 py-2">{formatHandoffPct(row.gap)}</td>
                         <td className="px-3 py-2">#{row.subjectRank}</td>
-                        <td className="px-3 py-2">{row.position}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -317,13 +262,11 @@ export function StudentExamHandoffModal({
                 Exam behaviour
               </div>
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[520px] text-sm">
+                <table className="w-full min-w-[320px] text-sm">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-3 py-2 text-left">Metric</th>
                       <th className="px-3 py-2 text-left">Student</th>
-                      <th className="px-3 py-2 text-left">Class</th>
-                      <th className="px-3 py-2 text-left">Reading</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -331,10 +274,6 @@ export function StudentExamHandoffModal({
                       <tr key={row.metric} className="border-t">
                         <td className="px-3 py-2 font-medium">{row.metric}</td>
                         <td className="px-3 py-2">{behaviourDisplay(row.student, row.metric)}</td>
-                        <td className="px-3 py-2">
-                          {behaviourDisplay(row.classValue, row.metric)}
-                        </td>
-                        <td className="px-3 py-2 text-slate-600">{row.reading}</td>
                       </tr>
                     ))}
                   </tbody>
