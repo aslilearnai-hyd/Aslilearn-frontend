@@ -703,7 +703,7 @@ export default function IQRankBoostActivities() {
                 ))}
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 2xl:grid-cols-2">
+              <div className="mt-4 flex flex-col gap-2">
                 <Button
                   className="w-full min-w-0 border border-slate-200 px-3 text-slate-700"
                   variant="outline"
