@@ -146,6 +146,8 @@ interface Student {
     overallProgress?: number;
     learningProgress?: number; // Content completion progress
     dailyAverageWatchTime?: number;
+    usageActiveDays?: number;
+    usageWindowDays?: number;
   };
 }
 
@@ -1920,7 +1922,9 @@ const TeacherDashboard = () => {
                 // - learningProgress: Content completion progress from database
                 learningProgress: perf.learningProgress !== null && perf.learningProgress !== undefined ? perf.learningProgress : 0,
                 // - dailyAverageWatchTime: Calculated from UserProgress records (video watch time)
-                dailyAverageWatchTime: perf.dailyAverageWatchTime !== null && perf.dailyAverageWatchTime !== undefined ? perf.dailyAverageWatchTime : 0
+                dailyAverageWatchTime: perf.dailyAverageWatchTime !== null && perf.dailyAverageWatchTime !== undefined ? perf.dailyAverageWatchTime : 0,
+                usageActiveDays: perf.usageActiveDays ?? 0,
+                usageWindowDays: perf.usageWindowDays ?? 30
               }
             };
           });
@@ -3051,7 +3055,12 @@ const TeacherDashboard = () => {
                                     {perf.totalExams > 0 ? (
                                       <div>
                                         <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                          {perf.averageMarks?.toFixed(1) || '0'}
+                                          {/* Avg marks only when all papers share a total; else avg %. */}
+                                          {(perf.averageTotalMarks ?? 0) > 0
+                                            ? `${Math.round((perf.averageMarks || 0) * 10) / 10} / ${perf.averageTotalMarks}`
+                                            : perf.averagePercentage != null
+                                              ? `${Math.round(perf.averagePercentage)}%`
+                                              : '—'}
                                         </span>
                                         <p className="text-xs text-gray-500">{perf.totalExams} exam{perf.totalExams !== 1 ? 's' : ''}</p>
                                       </div>

@@ -3,6 +3,17 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-utils';
 
+type SubjectScore = {
+  key: string;
+  subject: string;
+  correct: number;
+  total: number;
+  marks: number;
+  maxMarks: number | null;
+  accuracy: number;
+  exams?: number;
+};
+
 type StudentExamRow = {
   _id?: string;
   examTitle?: string;
@@ -12,7 +23,37 @@ type StudentExamRow = {
   correctAnswers?: number;
   totalQuestions?: number;
   completedAt?: string;
+  /** Attempts of this exam; the row shows the best one. */
+  attempts?: number;
+  subjects?: SubjectScore[];
 };
+
+type StudentExamSummary = {
+  distinctExams: number;
+  totalAttempts: number;
+  averagePercentage: number | null;
+  averageMarks: number | null;
+  averageTotalMarks: number | null;
+  subjectAverages: SubjectScore[];
+  weakestSubject: string | null;
+};
+
+function subjectScoreText(s: SubjectScore) {
+  const marks = s.maxMarks ? formatMarks(s.marks, s.maxMarks) : `${s.correct}/${s.total} correct`;
+  return `${s.subject} ${marks}`;
+}
+
+function accuracyTone(pct: number) {
+  return pct >= 60 ? 'text-emerald-700' : pct >= 35 ? 'text-amber-700' : 'text-rose-700';
+}
+
+/** "avg 13%" — or avg marks only when every exam has the same total. */
+function examAverageText(perf: TrackProgressStudent['performance']) {
+  const marks = formatMarks(perf?.averageMarks, perf?.averageTotalMarks);
+  if (marks) return `avg ${marks} marks`;
+  if (perf?.averagePercentage != null) return `avg ${Math.round(perf.averagePercentage)}%`;
+  return '';
+}
 import { motion } from 'framer-motion';
 import {
   Target,
@@ -55,6 +96,8 @@ export interface TrackProgressStudent {
     overallProgress?: number;
     learningProgress?: number;
     dailyAverageWatchTime?: number;
+    usageActiveDays?: number;
+    usageWindowDays?: number;
     recentExamTitle?: string | null;
     recentPercentage?: number | null;
   };
@@ -136,6 +179,7 @@ export function TeacherTrackProgressPanels({
   const [improvementText, setImprovementText] = useState('');
   const [isLoadingImprovement, setIsLoadingImprovement] = useState(false);
   const [studentExams, setStudentExams] = useState<StudentExamRow[]>([]);
+  const [examSummary, setExamSummary] = useState<StudentExamSummary | null>(null);
   const [isLoadingExams, setIsLoadingExams] = useState(false);
 
   const studentIds = new Set(students.map(studentIdStr).filter(Boolean));
@@ -165,12 +209,16 @@ export function TeacherTrackProgressPanels({
       setIsLoadingImprovement(true);
       // Every exam this student took, with its score (the card only had the average).
       setStudentExams([]);
+      setExamSummary(null);
       setIsLoadingExams(true);
       void fetch(`${API_BASE_URL}/api/teacher/students/${encodeURIComponent(studentIdStr(student))}/performance`, {
         headers: { Authorization: `Bearer ${getAuthToken()}` },
       })
         .then((res) => res.json())
-        .then((json) => setStudentExams(Array.isArray(json?.data) ? json.data : []))
+        .then((json) => {
+          setStudentExams(Array.isArray(json?.data) ? json.data : []);
+          setExamSummary(json?.summary && typeof json.summary === 'object' ? json.summary : null);
+        })
         .catch(() => setStudentExams([]))
         .finally(() => setIsLoadingExams(false));
       try {
@@ -214,14 +262,6 @@ export function TeacherTrackProgressPanels({
     .filter((p): p is number => p != null);
   const avgExam =
     examScores.length > 0 ? examScores.reduce((a, b) => a + b, 0) / examScores.length : 0;
-  // Class average in marks: mean obtained over mean paper total.
-  const withMarks = withExams.filter((s) => Number(s.performance?.averageTotalMarks) > 0);
-  const avgExamMarks = withMarks.length
-    ? formatMarks(
-        withMarks.reduce((sum, s) => sum + (Number(s.performance?.averageMarks) || 0), 0) / withMarks.length,
-        withMarks.reduce((sum, s) => sum + Number(s.performance?.averageTotalMarks), 0) / withMarks.length,
-      )
-    : null;
 
   const avgOverall =
     students.length > 0
@@ -253,8 +293,9 @@ export function TeacherTrackProgressPanels({
               <Target className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{avgExamMarks ?? (withExams.length ? `${avgExam.toFixed(1)}%` : '—')}</p>
-              <p className="text-xs text-gray-600">Avg exam marks</p>
+              {/* Percent, not marks: students sit papers with different totals. */}
+              <p className="text-2xl font-bold text-gray-900">{examScores.length ? `${avgExam.toFixed(1)}%` : '—'}</p>
+              <p className="text-xs text-gray-600">Avg exam score</p>
             </div>
           </div>
         </div>
@@ -329,8 +370,7 @@ export function TeacherTrackProgressPanels({
               const sid = studentIdStr(s);
               const perf = s.performance || {};
               const overall = perf.overallProgress ?? 0;
-              const examPct = perf.averagePercentage;
-              const examMarks = formatMarks(perf.averageMarks, perf.averageTotalMarks);
+              const examAvg = examAverageText(perf);
               const remarkCount = remarksByStudentId.get(sid)?.length || 0;
               return (
                 <li
@@ -344,11 +384,7 @@ export function TeacherTrackProgressPanels({
                     <p className="text-xs text-gray-500 mt-0.5">
                       {classLabel(s)}
                       {(perf.totalExams || 0) > 0
-                        ? examMarks
-                          ? ` · avg ${examMarks} marks`
-                          : examPct != null
-                            ? ` · ${examPct.toFixed(0)}% exam avg`
-                            : ''
+                        ? ` · ${perf.totalExams} exam${perf.totalExams !== 1 ? 's' : ''}${examAvg ? `, ${examAvg}` : ''}`
                         : ' · No exams yet'}
                       {` · ${overall.toFixed(0)}% progress`}
                       {remarkCount > 0 ? ` · ${remarkCount} remark${remarkCount !== 1 ? 's' : ''}` : ''}
@@ -399,12 +435,18 @@ export function TeacherTrackProgressPanels({
                     <ClipboardCheck className="w-3 h-3" /> Exams
                   </p>
                   <p className="font-semibold text-gray-900 mt-0.5">
-                    {impPerf.totalExams || 0} taken
-                    {formatMarks(impPerf.averageMarks, impPerf.averageTotalMarks)
-                      ? ` · avg ${formatMarks(impPerf.averageMarks, impPerf.averageTotalMarks)} marks`
-                      : impPerf.averagePercentage != null
-                        ? ` · ${impPerf.averagePercentage.toFixed(1)}% avg`
-                        : ''}
+                    {(() => {
+                      // Prefer the detail summary (distinct exams, best attempt each).
+                      const count = examSummary?.distinctExams ?? impPerf.totalExams ?? 0;
+                      const avg = examSummary
+                        ? examAverageText({
+                            averageMarks: examSummary.averageMarks,
+                            averageTotalMarks: examSummary.averageTotalMarks,
+                            averagePercentage: examSummary.averagePercentage,
+                          })
+                        : examAverageText(impPerf);
+                      return `${count} taken${avg ? ` · ${avg}` : ''}`;
+                    })()}
                   </p>
                   {impPerf.recentExamTitle ? (
                     <p className="text-gray-500 mt-1 truncate">
@@ -431,8 +473,15 @@ export function TeacherTrackProgressPanels({
                     <Clock className="w-3 h-3" /> Usage
                   </p>
                   <p className="font-semibold text-gray-900 mt-0.5">
-                    {(impPerf.dailyAverageWatchTime ?? 0).toFixed(1)} min/day
+                    {(impPerf.dailyAverageWatchTime ?? 0) > 0
+                      ? `${Math.round(impPerf.dailyAverageWatchTime ?? 0)} min/day`
+                      : 'No usage yet'}
                   </p>
+                  {(impPerf.usageActiveDays ?? 0) > 0 ? (
+                    <p className="text-gray-500 mt-1">
+                      Active {impPerf.usageActiveDays} of last {impPerf.usageWindowDays ?? 30} days
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-lg bg-amber-50 p-2.5 border border-amber-100">
                   <p className="text-gray-500">Homework</p>
@@ -453,33 +502,95 @@ export function TeacherTrackProgressPanels({
               </div>
 
               <div>
+                {!isLoadingExams && (examSummary?.subjectAverages?.length ?? 0) > 0 ? (
+                  <div className="mb-4">
+                    <h4 className="mb-2 text-sm font-semibold text-gray-900">Subject-wise average</h4>
+                    <ul className="space-y-1.5">
+                      {examSummary!.subjectAverages.map((s) => {
+                        const weakest = examSummary!.weakestSubject === s.key;
+                        return (
+                          <li
+                            key={s.key}
+                            className={`rounded-lg border px-3 py-2 text-xs ${weakest ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50/70'}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-slate-800">
+                                {s.subject}
+                                {weakest ? (
+                                  <Badge variant="outline" className="ml-2 border-rose-300 text-[10px] text-rose-700">
+                                    Weakest
+                                  </Badge>
+                                ) : null}
+                              </span>
+                              <span className={`font-semibold ${accuracyTone(s.accuracy)}`}>{Math.round(s.accuracy)}%</span>
+                            </div>
+                            <p className="mt-0.5 text-slate-500">
+                              {s.maxMarks ? `${formatMarks(s.marks, s.maxMarks)} marks · ` : ''}
+                              {s.correct}/{s.total} correct · {s.exams ?? 1} exam{(s.exams ?? 1) !== 1 ? 's' : ''}
+                            </p>
+                            <Progress value={Math.min(s.accuracy, 100)} className="mt-1 h-1.5" />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
                 <h4 className="mb-2 text-sm font-semibold text-gray-900">Exams taken</h4>
                 {isLoadingExams ? (
                   <p className="text-sm text-gray-500">Loading exam scores…</p>
                 ) : studentExams.length === 0 ? (
                   <p className="text-sm text-gray-500">No exams taken yet.</p>
                 ) : (
-                  <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                  <ul className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
                     {studentExams.map((exam, i) => {
                       const pct = Number(exam.percentage);
+                      const attempts = Number(exam.attempts) || 1;
+                      const subjects = Array.isArray(exam.subjects) ? exam.subjects : [];
                       return (
                         <li
                           key={exam._id || i}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm"
+                          className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm"
                         >
-                          <span className="min-w-0">
-                            <span className="block break-words font-medium text-slate-800">{exam.examTitle || 'Exam'}</span>
-                            <span className="block text-xs text-slate-500">
-                              {exam.completedAt ? new Date(exam.completedAt).toLocaleDateString() : ''}
-                              {exam.totalQuestions ? ` · ${exam.correctAnswers ?? 0}/${exam.totalQuestions} correct` : ''}
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0">
+                              <span className="block break-words font-medium text-slate-800">
+                                {exam.examTitle || 'Exam'}
+                                {attempts > 1 ? (
+                                  <Badge variant="outline" className="ml-2 text-[10px]">
+                                    {attempts} attempts · best shown
+                                  </Badge>
+                                ) : null}
+                              </span>
+                              <span className="block text-xs text-slate-500">
+                                {exam.completedAt ? new Date(exam.completedAt).toLocaleDateString() : ''}
+                                {exam.totalQuestions ? ` · ${exam.correctAnswers ?? 0}/${exam.totalQuestions} correct` : ''}
+                              </span>
                             </span>
-                          </span>
-                          <span className="shrink-0 text-right">
-                            <span className={`block font-semibold ${pct >= 60 ? 'text-emerald-700' : pct >= 35 ? 'text-amber-700' : 'text-rose-700'}`}>
-                              {formatMarks(exam.obtainedMarks ?? 0, exam.totalMarks) ?? (Number.isFinite(pct) ? `${pct.toFixed(1)}%` : '—')}
+                            <span className="shrink-0 text-right">
+                              <span className={`block font-semibold ${accuracyTone(pct)}`}>
+                                {formatMarks(exam.obtainedMarks ?? 0, exam.totalMarks) ?? (Number.isFinite(pct) ? `${pct.toFixed(1)}%` : '—')}
+                              </span>
+                              <span className="block text-xs text-slate-500">
+                                {exam.totalMarks ? 'marks' : ''}
+                                {exam.totalMarks && Number.isFinite(pct) ? ` · ${Math.round(pct)}%` : ''}
+                              </span>
                             </span>
-                            {exam.totalMarks ? <span className="block text-xs text-slate-500">marks</span> : null}
-                          </span>
+                          </div>
+                          {subjects.length > 0 ? (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {subjects.map((s) => (
+                                <span
+                                  key={s.key}
+                                  className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-700"
+                                  title={`${s.correct}/${s.total} correct`}
+                                >
+                                  {subjectScoreText(s)}{' '}
+                                  <span className={`font-semibold ${accuracyTone(s.accuracy)}`}>{Math.round(s.accuracy)}%</span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
                         </li>
                       );
                     })}
