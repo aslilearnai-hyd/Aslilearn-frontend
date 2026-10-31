@@ -53,6 +53,11 @@ import {
   normalizeSubjectDisplayKey,
 } from '@/lib/subject-names';
 import {
+  classLabelForNumber,
+  resolveClassSubjectForSave,
+  type ClassSubjectRules,
+} from '@/lib/content-class-subject';
+import {
   BookOpen,
   ChevronRight,
   File,
@@ -345,6 +350,20 @@ function resolveCatalogSubjectIdForSave(
 
   return match ? String(match._id) : null;
 }
+
+/** Comparison rules for resolveClassSubjectForSave (uploads stay in the viewed class). */
+const CLASS_SUBJECT_RULES: ClassSubjectRules<SubjectItem> = {
+  classOf: (s) =>
+    s.classNumber
+      ? normalizeClassNumber(s.classNumber)
+      : normalizeClassNumber(extractClassNumberFromSubjectName(s.name) || ''),
+  normalizeClass: normalizeClassNumber,
+  sameName: (a, b) => normalizeSubjectDisplayKey(a) === normalizeSubjectDisplayKey(b),
+  sameBoard: (a, b) =>
+    !a || !b || boardsMatch(normalizeBoardKey(a), normalizeBoardKey(b)),
+  categoryOf: (s) => resolveSubjectProductCategory(s),
+  isActive: (s) => isActiveCatalogSubject(s),
+};
 
 /** Resolve subject for display/save — catalog row or embedded content.subject. */
 function resolveSubjectForContent(
@@ -1070,15 +1089,26 @@ export default function SubjectContentManagement() {
 
   // Keep class selection valid when board filter / class list changes
   useEffect(() => {
+    // Never swap the class under an open Edit dialog (it used to jump to the first class).
+    if (isAddContentOpen && editingContentId) return;
     if (displayClassOptions.length === 0) {
       if (selectedClassLabel) setSelectedClassLabel(null);
       return;
     }
     if (!selectedClassLabel || !displayClassOptions.includes(selectedClassLabel)) {
-      setSelectedClassLabel(displayClassOptions[0]);
-      setSelectedSubjectId(null);
+      // Keep the same class number when only the label form differs ("Class 8" vs
+      // "Class 8 (IIT)"); fall back to the first class only when it is really gone.
+      const sameClass = selectedClassLabel
+        ? classLabelForNumber(
+            displayClassOptions,
+            parseClassBoardLabel(selectedClassLabel).classNum,
+            ''
+          )
+        : '';
+      setSelectedClassLabel(sameClass || displayClassOptions[0]);
+      if (!sameClass) setSelectedSubjectId(null);
     }
-  }, [displayClassOptions, selectedClassLabel]);
+  }, [displayClassOptions, selectedClassLabel, isAddContentOpen, editingContentId]);
 
   const selectedClassParsed = useMemo(
     () => parseClassBoardLabel(selectedClassLabel || ''),
@@ -1932,9 +1962,23 @@ export default function SubjectContentManagement() {
     }
 
     const label = extractPlainSubjectName(row?.name || catalogRow.name);
+    const subjectClass = CLASS_SUBJECT_RULES.classOf(catalogRow);
+    // Content linked to this subject but filed under ANOTHER class (e.g. Class 8 books on
+    // the Class 6 subject). The server refuses to delete while these exist (409).
+    const otherClassItems = contents.filter((c) => {
+      if (String(getContentSubjectId(c) || '') !== String(subjectId)) return false;
+      const cls = normalizeClassNumber(c.classNumber || '');
+      return !!subjectClass && !!cls && cls !== subjectClass;
+    });
     const ok = await confirm({
       title: 'Delete this subject?',
-      description: `Delete "${label}" and all its content for this class? This only removes this one subject.`,
+      description:
+        `Delete "${label}"${subjectClass ? ` (Class ${subjectClass})` : ''} and hide its Class ${subjectClass || ''} content? This only removes this one subject.` +
+        (otherClassItems.length > 0
+          ? ` Warning: ${otherClassItems.length} item(s) linked to it are filed under other classes (${Array.from(
+              new Set(otherClassItems.map((c) => `Class ${normalizeClassNumber(c.classNumber || '')}`))
+            ).join(', ')}); they will NOT be deleted — you will be asked to move them first.`
+          : ''),
       confirmLabel: 'Delete',
       destructive: true,
     });
@@ -1943,23 +1987,42 @@ export default function SubjectContentManagement() {
     setDeletingSubjectId(subjectId);
     try {
       const token = getAuthToken();
-      const response = await fetch(
-        `${API_BASE_URL}/api/super-admin/subjects/${subjectId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const data = await response.json().catch(() => ({}));
+      const sendDelete = (reassign: boolean) =>
+        fetch(
+          `${API_BASE_URL}/api/super-admin/subjects/${subjectId}${reassign ? '?reassign=true' : ''}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      let response = await sendDelete(false);
+      let data = await response.json().catch(() => ({}));
+
+      if (response.status === 409 && data.code === 'SUBJECT_HAS_OTHER_CLASS_CONTENT') {
+        const move = await confirm({
+          title: 'Content from other classes is linked to this subject',
+          description: `${data.message || ''} Move those items to the same subject of their own class and then delete "${label}"?`,
+          confirmLabel: 'Move & delete',
+          destructive: true,
+        });
+        if (!move) return;
+        response = await sendDelete(true);
+        data = await response.json().catch(() => ({}));
+      }
 
       if (response.ok && data.success !== false) {
-        // Optimistic UI — don't wait for refetch to clear the row.
+        // Optimistic UI — only this subject's own-class content was hidden on the server;
+        // anything moved to another class's subject comes back with the refetch below.
         setSubjects((prev) => prev.filter((s) => String(s._id) !== String(subjectId)));
         setContents((prev) =>
-          prev.filter((c) => String(getContentSubjectId(c) || '') !== String(subjectId))
+          prev.filter((c) => {
+            if (String(getContentSubjectId(c) || '') !== String(subjectId)) return true;
+            const cls = normalizeClassNumber(c.classNumber || '');
+            return !!subjectClass && !!cls && cls !== subjectClass;
+          })
         );
         if (String(selectedSubjectId) === String(subjectId)) {
           setSelectedSubjectId(null);
@@ -2007,6 +2070,28 @@ export default function SubjectContentManagement() {
       });
       return;
     }
+    const rowName =
+      subjectsForClass.find((s) => String(s._id) === String(selectedSubjectId))?.name || '';
+    const classPick = resolveClassSubjectForSave(
+      {
+        rowSubjectId: selectedSubjectId,
+        rowName,
+        classNumber: selectedClassNumber,
+        board: normalizeIitCategory(selectedProductCategory) ? 'IIT' : selectedBoard,
+        productCategory: normalizeIitCategory(selectedProductCategory) || '',
+        catalog: subjects,
+      },
+      CLASS_SUBJECT_RULES
+    );
+    if (classPick.reason === 'no-subject-for-class') {
+      const plain = extractPlainSubjectName(rowName) || 'this subject';
+      toast({
+        title: `Class ${selectedClassNumber} has no ${plain} subject`,
+        description: `This "${plain}" row is the Class ${classPick.foreignClass || '?'} subject (its content is linked across classes). Use "Add Subject" to create ${plain} for Class ${selectedClassNumber} first, so uploads are not filed under another class.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setContentForm({
       title: '',
       description: '',
@@ -2025,8 +2110,14 @@ export default function SubjectContentManagement() {
 
   const handleOpenEditContent = (content: ContentItem) => {
     const effClass = effectiveContentClass(content, subjects);
+    // Reuse the exact sidebar option ("Class 8 (IIT)"): an unscoped "Class 8" is not in
+    // displayClassOptions, so the class selector silently reset to the first class.
     const classLabel = effClass
-      ? `Class ${normalizeClassNumber(effClass)}`
+      ? classLabelForNumber(
+          displayClassOptions,
+          normalizeClassNumber(effClass),
+          `Class ${normalizeClassNumber(effClass)}`
+        )
       : selectedClassLabel ?? '';
 
     const resolvedSubj = resolveSubjectForContent(content, subjects);
@@ -2169,7 +2260,38 @@ export default function SubjectContentManagement() {
       return;
     }
 
-    const saveSubjectId = resolvedSubjectId;
+    let saveSubjectId = resolvedSubjectId;
+    if (!editingContentId) {
+      // The sidebar row can be ANOTHER class's subject (content linked across classes).
+      // A new upload must belong to the viewed class's own subject — never save a
+      // Class 8 book under Class 6 Mathematics (deleting that subject later wiped it).
+      const rowName =
+        subjectsForClass.find((s) => String(s._id) === String(subjectIdForValidation))?.name ||
+        subjects.find((s) => String(s._id) === String(resolvedSubjectId))?.name ||
+        '';
+      const classPick = resolveClassSubjectForSave(
+        {
+          rowSubjectId: resolvedSubjectId,
+          rowName,
+          classNumber: selectedClassNumber,
+          board: normalizeIitCategory(selectedProductCategory) ? 'IIT' : selectedBoard,
+          productCategory: normalizeIitCategory(selectedProductCategory) || '',
+          catalog: subjects,
+        },
+        CLASS_SUBJECT_RULES
+      );
+      if (classPick.reason === 'no-subject-for-class') {
+        const plain = extractPlainSubjectName(rowName) || 'this subject';
+        toast({
+          title: `Class ${selectedClassNumber} has no ${plain} subject`,
+          description: `The selected "${plain}" row is the Class ${classPick.foreignClass || '?'} subject. Use "Add Subject" to create ${plain} for Class ${selectedClassNumber} on this board/track, then upload again.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      // unknown-row: keep the resolved id; the server rejects a class mismatch.
+      saveSubjectId = classPick.subjectId || resolvedSubjectId;
+    }
     const subj =
       subjects.find((s) => String(s._id) === String(saveSubjectId)) ??
       subjectsForClass.find((s) => String(s._id) === String(saveSubjectId)) ??
@@ -2233,16 +2355,15 @@ export default function SubjectContentManagement() {
     setIsSavingContent(true);
     try {
       const token = getAuthToken();
-      const classForPayload =
-        selectedClassNumber ||
-        (editingItem
-          ? String(
-              editingItem.classNumber ||
-                effectiveContentClass(editingItem, subjects) ||
-                ''
-            )
-          : '');
-      if (!classForPayload) {
+      // Edit keeps the item's own class. The sidebar class can drift while the dialog is
+      // open (an unscoped "Class 8" label is not in the option list, so the selector
+      // resets to the first class), and sending it moved Class 8 books into Class 6.
+      const classForPayload = editingItem
+        ? String(
+            editingItem.classNumber || effectiveContentClass(editingItem, subjects) || ''
+          )
+        : selectedClassNumber;
+      if (!classForPayload && !editingItem) {
         toast({
           title: 'Validation error',
           description: 'Could not determine class for this content.',
@@ -2256,7 +2377,7 @@ export default function SubjectContentManagement() {
         title: contentForm.title.trim(),
         description: contentForm.description?.trim() || undefined,
         fileUrl: normalizedFileUrl,
-        classNumber: classForPayload,
+        ...(classForPayload ? { classNumber: classForPayload } : {}),
         productCategory:
           resolveSubjectProductCategory(subj) ||
           normalizeIitCategory(selectedProductCategory) ||
