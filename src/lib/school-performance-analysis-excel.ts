@@ -526,17 +526,9 @@ function buildIndividualSheet(
   );
   row += 2;
 
-  mergeBanner(sheet, row, 'SUBJECT DIAGNOSTIC', 7);
+  mergeBanner(sheet, row, 'SUBJECT DIAGNOSTIC', 4);
   row += 1;
-  writeHeaderRow(sheet, row, [
-    'Subject',
-    'Student Marks',
-    'Student Accuracy',
-    'Class Accuracy',
-    'Gap',
-    'Subject Rank',
-    'Position',
-  ]);
+  writeHeaderRow(sheet, row, ['Subject', 'Student Marks', 'Student Accuracy', 'Subject Rank']);
   row += 1;
   for (const diag of individual.subjectDiagnostics) {
     writeDataRow(
@@ -546,24 +538,21 @@ function buildIndividualSheet(
         diag.label,
         formatHandoffNumber(diag.studentMarks),
         formatHandoffPct(diag.studentAccuracy),
-        formatHandoffPct(diag.classAccuracy),
-        formatHandoffPct(diag.gap),
         diag.subjectRank,
-        diag.position,
       ],
       {
         zebra: row % 2 === 0,
         accuracyCols: { 3: diag.studentAccuracy },
-        leftAlignCols: [1, 7],
+        leftAlignCols: [1],
       },
     );
     row += 1;
   }
   row += 1;
 
-  mergeBanner(sheet, row, 'EXAM BEHAVIOUR', 4);
+  mergeBanner(sheet, row, 'EXAM BEHAVIOUR', 2);
   row += 1;
-  writeHeaderRow(sheet, row, ['Metric', 'Student', 'Class', 'Reading']);
+  writeHeaderRow(sheet, row, ['Metric', 'Student']);
   row += 1;
   for (const item of individual.behaviour) {
     const studentVal =
@@ -574,17 +563,9 @@ function buildIndividualSheet(
           : typeof item.student === 'number'
             ? formatHandoffPct(item.student)
             : item.student;
-    const classVal =
-      typeof item.classValue === 'number' && String(item.metric).toLowerCase().includes('time')
-        ? formatHandoffNumber(item.classValue)
-        : typeof item.classValue === 'number' && String(item.metric).toLowerCase().includes('correct')
-          ? formatHandoffNumber(item.classValue, 2)
-          : typeof item.classValue === 'number'
-            ? formatHandoffPct(item.classValue)
-            : item.classValue;
-    writeDataRow(sheet, row, [item.metric, studentVal, classVal, item.reading], {
+    writeDataRow(sheet, row, [item.metric, studentVal], {
       zebra: row % 2 === 0,
-      leftAlignCols: [1, 4],
+      leftAlignCols: [1],
     });
     row += 1;
   }
