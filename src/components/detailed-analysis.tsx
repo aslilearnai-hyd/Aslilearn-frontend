@@ -385,30 +385,108 @@ function isUsableTopicLabel(raw: string): boolean {
 
 type TopicSubject = 'maths' | 'physics' | 'chemistry' | 'biology';
 
-/** Keyword fallbacks — each owned by a subject so a stem never gets another subject's topic. */
+/**
+ * Keyword fallbacks — each owned by a subject so a stem never gets another subject's topic.
+ * KEEP IN SYNC with TOPIC_INFERENCE_PATTERNS in backend utils/question-topic-inference.js
+ * (same topics, order and regexes). Within a subject the FIRST match wins, so specific
+ * topics come before broad catch-alls.
+ */
 const TOPIC_INFER_PATTERNS: Array<{ subject: TopicSubject; topic: string; regex: RegExp }> = [
-  { subject: 'maths', topic: 'Rational Numbers', regex: /\brational numbers?\b|\bterminating decimals?\b|\bnon[- ]terminating\b|\badditive inverse\b/i },
-  { subject: 'maths', topic: 'Comparing Numbers', regex: /\bgreatest among\b|\bleast among\b|\bwhich is (?:the )?(?:greatest|least|largest|smallest)\b/i },
-  { subject: 'maths', topic: 'Fractions and Decimals', regex: /\bfractions?\b|\bdecimals?\b|\bnumerator\b|\bdenominator\b/i },
-  { subject: 'maths', topic: 'Arithmetic Progression', regex: /\barithmetic progression\b|\ba\.?p\.?\b/i },
-  { subject: 'maths', topic: 'Quadrilateral Properties', regex: /\bquadrilateral\b|\bparallelogram\b|\brhombus\b|\btrapez/i },
-  { subject: 'maths', topic: 'Polygon Angles', regex: /\bpolygon\b|\binterior angles?\b|\bexterior angles?\b/i },
-  { subject: 'maths', topic: 'Ratio and Proportion', regex: /\bratios?\b|\bproportions?\b/i },
-  { subject: 'maths', topic: 'Linear Equations', regex: /\blinear equations?\b|\bsolve for\b/i },
-  { subject: 'maths', topic: 'Probability', regex: /\bprobability\b|\bchance\b|\boutcomes?\b/i },
-  { subject: 'physics', topic: 'Force and Laws of Motion', regex: /\bnet force\b|\bnewton\b|\baccelerat/i },
-  { subject: 'physics', topic: 'Motion and Kinematics', regex: /\bmotion\b|\bvelocity\b|\bacceleration\b|\bdisplacement\b/i },
-  { subject: 'physics', topic: 'Pressure and Hydraulics', regex: /\bhydraulic\b|\bpiston\b|\bpascal\b|\bpressure\b/i },
-  { subject: 'physics', topic: 'Electricity and Circuits', regex: /\bohm\b|\bcurrent\b|\bvoltage\b|\bresistance\b|\bcircuits?\b/i },
-  { subject: 'chemistry', topic: 'Atomic Structure', regex: /\batomic numbers?\b|\bmass numbers?\b|\bneutrons?\b|\bprotons?\b|\belectrons?\b/i },
-  { subject: 'chemistry', topic: 'Hybridization', regex: /\bhybridization\b|\bhybrid orbital\b|\bsp\s*3\b|\bsp\s*2\b/i },
+  // ---- Mathematics ----
+  { subject: 'maths', topic: 'Rational Numbers', regex: /\brational numbers?\b|\bterminating decimals?\b|\bnon[- ]terminating\b|\badditive inverse\b|\bmultiplicative inverse\b|\bp\s*\/\s*q form\b/i },
+  { subject: 'maths', topic: 'Comparing Numbers', regex: /\bgreatest among\b|\bleast among\b|\bwhich is (?:the )?(?:greatest|least|largest|smallest)\b|\bcompare (?:the )?(?:fractions?|numbers?|decimals?)\b|\bascending order\b|\bdescending order\b/i },
+  { subject: 'maths', topic: 'Sets', regex: /\bsubsets?\b|\bvenn\b|\bpower set\b|\bnull set\b|\bempty set\b|\buniversal set\b|\bunion of\b|\bintersection of\b|\bset[- ]builder\b|\broster\b|\bcardinal(?:ity| number)\b|[∪∩]/i },
+  { subject: 'maths', topic: 'Relations and Functions', regex: /\bfunctions?\b|\bf\s*\(\s*x\s*\)|\bdomain\b|\bcodomain\b|\bone[- ]one\b|\bonto\b|\binjective\b|\bsurjective\b|\bbijective\b/i },
+  { subject: 'maths', topic: 'Complex Numbers', regex: /\bcomplex numbers?\b|\biota\b|\bimaginary\b|\bargand\b|\bmodulus of\b|\bconjugate\b/i },
+  { subject: 'maths', topic: 'Matrices and Determinants', regex: /\bmatri(?:x|ces)\b|\bdeterminants?\b|\btranspose\b|\badjoint\b/i },
+  { subject: 'maths', topic: 'Calculus', regex: /\blimits?\b|\bderivatives?\b|\bdifferentiat|\bintegra(?:l|ls|te|tion)\b|\bdy\s*\/\s*dx\b|\bmaxima\b|\bminima\b|\bcontinuity\b/i },
+  { subject: 'maths', topic: 'Permutations and Combinations', regex: /\bpermutations?\b|\bcombinations?\b|\barrangements?\b|\bnpr\b|\bncr\b|\bfactorial\b|\bin how many ways\b|\bnumber of ways\b/i },
+  { subject: 'maths', topic: 'Binomial Theorem', regex: /\bbinomial (?:theorem|expansion|coefficients?)\b/i },
+  { subject: 'maths', topic: 'Logarithms', regex: /\blog(?:arithms?|arithmic)?\b|\blog\s*_?\s*\d/i },
+  { subject: 'maths', topic: 'Geometric Progression', regex: /\bgeometric (?:progression|series|sequence)\b|\bg\.?p\.?\b|\bcommon ratio\b/i },
+  { subject: 'maths', topic: 'Arithmetic Progression', regex: /\barithmetic (?:progression|series|sequence)\b|\ba\.?p\.?\b|\bcommon difference\b|\bn\s*th term\b/i },
+  { subject: 'maths', topic: 'Trigonometry', regex: /\btrigonometr|\b(?:sin|cos|tan|cosec|sec|cot)\b|\bsin\s*\^?\s*2|\bcos\s*\^?\s*2|θ|\bangles? of (?:elevation|depression)\b|\bheights? and distances?\b/i },
+  { subject: 'maths', topic: 'Coordinate Geometry', regex: /\bcoordinates?\b|\bx[- ]axis\b|\by[- ]axis\b|\bdistance between (?:the )?points\b|\bsection formula\b|\bmid[- ]?point\b|\bslope\b|\bcollinear\b|\bquadrants?\b|\bstraight lines?\b|\bequation of (?:the )?line\b|\bparabola\b|\bellipse\b|\bhyperbola\b|\(\s*-?\d+\s*,\s*-?\d+\s*\)/i },
+  { subject: 'maths', topic: 'Probability', regex: /\bprobability\b|\bchance\b|\boutcomes?\b|\bdice\b|\bdie is\b|\btoss(?:ed|ing|es)?\b|\bcoins?\b|\bpack of (?:52 )?(?:playing )?cards\b|\bdeck of cards\b|\bat random\b|\brandomly\b/i },
+  { subject: 'maths', topic: 'Quadratic Equations', regex: /\bquadratic\b|\bdiscriminant\b|\bnature of (?:the )?roots\b|\broots? of (?:the )?equation\b|x\s*\^\s*2|x²|\bx2\b/i },
+  { subject: 'maths', topic: 'Polynomials', regex: /\bpolynomials?\b|\bzeroe?s of\b|\bdegree of\b|\bremainder theorem\b|\bfactor theorem\b|\bcoefficients?\b|\bmonomials?\b|\bbinomials?\b|\btrinomials?\b/i },
+  { subject: 'maths', topic: 'Algebraic Expressions and Factorisation', regex: /\bfactori[sz]|\balgebraic (?:expressions?|identit)|\bidentit(?:y|ies)\b|\bexpand\b|\blike terms\b|\(\s*a\s*[+-]\s*b\s*\)|\ba\s*\^?\s*2\s*[+-]\s*b\s*\^?\s*2|\bexpressions?\b/i },
+  { subject: 'maths', topic: 'Linear Equations', regex: /\blinear equations?\b|\bsolve for\b|\bequations?\b|\bpair of linear\b|\bsimultaneous\b|\bsolve\b|\bvariables?\b|\bunknown\b/i },
+  { subject: 'maths', topic: 'Simple and Compound Interest', regex: /\binterest\b|\bprincipal\b|\bper annum\b|\bp\.a\.|\bcompounded\b|\bamount after\b|\bdepreciat/i },
+  { subject: 'maths', topic: 'Profit, Loss and Discount', regex: /\bprofit\b|\bloss\b|\bcost price\b|\bselling price\b|\bmarked price\b|\blist price\b|\bdiscount\b|\bgst\b|\bsales tax\b|\boverhead/i },
+  { subject: 'maths', topic: 'Percentage', regex: /\bper ?cent(?:age)?s?\b|%/i },
+  { subject: 'maths', topic: 'Time, Speed and Work', regex: /\bspeed\b|\bkm\s*\/\s*h|\bkmph\b|\btrains?\b|\bupstream\b|\bdownstream\b|\bpipes?\b|\btaps?\b|\bwork alone\b|\bcomplete (?:the|a) (?:work|job)\b|\bdays to (?:complete|finish)\b|\bman[- ]days\b|\btime and work\b/i },
+  { subject: 'maths', topic: 'Ratio and Proportion', regex: /\bratios?\b|\bproportions?\b|\bproportional\b|\bdirect(?:ly)? (?:proportion|variation)\b|\binverse(?:ly)? (?:proportion|variation)\b|\bunitary method\b|\bvaries\b|\bpartnership\b/i },
+  { subject: 'maths', topic: 'Exponents and Powers', regex: /\bexponents?\b|\bpowers?\b|\bindices\b|\bscientific notation\b|\bstandard form\b|\bsurds?\b|\d\s*\^\s*-?\d/i },
+  { subject: 'maths', topic: 'Squares, Cubes and Roots', regex: /\bsquare roots?\b|\bcube roots?\b|\bperfect squares?\b|\bperfect cubes?\b|[√∛]|\bsquares? of\b|\bcubes? of\b|\bsqrt\b/i },
+  { subject: 'maths', topic: 'Circles', regex: /\bcircles?\b|\btangents?\b|\bchords?\b|\barcs?\b|\bsectors?\b|\bcyclic\b|\bconcentric\b|\bsemicircle\b/i },
+  { subject: 'maths', topic: 'Mensuration', regex: /\bmensuration\b|\barea\b|\bvolume\b|\bperimeter\b|\bsurface area\b|\bcircumference\b|\bcylinders?\b|\bcones?\b|\bspheres?\b|\bhemispheres?\b|\bcuboids?\b|\bcubes?\b|\bfrustum\b|\bprisms?\b|\bpyramids?\b|\bsq\.? ?(?:cm|m|units)\b|\bcm\s*[²³23]|\bcubic\b|\bradius\b|\bdiameter\b|\blitres?\b/i },
+  { subject: 'maths', topic: 'Quadrilateral Properties', regex: /\bquadrilaterals?\b|\bparallelograms?\b|\brhombus\b|\btrapez|\brectangles?\b|\bsquares?\b|\bkite\b/i },
+  { subject: 'maths', topic: 'Polygon Angles', regex: /\bpolygons?\b|\binterior angles?\b|\bexterior angles?\b|\bpentagon\b|\bhexagon\b|\boctagon\b/i },
+  { subject: 'maths', topic: 'Triangles', regex: /\btriangles?\b|\bpythagoras\b|\bpythagorean\b|\bhypotenuse\b|\bcongruen|\bsimilar(?:ity)?\b|\bisosceles\b|\bequilateral\b|\bscalene\b|\bcentroid\b|\bincentre\b|\bcircumcentre\b|\borthocentre\b|\bbasic proportionality\b/i },
+  { subject: 'maths', topic: 'Lines and Angles', regex: /\bangles?\b|\bparallel lines?\b|\btransversal\b|\bperpendicular\b|\bcomplementary\b|\bsupplementary\b|\bvertically opposite\b|\blinear pair\b|\bcorresponding\b|\balternate\b|\bdegrees?\b|°|\blines?\b|\bline segments?\b|\brays?\b/i },
+  { subject: 'maths', topic: 'Statistics', regex: /\bmean\b|\bmedian\b|\bmode\b|\baverage\b|\brange\b|\bfrequenc(?:y|ies)\b|\bstandard deviation\b|\bvariance\b|\bhistogram\b|\bbar graph\b|\bpie chart\b|\bogive\b|\bclass marks?\b|\bclass intervals?\b|\bdata\b|\bobservations?\b|\btally\b/i },
+  { subject: 'maths', topic: 'LCM and HCF', regex: /\blcm\b|\bhcf\b|\bgcd\b|\bl\.c\.m\b|\bh\.c\.f\b|\bleast common multiple\b|\bhighest common factor\b|\bgreatest common (?:divisor|factor)\b|\blowest common multiple\b/i },
+  { subject: 'maths', topic: 'Fractions and Decimals', regex: /\bfractions?\b|\bdecimals?\b|\bnumerator\b|\bdenominator\b|\bmixed numbers?\b|\breciprocal\b/i },
+  { subject: 'maths', topic: 'Number System', regex: /\bnumber system\b|\bintegers?\b|\bwhole numbers?\b|\bnatural numbers?\b|\breal numbers?\b|\bprimes?\b|\bprime (?:numbers?|factors?|factori[sz]ation)\b|\bcomposite\b|\bco-?primes?\b|\bdivisib|\bdivisors?\b|\birrational\b|\beven\b|\bodd\b|\bdigits?\b|\bfactors?\b|\bmultiples?\b|\bplace value\b|\bremainders?\b|\bnumber line\b|\bsuccessor\b|\bpredecessor\b|\beuclid|\broman numerals?\b|\bunit(?:'s|s)? digit\b/i },
+  { subject: 'maths', topic: 'Number Series and Patterns', regex: /\bseries\b|\bnext (?:term|number)\b|\bmissing (?:number|term)\b|\bpatterns?\b|\bsequences?\b|\bcoding\b|\bdecoding\b/i },
+  { subject: 'maths', topic: 'Arithmetic and Simplification', regex: /\bsimplif(?:y|ication|ied)\b|\bvalue of\b|\bevaluate\b|\bsum of\b|\bproduct of\b|\bdifference (?:of|between)\b|\bquotient\b|\bbodmas\b|\d\s*[+\-×*÷/x]\s*\d/i },
+
+  // ---- Physics ----
+  { subject: 'physics', topic: 'Units and Measurement', regex: /\bsi units?\b|\bunits? of\b|\bdimension(?:s|al)?\b|\bmeasurement\b|\bsignificant figures\b|\bvernier\b|\bscrew gauge\b|\bleast count\b|\bpercentage error\b|\berrors? in\b/i },
+  { subject: 'physics', topic: 'Modern Physics', regex: /\bphotoelectric\b|\bphotons?\b|\bnucle(?:us|ar|i)\b|\bradioactiv|\bhalf[- ]life\b|\bx[- ]rays?\b|\bsemiconductors?\b|\bdiodes?\b|\btransistors?\b|\bbohr\b|\bde broglie\b|\bfission\b|\bfusion\b|\balpha particles?\b|\bbeta particles?\b|\bwork function\b|\blogic gates?\b/i },
+  { subject: 'physics', topic: 'Magnetic Effects of Current', regex: /\bmagnet|\bsolenoid\b|\bfleming\b|\binduct|\bfaraday\b|\bgenerators?\b|\bmotors?\b|\bflux\b|\bcompass\b|\blorentz\b|\btesla\b/i },
+  { subject: 'physics', topic: 'Electricity and Circuits', regex: /\bohm\b|\bcurrent\b|\bvoltage\b|\bresistances?\b|\bresistors?\b|\bcircuits?\b|\bresistivity\b|\bcharges?\b|\bcoulomb\b|\bpotential difference\b|\bemf\b|\bamperes?\b|\bammeter\b|\bvoltmeter\b|\bvolts?\b|\bkwh\b|\bkilowatt[- ]hours?\b|\belectric(?:al|ity)?\b|\bcapacitors?\b|\bcapacitance\b|\bfuse\b/i },
+  { subject: 'physics', topic: 'Human Eye and Colourful World', regex: /\bhuman eye\b|\bmyopia\b|\bhypermetropia\b|\bpresbyopia\b|\bretina\b|\bnear point\b|\bfar point\b|\brainbow\b|\bscattering\b|\btyndall\b|\bblue colou?r of (?:the )?sky\b|\bpower of accommodation\b/i },
+  { subject: 'physics', topic: 'Light - Reflection and Refraction', regex: /\blight\b|\bmirrors?\b|\blens(?:es)?\b|\breflect|\brefract|\bfocal\b|\bimages?\b|\bconcave\b|\bconvex\b|\bprisms?\b|\bdispersion\b|\btotal internal\b|\bdioptres?\b|\bmagnification\b|\boptic|\binterference\b|\bdiffraction\b|\bpolari[sz]ation\b/i },
+  { subject: 'physics', topic: 'Sound and Waves', regex: /\bsound\b|\bwaves?\b|\bwavelength\b|\bamplitude\b|\bechoe?s?\b|\bultrasound\b|\bultrasonic\b|\bsonar\b|\bpitch\b|\bloudness\b|\bhertz\b|\bhz\b|\boscillat|\bpendulum\b|\bsimple harmonic\b|\bshm\b|\bresonance\b|\bvibrat|\bfrequency\b|\bdoppler\b/i },
+  { subject: 'physics', topic: 'Heat and Thermodynamics', regex: /\bheat\b|\btemperature\b|\bthermal\b|\bspecific heat\b|\blatent heat\b|\bthermometer\b|\bcelsius\b|\bkelvin\b|\bfahrenheit\b|\bexpansion\b|\bconduction\b|\bconvection\b|\bradiation\b|\bthermodynamic|\bcalori|\bcarnot\b|\bisothermal\b|\badiabatic\b/i },
+  { subject: 'physics', topic: 'Properties of Matter', regex: /\belastic(?:ity)?\b|\byoung'?s modulus\b|\bstress\b|\bstrain\b|\bhooke\b|\bviscosity\b|\bviscous\b|\bsurface tension\b|\bbernoulli\b|\bcapillar|\bterminal velocity\b/i },
+  { subject: 'physics', topic: 'Gravitation', regex: /\bgravitation|\bgravity\b|\bfree(?:ly)? fall|\bacceleration due to gravity\b|\bweight\b|\bmass of (?:the )?earth\b|\bkepler\b|\bescape velocity\b|\borbit|\bsatellites?\b|\bplanets?\b/i },
+  { subject: 'physics', topic: 'Pressure and Hydraulics', regex: /\bhydraulic\b|\bpiston\b|\bpascal\b|\bpressure\b|\batmospheric\b|\bbarometer\b|\bmanometer\b/i },
+  { subject: 'physics', topic: 'Floatation and Buoyancy', regex: /\bbuoyan|\barchimedes\b|\bfloat|\bsinks?\b|\bupthrust\b|\brelative density\b|\bdensity\b|\bdensities\b/i },
+  { subject: 'physics', topic: 'Rotational and Circular Motion', regex: /\btorque\b|\bmoment of inertia\b|\bangular (?:momentum|velocity|acceleration|displacement)\b|\brotation(?:al)?\b|\bcentripetal\b|\bcentrifugal\b|\bcircular motion\b|\bmoment of (?:a )?force\b|\bcentre of mass\b|\blever\b/i },
+  { subject: 'physics', topic: 'Work, Energy and Power', regex: /\bwork done\b|\bwork\b|\benergy\b|\bkinetic\b|\bpotential\b|\bpower\b|\bjoules?\b|\bwatts?\b|\bhorse ?power\b|\bconservation of energy\b|\bcollisions?\b/i },
+  { subject: 'physics', topic: 'Force and Laws of Motion', regex: /\bnet force\b|\bforces?\b|\bnewtons?\b|\baccelerat|\bmomentum\b|\binertia\b|\bimpulse\b|\bfriction(?:al)?\b|\baction and reaction\b|\brecoil\b|\btension\b|\bpulley\b|\bincline/i },
+  { subject: 'physics', topic: 'Motion and Kinematics', regex: /\bmotion\b|\bvelocity\b|\bacceleration\b|\bdisplacement\b|\bspeeds?\b|\bdistances?\b|\bprojectile\b|\bretardation\b|\bdeceleration\b|\bkm\s*\/\s*h|\bm\s*\/\s*s\b|\btime taken\b|\btravel(?:s|led|ling)?\b|\bmoving\b|\brelative velocity\b|\bvectors?\b|\bgraph\b/i },
+
+  // ---- Chemistry ----
+  { subject: 'chemistry', topic: 'Molar Mass and Stoichiometry', regex: /\bmolar mass\b|\bmolecular mass\b|\bmolarity\b|\bmolality\b|\bnormality\b|\bstoichiometr|\bmoles?\b|\bmol\b|\bmole concept\b|\bavogadro\b|\bempirical formula\b|\bmolecular formula\b|\bpercentage composition\b|\bgram atomic\b|\bstp\b|\blimiting reagent\b/i },
+  { subject: 'chemistry', topic: 'Hybridization', regex: /\bhybridi[sz]ation\b|\bhybrid orbitals?\b|\bsp\s*3\b|\bsp\s*2\b|\bsp\s*hybrid\b|\bdsp\s*[23]\b|\bsp\s*3\s*d\b/i },
+  { subject: 'chemistry', topic: 'Periodic Classification', regex: /\bperiodic (?:table|classification|properties|trends?|law)\b|\bperiods?\b|\bgroups? \d+|\bgroup\b|\bmendeleev|\bdobereiner\b|\bnewlands\b|\boctaves\b|\btriads\b|\bmetallic character\b|\batomic (?:radius|radii|size)\b|\bioni[sz]ation (?:energy|enthalpy|potential)\b|\belectronegativ|\belectron (?:affinity|gain enthalpy)\b|\balkali metals?\b|\balkaline earth\b|\bhalogens?\b|\bnoble gases?\b|\btransition elements?\b|\b[spdf][- ]block\b/i },
+  { subject: 'chemistry', topic: 'Atomic Structure', regex: /\batomic numbers?\b|\bmass numbers?\b|\bneutrons?\b|\bprotons?\b|\belectrons?\b|\batoms?\b|\bisotopes?\b|\bisobars?\b|\bisotones?\b|\belectronic configuration\b|\bshells?\b|\borbitals?\b|\bquantum numbers?\b|\bbohr\b|\brutherford\b|\bthomson\b|\bsub-?atomic\b|\bvalency\b|\bnucleons?\b|\baufbau\b|\bhund\b|\bpauli\b/i },
+  { subject: 'chemistry', topic: 'Chemical Bonding', regex: /\bbond(?:s|ing|ed)?\b|\bionic\b|\bcovalent\b|\bvsepr\b|\bshape of\b|\bgeometry of\b|\bpolar(?:ity)?\b|\bdipole\b|\blone pairs?\b|\bsigma\b|\bpi\b|\blewis\b|\belectrovalent\b|\bmolecular orbital\b|\boctet\b/i },
   { subject: 'chemistry', topic: 'Oxidation States', regex: /\boxidation states?\b|\boxidation numbers?\b/i },
-  { subject: 'chemistry', topic: 'Molar Mass and Stoichiometry', regex: /\bmolar mass\b|\bmolecular mass\b|\bmolarity\b|\bmoles?\b/i },
-  { subject: 'chemistry', topic: 'Acids, Bases and Salts', regex: /\bacids?\b|\bbases?\b|\bsalts?\b|\bph\b/i },
-  { subject: 'chemistry', topic: 'Carbon Compounds', regex: /\bcarbon\b|\bhydrocarbons?\b|\borganic\b/i },
-  { subject: 'biology', topic: 'Cell Structure', regex: /\bcell membrane\b|\bcytoplasm\b|\bnucleus\b|\borganelles?\b/i },
-  { subject: 'biology', topic: 'Life Processes', regex: /\bphotosynthesis\b|\brespiration\b|\bexcretion\b|\bnutrition\b/i },
-  { subject: 'biology', topic: 'Heredity and Evolution', regex: /\bheredity\b|\bevolution\b|\bgenes?\b|\bdna\b/i },
+  { subject: 'chemistry', topic: 'Electrochemistry', regex: /\belectrochem|\belectroly(?:sis|tic|tes?)\b|\belectrodes?\b|\banodes?\b|\bcathodes?\b|\bgalvanic\b|\bcell potential\b|\belectrode potential\b|\bnernst\b|\belectroplating\b|\bconductance\b|\bconductivity\b|\bfaraday\b/i },
+  { subject: 'chemistry', topic: 'Redox Reactions', regex: /\bredox\b|\boxidi[sz](?:e|ed|es|ing|ation)\b|\boxidation\b|\breduc(?:ed|tion|ing agent|es)\b/i },
+  { subject: 'chemistry', topic: 'Chemical Kinetics', regex: /\brate of (?:the )?reactions?\b|\brate constant\b|\border of (?:the )?reaction\b|\bactivation energy\b|\bcatalys[ti]|\bhalf[- ]life\b|\bkinetics\b|\brate law\b/i },
+  { subject: 'chemistry', topic: 'Chemical Equilibrium', regex: /\bequilibri|\ble chatelier\b|\bkc\b|\bkp\b|\bionic product\b|\bbuffers?\b|\bsolubility product\b|\bksp\b|\bcommon ion\b|\bhydrolysis\b/i },
+  { subject: 'chemistry', topic: 'Thermochemistry', regex: /\benthalpy\b|\bentropy\b|\bgibbs\b|\bthermodynamic|\bheat of (?:reaction|formation|combustion|neutrali[sz]ation|solution)\b|\bhess\b|\bspontaneous\b|\binternal energy\b/i },
+  { subject: 'chemistry', topic: 'Coordination Compounds', regex: /\bcoordination (?:compounds?|number|sphere)\b|\bligands?\b|\bcomplex (?:ions?|compounds?)\b|\bwerner\b|\bchelat/i },
+  { subject: 'chemistry', topic: 'Carbon Compounds', regex: /\bcarbon compounds?\b|\bcatenation\b|\btetravalen|\bhydrocarbons?\b|\borganic\b|\balkanes?\b|\balkenes?\b|\balkynes?\b|\biupac\b|\bfunctional groups?\b|\bisomer|\bhomologous\b|\balcohols?\b|\bethanol\b|\bethanoic\b|\bacetic acid\b|\bcarboxylic\b|\besters?\b|\besterification\b|\bsoaps?\b|\bdetergents?\b|\bmethane\b|\bethane\b|\bethene\b|\bethyne\b|\bbenzene\b|\baldehydes?\b|\bketones?\b|\bpolymers?\b|\bsaponification\b|\bcarbon\b/i },
+  { subject: 'chemistry', topic: 'Acids, Bases and Salts', regex: /\bacids?\b|\bacidic\b|\bbases?\b|\bbasic\b|\bsalts?\b|\bph\b|\bindicators?\b|\blitmus\b|\bphenolphthalein\b|\bmethyl orange\b|\bneutrali[sz]|\balkali(?:s|ne)?\b|\bbaking soda\b|\bwashing soda\b|\bbleaching powder\b|\bplaster of paris\b|\bantacids?\b|\bhydronium\b|\bhydroxide ions?\b/i },
+  { subject: 'chemistry', topic: 'Metals and Non-metals', regex: /\bmetals?\b|\bnon-?metals?\b|\bmetalloids?\b|\bmetallurgy\b|\bores?\b|\bminerals?\b|\bcorrosion\b|\brust(?:ing)?\b|\balloys?\b|\breactivity series\b|\bductil|\bmalleab|\bgalvani[sz]|\broasting\b|\bcalcination\b|\bsmelting\b|\bthermite\b|\bamphoteric\b|\bsonorous\b/i },
+  { subject: 'chemistry', topic: 'Separation of Mixtures', regex: /\bseparat|\bfiltration\b|\bdistillation\b|\bchromatograph|\bcentrifug|\bcrystalli[sz]ation\b|\bdecant|\bsieving\b|\bwinnowing\b|\bseparating funnel\b|\bpurification\b/i },
+  { subject: 'chemistry', topic: 'Solutions', regex: /\bsolutions?\b|\bsolutes?\b|\bsolvents?\b|\bsolubility\b|\bsoluble\b|\binsoluble\b|\bconcentration\b|\bsaturated\b|\bcolligative\b|\bosmo|\braoult\b|\bmass (?:by mass )?percent|\bppm\b|\bdilut|\bmole fraction\b|\bvan'?t hoff\b/i },
+  { subject: 'chemistry', topic: 'States of Matter', regex: /\bstates? of matter\b|\bgas(?:es|eous)?\b|\bboyle\b|\bcharles\b|\bideal gas\b|\bkinetic theory\b|\bevaporat|\bboiling\b|\bmelting\b|\bfreezing\b|\bsublimat|\bcondensation\b|\bliquids?\b|\bsolids?\b|\bplasma\b|\bintermolecular\b|\bdiffusion\b|\bvapou?r\b|\blatent heat\b|\bpressure\b|\bvolume\b|\btemperature\b/i },
+  { subject: 'chemistry', topic: 'Elements, Compounds and Mixtures', regex: /\belements?\b|\bcompounds?\b|\bmixtures?\b|\bhomogeneous\b|\bheterogeneous\b|\bpure substances?\b|\bcolloid(?:s|al)?\b|\bsuspensions?\b|\bemulsions?\b|\bmatter\b|\bmolecules?\b|\bchemical formula\b|\bsymbols? of\b/i },
+  { subject: 'chemistry', topic: 'Chemical Reactions and Equations', regex: /\bchemical (?:reactions?|equations?|changes?)\b|\bbalanc(?:e|ed|ing)\b|\bcombination reaction\b|\bdecomposition\b|\bdisplacement\b|\bprecipitat|\bexothermic\b|\bendothermic\b|\breactants?\b|\bproducts?\b|\brancidity\b|\breactions?\b|\breacts?\b|\bcombustion\b|\bburn(?:s|t|ing)?\b|→|->/i },
+
+  // ---- Biology ----
+  { subject: 'biology', topic: 'Heredity and Evolution', regex: /\bheredity\b|\bevolution\b|\bgenes?\b|\bdna\b|\brna\b|\bgenetics?\b|\bmendel|\bdominant\b|\brecessive\b|\balleles?\b|\bchromosomes?\b|\bgenotypes?\b|\bphenotypes?\b|\bmonohybrid\b|\bdihybrid\b|\bnitrogen(?:ous)? bases?\b|\badenine\b|\bguanine\b|\bcytosine\b|\bthymine\b|\buracil\b|\bnatural selection\b|\bdarwin\b|\bfossils?\b|\bspeciation\b|\bhomologous organs?\b|\banalogous organs?\b|\bsex determination\b|\bmutations?\b|\binherit|\breplication\b|\btranscription\b|\btranslation\b|\bgenetic code\b/i },
+  { subject: 'biology', topic: 'Reproduction', regex: /\breproduc|\bpollinat|\bfertili[sz]ation\b|\bgametes?\b|\bzygote\b|\bembryos?\b|\bovar(?:y|ies)\b|\bovules?\b|\bstamens?\b|\bpistils?\b|\bcarpels?\b|\banthers?\b|\bstigma\b|\bbudding\b|\bbinary fission\b|\bmultiple fission\b|\bfragmentation\b|\bregeneration\b|\bspores?\b|\bvegetative propagation\b|\bmenstrua|\bplacenta\b|\btest(?:is|es)\b|\bsperms?\b|\bova\b|\bcontracepti|\bpuberty\b|\bsexually transmitted\b|\bgrafting\b|\blayering\b/i },
+  { subject: 'biology', topic: 'Control and Coordination', regex: /\bneurons?\b|\bnerv(?:e|es|ous)\b|\bbrain\b|\bspinal cord\b|\breflex(?:es)?\b|\bsynapses?\b|\bhormones?\b|\bendocrine\b|\bglands?\b|\bthyroid\b|\bpituitary\b|\binsulin\b|\badrenal|\bauxins?\b|\bgibberellins?\b|\bcytokinins?\b|\babscisic\b|\btropism|\bphototropism\b|\bgeotropism\b|\bcerebr|\bmedulla\b|\bdendrites?\b|\baxons?\b|\bthyroxine\b|\badrenaline\b/i },
+  { subject: 'biology', topic: 'Tissues', regex: /\btissues?\b|\bmeristem|\bparenchyma\b|\bcollenchyma\b|\bsclerenchyma\b|\bepitheli|\bcartilage\b|\bligaments?\b|\btendons?\b|\bareolar\b|\badipose\b|\bstriated\b|\bunstriated\b|\bcardiac muscle\b|\bcomplex permanent\b/i },
+  { subject: 'biology', topic: 'Health, Diseases and Microbes', regex: /\bdiseases?\b|\bbacteri|\bvirus(?:es)?\b|\bviral\b|\bmicro-?organisms?\b|\bmicrobes?\b|\bpathogens?\b|\binfect|\bvaccin|\bimmun|\bantibiotics?\b|\bantibod|\bmalaria\b|\btuberculosis\b|\bdengue\b|\bcholera\b|\btyphoid\b|\baids\b|\bhiv\b|\bprotozoa\b|\bfermentation\b|\byeast\b|\bfungal\b|\bsymptoms?\b|\bhealth\b/i },
+  { subject: 'biology', topic: 'Diversity in Living Organisms', regex: /\bclassification\b|\bkingdoms?\b|\btaxonom|\bbinomial nomenclature\b|\bmonera\b|\bprotista\b|\bfungi\b|\bplantae\b|\banimalia\b|\bvertebrat|\binvertebrat|\bchordat|\barthropod|\bmollus|\bannelid|\bangiosperm|\bgymnosperm|\bpteridophyt|\bbryophyt|\bthallophyt|\bphylum\b|\bphyla\b|\bgenus\b|\bspecies\b|\bwhittaker\b|\bmammals?\b|\breptiles?\b|\bamphibians?\b|\bpisces\b|\baves\b|\bcoelenterat|\bporifera\b|\bplatyhelminth|\bnematod|\bechinoderm/i },
+  { subject: 'biology', topic: 'Our Environment and Ecology', regex: /\becosystems?\b|\bfood chains?\b|\bfood webs?\b|\btrophic\b|\bproducers?\b|\bconsumers?\b|\bdecomposers?\b|\bbiodiversity\b|\bpollution\b|\bpollutants?\b|\bozone\b|\bgreenhouse\b|\bglobal warming\b|\bconservation\b|\bbiogeochemical\b|\bnitrogen cycle\b|\bcarbon cycle\b|\bwater cycle\b|\bnitrogen fixation\b|\bbiomagnification\b|\bdeforestation\b|\bwildlife\b|\bhabitats?\b|\benvironment|\bbiodegradable\b|\bnatural resources\b|\bsanctuar|\bnational parks?\b|\becolog/i },
+  { subject: 'biology', topic: 'Life Processes', regex: /\bphotosynthesis\b|\brespiration\b|\brespiratory\b|\bexcretion\b|\bexcretory\b|\bnutrition\b|\bdigest|\benzymes?\b|\bstomata\b|\btranspiration\b|\bblood\b|\bheart\b|\barter(?:y|ies)\b|\bveins?\b|\bcapillar|\bha?emoglobin\b|\bkidneys?\b|\bnephrons?\b|\burine\b|\bdialysis\b|\bautotroph|\bheterotroph|\bchlorophyll\b|\bglucose\b|\bbreathing\b|\blungs?\b|\balveoli\b|\bstomach\b|\bintestines?\b|\bliver\b|\bbile\b|\bsaliva\b|\bxylem\b|\bphloem\b|\bcirculat|\bplatelets?\b|\blymph\b|\batp\b|\baerobic\b|\banaerobic\b|\bpancrea/i },
+  { subject: 'biology', topic: 'Food and Nutrients', regex: /\bnutrients?\b|\bvitamins?\b|\bdeficiency\b|\bbalanced diet\b|\bproteins?\b|\bcarbohydrates?\b|\bfats?\b|\broughage\b|\bscurvy\b|\brickets\b|\bbe?riberi\b|\bgoitre\b|\banaemia\b|\bkwashiorkor\b|\bmarasmus\b|\bfood\b/i },
+  { subject: 'biology', topic: 'Crop Production and Agriculture', regex: /\bcrops?\b|\bfertili[sz]ers?\b|\bmanure\b|\birrigation\b|\bkharif\b|\brabi\b|\bhybridi[sz]ation\b|\banimal husbandry\b|\bpoultry\b|\bfisheries\b|\bapiculture\b|\bagricultur|\bweeds?\b|\bweedicides?\b|\bpesticides?\b|\bharvest|\bsowing\b|\bcattle\b/i },
+  { subject: 'biology', topic: 'Cell Structure', regex: /\bcell membrane\b|\bcytoplasm\b|\bnucleus\b|\borganelles?\b|\bcells?\b|\bmitochondri|\bribosomes?\b|\bgolgi\b|\bendoplasmic\b|\blysosomes?\b|\bvacuoles?\b|\bplastids?\b|\bchloroplasts?\b|\bcell wall\b|\bprokaryot|\beukaryot|\bmitosis\b|\bmeiosis\b|\bcell division\b|\bplasma membrane\b|\bosmosis\b|\bcentrosome\b|\bunicellular\b|\bmulticellular\b/i },
+  { subject: 'biology', topic: 'Human Body Systems', regex: /\bskeleton\b|\bskeletal\b|\bbones?\b|\bjoints?\b|\bmuscles?\b|\bsense organs?\b|\bskin\b|\beyes?\b|\bears?\b|\bteeth\b|\btooth\b|\borgans?\b|\bhuman body\b/i },
+  { subject: 'biology', topic: 'Plant Parts and Functions', regex: /\broots?\b|\bstems?\b|\bleaf\b|\bleaves\b|\bflowers?\b|\bfruits?\b|\bseeds?\b|\bgerminat|\bvenation\b|\bplants?\b|\bpetals?\b|\bsepals?\b/i },
+  { subject: 'biology', topic: 'Animal Adaptation and Behaviour', regex: /\badaptations?\b|\badapted\b|\bcamouflage\b|\bmigrat|\bhibernat|\banimals?\b|\binsects?\b|\bbirds?\b/i },
 ];
 
 /** Subjects whose keyword topics may label a question of `subject`; null = unknown subject (any). */
@@ -428,19 +506,62 @@ function topicBelongsToOtherSubject(label: string, subject: unknown): boolean {
   return Boolean(owner && !allowed.has(owner.subject));
 }
 
-function inferTopicFromQuestionText(q: Question): string {
-  const text = String(q.questionText || '')
+function countPatternHits(regex: RegExp, text: string): number {
+  const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+  return (text.match(new RegExp(regex.source, flags)) || []).length;
+}
+
+/**
+ * Subject-scoped keyword topic for `text` (mirrors backend inferTopicFromText).
+ * Within a subject the first matching pattern wins; when several subjects are
+ * allowed (science / unknown) the subject with the most keyword hits owns the stem.
+ */
+function inferTopicFromText(text: string, subject: unknown): string {
+  const body = String(text || '');
+  if (!body.trim()) return '';
+  const allowed = allowedTopicSubjects(subject);
+  const firstBySubject = new Map<string, string>();
+  const hitsBySubject = new Map<string, number>();
+  for (const p of TOPIC_INFER_PATTERNS) {
+    if (allowed && !allowed.has(p.subject)) continue;
+    const hits = countPatternHits(p.regex, body);
+    if (!hits) continue;
+    if (!firstBySubject.has(p.subject)) firstBySubject.set(p.subject, p.topic);
+    hitsBySubject.set(p.subject, (hitsBySubject.get(p.subject) || 0) + hits);
+  }
+  let best = '';
+  let bestHits = 0;
+  hitsBySubject.forEach((hits, subj) => {
+    if (hits > bestHits) {
+      best = subj;
+      bestHits = hits;
+    }
+  });
+  return firstBySubject.get(best) || '';
+}
+
+function questionOptionsText(q: Question): string {
+  return (Array.isArray(q.options) ? q.options : [])
+    .map((o) => (o && typeof o === 'object' ? o.text : o))
+    .filter(Boolean)
+    .join(' ');
+}
+
+function inferTopicFromQuestionText(q: Question, extraText?: string): string {
+  const stem = String(q.questionText || '')
     .replace(/^directions?\s*[:.\-–—]?\s*/i, '')
     .replace(/^each of the following[^.!?]{0,120}[.!?]\s*/i, '')
     .replace(/^read the following[^.!?]{0,120}[.!?]\s*/i, '')
+    .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!text) return '';
-  const allowed = allowedTopicSubjects(q.subject);
-  const matched = TOPIC_INFER_PATTERNS.find(
-    (item) => (!allowed || allowed.has(item.subject)) && item.regex.test(text)
+  // Stem first; then options (they often name the concept when the stem is just
+  // "Which of the following…"); then explanation / AI analysis text.
+  return (
+    inferTopicFromText(stem, q.subject) ||
+    inferTopicFromText(questionOptionsText(q), q.subject) ||
+    inferTopicFromText(`${String(q.explanation || '')} ${String(extraText || '')}`, q.subject)
   );
-  return matched?.topic || '';
 }
 
 /**
@@ -495,7 +616,7 @@ function resolveQuestionTopicLabel(
     return topicTagged[1].trim();
   }
 
-  const inferred = inferTopicFromQuestionText(q);
+  const inferred = inferTopicFromQuestionText(q, gap);
   if (inferred && isUsableTopicLabel(inferred)) return inferred;
 
   return 'Core concepts';
@@ -1811,6 +1932,27 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
     return bySubject;
   }, [analysisQuestions, aiAnalysis, result.subjectWiseScore, displayResult.answers, result.answers]);
 
+  /**
+   * Per subject: 1-based numbers of wrong / unanswered questions that no topic
+   * (tag, AI insight or keyword) could classify — shown as a "Mixed practice"
+   * group so a subject card never ends up with no weak-area guidance.
+   */
+  const unclassifiedMistakesBySubject = useMemo(() => {
+    const out: Record<string, number[]> = {};
+    analysisQuestions.forEach((q, i) => {
+      const ua = getUserAnswerForQuestion(q, i);
+      const attempted = ua !== undefined && ua !== null && ua !== '';
+      if (attempted && compareAnswers(q, ua, q.correctAnswer)) return;
+      const qi = findQuestionInsight(aiAnalysis?.questionInsights, q, i);
+      if (isUsableTopicLabel(resolveQuestionTopicLabel(q, qi))) return;
+      const subj = normalizeSubjectKey(q.subject);
+      const key = ['physics', 'maths', 'chemistry', 'biology'].includes(subj) ? subj : 'maths';
+      if (!out[key]) out[key] = [];
+      out[key].push(i + 1);
+    });
+    return out;
+  }, [analysisQuestions, aiAnalysis, displayResult.answers, result.answers]);
+
   const planTopics = useMemo(
     () => generatePlanTopics(result, aiAnalysis, chapterHeatmap),
     [result, aiAnalysis, chapterHeatmap]
@@ -2307,6 +2449,11 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
         const weakChapters = (chapterHeatmap[subjectKey] || [])
           .filter((c) => c.pct < 70 && isUsableTopicLabel(c.name))
           .slice(0, 4);
+        const untaggedMistakes = unclassifiedMistakesBySubject[subjectKey] || [];
+        const untaggedPreview =
+          untaggedMistakes.length > 0
+            ? `Q${untaggedMistakes.slice(0, 8).join(', Q')}${untaggedMistakes.length > 8 ? ' …' : ''}`
+            : '';
 
         return (
           <Card
@@ -2349,7 +2496,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
                   ) : (
                     <>
                       <p className="font-bold text-red-600 uppercase tracking-wide">Needs improvement</p>
-                      {weakChapters.length > 0 ? (
+                      {weakChapters.length > 0 || untaggedMistakes.length > 0 ? (
                         <ul className="mt-2 space-y-1.5">
                           {weakChapters.map((c) => (
                             <li
@@ -2362,10 +2509,21 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
                               </span>
                             </li>
                           ))}
+                          {untaggedMistakes.length > 0 && (
+                            <li className="rounded-lg bg-white/70 border border-red-100 px-2.5 py-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-medium text-red-800 leading-snug">
+                                  Mixed practice — {untaggedMistakes.length} wrong/unanswered question
+                                  {untaggedMistakes.length === 1 ? '' : 's'}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-red-600 leading-snug">Review {untaggedPreview}</p>
+                            </li>
+                          )}
                         </ul>
                       ) : (
                         <p className="mt-1.5 text-red-700 leading-snug">
-                          Mixed chapter drills needed — chapter tags were missing on this paper, so review wrong answers by topic in the Questions tab.
+                          Review this subject&apos;s questions in the Questions tab and re-attempt the ones you were unsure about.
                         </p>
                       )}
                     </>
