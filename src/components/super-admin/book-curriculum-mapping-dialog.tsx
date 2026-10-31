@@ -12,6 +12,7 @@ import { Check, CheckCircle2, ChevronsUpDown, Loader2, RefreshCw, Search, XCircl
 import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import ExamMathText from "@/components/exam/ExamMathText";
 import { cleanCurriculumLabel, failingGates, mappingBadgeInfo, mappingStatusReason, NOTATION_HIT_LABEL } from "@/lib/book-curriculum-status";
 
 export type SubtopicCoverageStatus = "mapped" | "not_covered_by_source" | "mapping_gap";
@@ -21,6 +22,7 @@ const CHUNK_STATUS_LABEL: Record<string, string> = {
   chapter_general: "Chapter-general",
   exercise_general: "Chapter exercises",
   front_matter: "Front matter (never used)",
+  back_matter: "Back matter / imprint (never used)",
   needs_review: "Waiting for review (not served)",
   mapping_gap: "Teaching text without subtopic",
   rejected: "Excluded",
@@ -628,7 +630,7 @@ export function BookCurriculumMappingDialog({
                               ) : null}
                             </div>
                             {section.preview ? (
-                              <p className="line-clamp-2 break-words text-xs text-slate-500">{section.preview}</p>
+                              <p className="line-clamp-2 break-words text-xs text-slate-500"><ExamMathText text={section.preview} /></p>
                             ) : null}
                           </div>
                           {/* Under the section text below xl: a right-hand column was cut off on laptop screens, so the picker looked missing. */}
@@ -771,7 +773,7 @@ export function BookCurriculumMappingDialog({
                             <span className="text-slate-400">{formatPages(c.pages?.[0], c.pages?.[1])}</span>
                           ) : null}
                         </div>
-                        <p className="mt-1">{c.preview}</p>
+                        <p className="mt-1 break-words">{c.preview ? <ExamMathText text={c.preview} /> : null}</p>
                       </div>
                     ))}
                   </div>

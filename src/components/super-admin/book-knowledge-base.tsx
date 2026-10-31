@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { getAuthToken } from '@/lib/auth-utils';
+import ExamMathText from "@/components/exam/ExamMathText";
 import {
   Dialog,
   DialogContent,
@@ -1295,7 +1296,7 @@ export default function BookKnowledgeBase() {
                 {chunksPreview.map((c) => (
                   <div key={c.chunkIndex} className="rounded border p-2 text-xs text-slate-600">
                     <span className="font-semibold">#{c.chunkIndex} {c.chapter}</span>
-                    <p className="mt-1">{c.contentPreview}</p>
+                    <p className="mt-1 break-words">{c.contentPreview ? <ExamMathText text={c.contentPreview} /> : null}</p>
                   </div>
                 ))}
               </div>

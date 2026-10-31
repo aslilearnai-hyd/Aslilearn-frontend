@@ -108,4 +108,9 @@ export const NOTATION_HIT_LABEL: Record<string, string> = {
   lost_radical: "lost square roots (3 2 for 3√2)",
   broken_root: "empty √ signs",
   doubled_math_letter: "doubled maths letters",
+  digit_soup: "flattened fractions/roots (= 2 3 4 a)",
+  glued_exponent: "lost superscripts (a2 for a²)",
+  figure_label_run: "diagram labels in the text (a a a a)",
+  spaced_variables: "flattened formula letters (P R T × ×)",
+  split_fraction_option: "fractions split over lines in options",
 };
