@@ -113,4 +113,7 @@ export const NOTATION_HIT_LABEL: Record<string, string> = {
   figure_label_run: "diagram labels in the text (a a a a)",
   spaced_variables: "flattened formula letters (P R T × ×)",
   split_fraction_option: "fractions split over lines in options",
+  operator_pair: "lost roots/fractions (× = or + = left behind)",
+  empty_brackets: "lost roots (empty ( ) brackets)",
+  lost_power: "lost powers (58 for 5⁸)",
 };

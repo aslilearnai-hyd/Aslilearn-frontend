@@ -65,6 +65,8 @@ export type CurriculumMappingSummary = {
     samples?: Array<{ sectionKey: string; title?: string; snippet?: string; hits?: Record<string, number> }>;
   } | null;
   subtopicCoverage?: Array<{ aiSubtopicId: string; aiTopicKey: string; status: SubtopicCoverageStatus; manual?: boolean }>;
+  /** Chunks whose maths is still damaged: held back from AI until fixed. */
+  formulaHeldBackChunks?: number;
   mappedAt?: string | null;
 };
 
@@ -105,10 +107,55 @@ type MappedSection = {
   mappingMethod?: string;
 };
 
+type PipelineState = {
+  extractionVersion?: number;
+  indexPipelineVersion?: number;
+  currentExtractionVersion?: number;
+  currentIndexPipelineVersion?: number;
+  needsReindex?: boolean;
+  needsRemap?: boolean;
+};
+
+type EmbeddingHealth = {
+  model?: string;
+  dimension?: number;
+  embedded?: number;
+  total?: number;
+  coverage?: number;
+  hashFallback?: boolean;
+  checkedAt?: string;
+};
+
+type AuditEntry = {
+  action: string;
+  sectionKey?: string;
+  aiSubtopicId?: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  reason?: string;
+  actor?: string;
+  at?: string;
+};
+
 type MappingResponse = {
   mapping: CurriculumMappingSummary;
   curriculum: CurriculumTopic[];
   sections: MappedSection[];
+  pipeline?: PipelineState;
+  embeddingHealth?: EmbeddingHealth | null;
+  formulaOkKeys?: string[];
+  auditLog?: AuditEntry[];
+};
+
+const AUDIT_ACTION_LABEL: Record<string, string> = {
+  map: "Mapped",
+  reject: "Excluded",
+  clear: "Override cleared",
+  formula_ok: "Formulas marked correct",
+  formula_ok_cleared: "Maths flag restored",
+  subtopic_coverage: "Subtopic coverage",
+  remap: "Remap",
+  reindex: "Reindex",
 };
 
 type TestResult = {
@@ -338,7 +385,9 @@ export function BookCurriculumMappingDialog({
           // Exercise blocks are chapter-level by design, not a gap to review, and an
           // admin's "reviewed" chapter-general choice is final (the server serves it
           // as chapter-general), so it leaves the queue.
-          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected" && s.mappingStatus !== "reviewed")),
+          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected" && s.mappingStatus !== "reviewed" &&
+            // "4.1 Introduction" and its sub-sections are chapter-general by rule.
+            s.mappingMethod !== "intro_section" && s.mappingMethod !== "intro_child")),
       ),
     [sections],
   );
@@ -501,6 +550,24 @@ export function BookCurriculumMappingDialog({
               </p>
             ) : null}
 
+            {data.pipeline?.needsReindex || data.pipeline?.needsRemap ? (
+              <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                <strong>Built with older processing rules.</strong>{" "}
+                {data.pipeline.needsReindex ? (
+                  <>
+                    This book's text was read before the latest PDF-reading fixes (maths re-read, bullets, glyphs). Press{" "}
+                    <strong>Reindex</strong> (the <RefreshCw className="inline h-3 w-3 align-[-2px]" aria-label="refresh" /> icon on
+                    the book card) to re-read the PDF; until then chunks keep the old text.
+                  </>
+                ) : (
+                  <>
+                    Chunks were built before the latest mapping/chunking fixes. Press <strong>Remap</strong> below (no need to
+                    re-read the PDF).
+                  </>
+                )}
+              </p>
+            ) : null}
+
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-600">
                 <span>Mapped section text</span>
@@ -566,7 +633,10 @@ export function BookCurriculumMappingDialog({
               sections={sections}
               savingKey={savingKey}
               onExclude={(section) => void saveSection(section, { reject: true })}
+              onFormulaOk={(section) => void saveSection(section, { formulaOk: true })}
             />
+
+            <IndexHealth health={data.embeddingHealth} auditLog={data.auditLog || []} sections={sections} />
 
             <Tabs defaultValue="review">
               <TabsList className="flex h-auto flex-wrap">
@@ -795,11 +865,13 @@ function ReadinessPanel({
   sections,
   savingKey,
   onExclude,
+  onFormulaOk,
 }: {
   mapping: CurriculumMappingSummary;
   sections: MappedSection[];
   savingKey: string | null;
   onExclude: (section: MappedSection) => void;
+  onFormulaOk: (section: MappedSection) => void;
 }) {
   const gates = mapping.gates || [];
   const chunkStatus = mapping.chunkStatus || {};
@@ -861,20 +933,26 @@ function ReadinessPanel({
           <div className="space-y-1 text-xs text-slate-700">
             <p className="font-semibold">Damaged formulas: {qa.samples?.length} section(s) to check</p>
             <p className="text-slate-600">
-              The PDF text of these sections lost maths symbols (for example √ or superscripts), so AI-generated content
-              could quote the formulas wrongly. For each section, choose one:
+              The PDF text of these sections still lost maths symbols (√, powers, fraction bars) after the automatic re-read,
+              so AI content could quote the formulas wrongly.{" "}
+              <strong>
+                Their chunks are held back from the AI
+                {mapping.formulaHeldBackChunks ? ` (${mapping.formulaHeldBackChunks} chunk(s))` : ""} until you decide.
+              </strong>{" "}
+              For each section, choose one:
             </p>
             <ul className="list-disc space-y-0.5 pl-5 text-slate-600">
               <li>
-                <strong>Exclude section</strong>: removes only that section from AI retrieval (generators never see its
-                text; other sections are unaffected). The gate passes once every flagged section is excluded or fixed.
+                <strong>Reindex first</strong> (the <RefreshCw className="inline h-3 w-3 align-[-2px]" aria-label="refresh" /> icon on
+                the book card): maths pages are re-read; most flags clear.
               </li>
               <li>
-                <strong>Fix the source</strong>: re-upload a PDF with selectable maths text, then press{" "}
-                <strong>Reindex</strong> (the <RefreshCw className="inline h-3 w-3 align-[-2px]" aria-label="refresh" /> icon on the
-                book card). The check runs again automatically.
+                <strong>Formulas are correct</strong>: the text below reads right (false alarm). Its chunks are served again.
               </li>
-              <li>If the text below reads fine, it is a false alarm: Reindex re-checks it with the latest detector.</li>
+              <li>
+                <strong>Exclude section</strong>: removes only that section from AI retrieval for good. Or upload a better PDF
+                and Reindex.
+              </li>
             </ul>
           </div>
           {(qa.samples || []).map((sample) => {
@@ -893,22 +971,93 @@ function ReadinessPanel({
                   ) : null}
                 </div>
                 {section ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 shrink-0 px-2 text-xs"
-                    disabled={savingKey != null || section.mappingStatus === "rejected"}
-                    title="Remove this section from AI retrieval (generators will not use its text)"
-                    onClick={() => onExclude(section)}
-                  >
-                    {section.mappingStatus === "rejected" ? "Excluded" : "Exclude section"}
-                  </Button>
+                  <div className="flex shrink-0 flex-col gap-1.5 sm:w-40">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={savingKey != null || section.mappingStatus === "rejected"}
+                      title="The formulas in this text read correctly: clear the flag and serve its chunks again"
+                      onClick={() => onFormulaOk(section)}
+                    >
+                      Formulas are correct
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={savingKey != null || section.mappingStatus === "rejected"}
+                      title="Remove this section from AI retrieval (generators will not use its text)"
+                      onClick={() => onExclude(section)}
+                    >
+                      {section.mappingStatus === "rejected" ? "Excluded" : "Exclude section"}
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             );
           })}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Embedding health of the index and the recent admin decisions (audit trail). */
+function IndexHealth({
+  health,
+  auditLog,
+  sections,
+}: {
+  health?: EmbeddingHealth | null;
+  auditLog: AuditEntry[];
+  sections: MappedSection[];
+}) {
+  if (!health && !auditLog.length) return null;
+  const titleOf = (key?: string) => {
+    const s = key ? sections.find((x) => x.sectionKey === key) : undefined;
+    return s ? cleanCurriculumLabel([s.number, s.title].filter(Boolean).join(" ")) : "";
+  };
+  const describe = (value?: Record<string, unknown> | null) => {
+    if (!value) return "—";
+    if (typeof value.aiSubtopicName === "string" && value.aiSubtopicName) return value.aiSubtopicName;
+    if (value.mappingStatus === "rejected") return "excluded";
+    if ("formulaOk" in value) return value.formulaOk ? "correct" : "flagged";
+    if ("status" in value) return value.status ? String(value.status).replace(/_/g, " ") : "cleared";
+    if (value.aiTopicKey) return "chapter-general";
+    return "unmapped";
+  };
+  const coverage = Math.round((Number(health?.coverage) || 0) * 100);
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+      {health ? (
+        <p>
+          <span className="font-semibold text-slate-800">Search index:</span> {health.embedded ?? 0}/{health.total ?? 0} chunks
+          embedded ({coverage}%) · {health.model || "unknown model"}
+          {health.dimension ? ` · ${health.dimension} dims` : ""}
+          {health.hashFallback ? (
+            <span className="text-amber-700"> · offline fallback vectors — set the embedding API key and Reindex</span>
+          ) : null}
+        </p>
+      ) : null}
+      {auditLog.length ? (
+        <details>
+          <summary className="cursor-pointer font-semibold text-slate-800">Recent changes ({auditLog.length})</summary>
+          <ul className="mt-1.5 space-y-1">
+            {auditLog.map((entry, i) => (
+              <li key={`${entry.at}-${i}`} className="break-words">
+                <span className="text-slate-500">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span> ·{" "}
+                <span className="font-medium text-slate-700">{AUDIT_ACTION_LABEL[entry.action] || entry.action}</span>
+                {titleOf(entry.sectionKey) ? ` · ${titleOf(entry.sectionKey)}` : ""}
+                {entry.before || entry.after ? ` · ${describe(entry.before)} → ${describe(entry.after)}` : ""}
+                {entry.actor ? ` · by ${entry.actor}` : ""}
+                {entry.reason ? ` · “${entry.reason}”` : ""}
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </div>
   );
