@@ -274,7 +274,7 @@ export default function OmrResultsManagement({ variant = 'school-admin' }: OmrRe
   }, [apiPrefix, classFilter, isSuperAdmin, selectedSchoolId]);
 
   const loadSchools = useCallback(async () => {
-    const res = await fetch(`${API_BASE_URL}/api/super-admin/admins`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE_URL}/api/super-admin/admins?lite=1`, { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Failed to load schools');
     const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];

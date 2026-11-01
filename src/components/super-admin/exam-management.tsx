@@ -3464,7 +3464,7 @@ export default function ExamManagement() {
     setIsLoadingSchools(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins?lite=1`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

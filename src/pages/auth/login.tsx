@@ -86,6 +86,33 @@ const Login = () => {
     });
   }, []);
 
+  // Mobile keyboard: Chrome only scrolls a focused field to the keyboard's edge
+  // (the email box ended up half hidden). Centre the focused field whenever it
+  // gains focus or the keyboard resizes the visual viewport.
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let timer = 0;
+    const vv = window.visualViewport;
+    const centreActiveField = () => {
+      // Pad the page by the keyboard height so the field can always scroll clear of it.
+      if (vv) setKeyboardInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 250);
+    };
+    document.addEventListener("focusin", centreActiveField);
+    vv?.addEventListener("resize", centreActiveField);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("focusin", centreActiveField);
+      vv?.removeEventListener("resize", centreActiveField);
+    };
+  }, []);
+
   // Short intro on first visit only (~0.8s); returning users see the form immediately
   useEffect(() => {
     try {
@@ -337,7 +364,10 @@ const Login = () => {
   };
 
   return (
-    <div className="asli-app-bg relative flex !min-h-[100dvh] w-full items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10 2xl:p-12 board:p-16">
+    <div
+      className="asli-app-bg relative flex !min-h-[100dvh] w-full items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10 2xl:p-12 board:p-16"
+      style={keyboardInset > 80 ? { paddingBottom: keyboardInset + 16 } : undefined}
+    >
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#e8f4f6] via-[#d5e8ec] to-[#c5dde3]">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmMWY1ZjkiIGZpbGwtb3BhY2l0eT0iMC40Ij48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>

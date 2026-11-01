@@ -8,7 +8,7 @@ import {
 } from '@/lib/learning-path-admin';
 import { filterContentsBySchoolProgram, filterVideosForLearningPath } from '@/lib/school-program';
 import {
-  displaySubjectName,
+  subjectDisplayLabel,
   isActiveCatalogSubject,
   isSoftDeletedSubjectName,
   subjectCatalogGroupKey,
@@ -119,7 +119,7 @@ async function loadTeacherLearningPathCatalog(
     groupMeta.set(key, {
       representative,
       subjectIds,
-      displayName: displaySubjectName(representative.name || '') || 'Unknown Subject',
+      displayName: subjectDisplayLabel(representative.name || '') || 'Unknown Subject',
     });
     for (const sid of subjectIds) {
       subjectIdToGroupKey.set(sid, key);

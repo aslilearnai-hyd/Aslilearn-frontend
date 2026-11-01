@@ -494,21 +494,42 @@ const PdfMobileScrollViewer = forwardRef<PdfMobileScrollViewerHandle, PdfMobileS
   useEffect(() => {
     const host = scrollRef.current;
     if (!host) return;
-    const update = () => {
+    const measure = () => {
       const width = Math.floor(host.clientWidth);
       const height = Math.floor(host.clientHeight);
+      if (width < 1 || height < 1) return;
       setViewportSize((prev) => {
         if (prev.width === 0 || prev.height === 0) return { width, height };
-        if (Math.abs(prev.width - width) < 48 && Math.abs(prev.height - height) < 48) {
+        // Ignore sub-pixel jitter only. A wide dead zone (was 48px) kept pages
+        // sized for a mid-transition height after entering/leaving fullscreen,
+        // so the page overflowed and was clipped on the right.
+        if (Math.abs(prev.width - width) < 4 && Math.abs(prev.height - height) < 4) {
           return prev;
         }
         return { width, height };
       });
     };
-    update();
+    // Fullscreen / rotation resize the reader in several steps; measure once it settles.
+    let settleTimer = 0;
+    let lateTimer = 0;
+    const update = () => {
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(lateTimer);
+      settleTimer = window.setTimeout(measure, 120);
+      lateTimer = window.setTimeout(measure, 450);
+    };
+    measure();
     const ro = new ResizeObserver(update);
     ro.observe(host);
-    return () => ro.disconnect();
+    document.addEventListener('fullscreenchange', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(lateTimer);
+      ro.disconnect();
+      document.removeEventListener('fullscreenchange', update);
+      window.removeEventListener('orientationchange', update);
+    };
   }, [totalPages, pdf, containerWidth]);
 
   const handleZoomChange = useCallback((pageNum: number, zoomed: boolean, scale = 1) => {

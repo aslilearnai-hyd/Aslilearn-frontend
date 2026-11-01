@@ -138,10 +138,66 @@ export function isActiveCatalogSubject(subject: {
   return true;
 }
 
+/**
+ * Some boards' subject rows use short upper-case codes ("BIO", "MATHS", "PHY/CHE",
+ * "SL HINDI"); show full names without renaming stored rows. Mirrors the backend
+ * utils/subjectDisplayLabel.js.
+ */
+const SUBJECT_CODE_LABELS: Record<string, string> = {
+  bio: 'Biology',
+  biology: 'Biology',
+  math: 'Mathematics',
+  maths: 'Mathematics',
+  mat: 'Mathematics',
+  mathematics: 'Mathematics',
+  phy: 'Physics',
+  physics: 'Physics',
+  che: 'Chemistry',
+  chem: 'Chemistry',
+  chemistry: 'Chemistry',
+  'phy/che': 'Physics / Chemistry',
+  'phy/chem': 'Physics / Chemistry',
+  eng: 'English',
+  english: 'English',
+  sci: 'Science',
+  science: 'Science',
+  sst: 'Social Studies',
+  evs: 'EVS',
+};
+
+const KEEP_UPPER_SUBJECT_WORDS = new Set(['SL', 'TL', 'FL', 'EVS', 'IIT', 'NEET', 'JEE', 'GK', 'IT', 'AI', 'II', 'III']);
+
+function prettySubjectCode(plain: string): string {
+  const key = plain.toLowerCase().replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ');
+  if (SUBJECT_CODE_LABELS[key]) return SUBJECT_CODE_LABELS[key];
+  if (/[A-Z]/.test(plain) && plain === plain.toUpperCase()) {
+    return plain
+      .split(/(\s+|\/)/)
+      .map((part) =>
+        /^[A-Za-z]+$/.test(part)
+          ? KEEP_UPPER_SUBJECT_WORDS.has(part.toUpperCase())
+            ? part.toUpperCase()
+            : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+          : part,
+      )
+      .join('');
+  }
+  return plain;
+}
+
 /** Strip soft-delete suffix and class suffix for display (e.g. Chemistry_10 → Chemistry). */
 export function displaySubjectName(name: string): string {
   const base = String(name || '').split('__deleted__')[0].trim();
   return extractPlainSubjectName(base) || base;
+}
+
+/**
+ * Student/teacher-facing label: displaySubjectName plus short-code expansion
+ * (BIO → Biology). Not for Super Admin edit forms, which must keep the stored name.
+ */
+export function subjectDisplayLabel(name: string): string {
+  const plain = displaySubjectName(name).trim();
+  return plain ? prettySubjectCode(plain) : '';
 }
 
 export function getSubjectClassLabel(subject: {

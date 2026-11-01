@@ -183,7 +183,7 @@ export default function LiveSessions() {
 
   const fetchSchools = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
+      const response = await fetch(`${API_BASE_URL}/api/super-admin/admins?lite=1`, {
         headers: authHeaders(),
       });
       if (response.ok) {

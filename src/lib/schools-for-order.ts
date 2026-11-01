@@ -48,7 +48,7 @@ export function mapAdminRowToSchool(row: AdminSchoolRow): School | null {
 }
 
 export async function fetchSchoolsForOrder(): Promise<School[]> {
-  const res = await fetch(`${API_BASE_URL}/api/super-admin/admins`, {
+  const res = await fetch(`${API_BASE_URL}/api/super-admin/admins?lite=1`, {
     headers: authHeaders(),
   });
 

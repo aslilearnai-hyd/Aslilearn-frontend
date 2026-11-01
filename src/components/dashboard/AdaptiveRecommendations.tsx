@@ -26,6 +26,7 @@ import {
   Target,
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
+import { subjectDisplayLabel } from '@/lib/subject-names';
 import { extractYouTubeId } from '@/lib/eduott-video-utils';
 import { capAdaptiveRecommendationsPerSubject } from '@/utils/adaptive-recommendations-display';
 import PdfPreviewPanel from '@/components/shared/PdfPreviewPanel';
@@ -402,7 +403,7 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
                     {getSubjectIcon(rec.subjectName)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{rec.subjectName}</h3>
+                    <h3 className="font-semibold text-gray-900 truncate">{subjectDisplayLabel(rec.subjectName) || rec.subjectName}</h3>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
                       <span>Exam score {Math.round(examScore)}%</span>
                       <span aria-hidden className="text-gray-300">
