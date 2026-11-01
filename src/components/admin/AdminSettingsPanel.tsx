@@ -212,17 +212,18 @@ export default function AdminSettingsPanel() {
         <form onSubmit={changePassword} className="grid gap-4 sm:grid-cols-3">
           {(
             [
-              ['currentPassword', 'Current password'],
-              ['newPassword', 'New password (8+ characters)'],
-              ['confirmPassword', 'Confirm new password'],
+              ['currentPassword', 'Current password', ''],
+              ['newPassword', 'New password', 'At least 8 characters'],
+              ['confirmPassword', 'Confirm new password', ''],
             ] as const
-          ).map(([key, label]) => (
+          ).map(([key, label, placeholder]) => (
             <div key={key} className="space-y-1.5">
-              <Label htmlFor={`admin-${key}`}>{label}</Label>
+              <Label htmlFor={`admin-${key}`} className="block truncate">{label}</Label>
               <Input
                 id={`admin-${key}`}
                 type={passwordType}
                 autoComplete={key === 'currentPassword' ? 'current-password' : 'new-password'}
+                placeholder={placeholder || undefined}
                 value={passwords[key]}
                 onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })}
               />
