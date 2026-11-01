@@ -53,6 +53,8 @@ export function SubtopicRecordsSection({
         subtopic: x.subtopic,
         content: x.content,
         createdAt: x.createdAt,
+        // Lets the PDF show the same six-section view as the screen.
+        record: x as unknown as Record<string, unknown>,
       }));
       if (!recs.length) {
         toast({

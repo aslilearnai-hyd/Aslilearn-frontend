@@ -63,8 +63,50 @@ async function fetchPdfFromUrl(url: string): Promise<{ blob: Blob; filename: str
   return { blob, filename };
 }
 
+async function downloadScreenMatchedPdf(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/super-admin/ai-tool-generations/document/${id}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return false;
+    const json = (await res.json().catch(() => null)) as { data?: Record<string, unknown> } | null;
+    const record = json?.data;
+    if (!record || typeof record !== "object") return false;
+    const [{ mapRecordToScreenSixSection }, { downloadGenerationsPdf }] = await Promise.all([
+      import("@/components/super-admin/generator-record-viewer"),
+      import("@/components/super-admin/ai-tool-generations/pdf-utils"),
+    ]);
+    if (!mapRecordToScreenSixSection(record)) return false;
+    const text = (k: string) => (record[k] == null ? undefined : String(record[k]));
+    const title = [text("toolDisplayName") || text("toolName") || "AI Content", text("classLabel"), text("subject"), text("topic"), text("subtopic")]
+      .filter(Boolean)
+      .join("_");
+    await downloadGenerationsPdf(title, [
+      {
+        toolDisplayName: text("toolDisplayName"),
+        toolName: text("toolName"),
+        classLabel: text("classLabel"),
+        subject: text("subject"),
+        topic: text("topic"),
+        subtopic: text("subtopic"),
+        content: text("content"),
+        createdAt: text("createdAt"),
+        record,
+      },
+    ]);
+    return true;
+  } catch (error) {
+    console.warn("Screen-matched PDF failed; using the server PDF.", error);
+    return false;
+  }
+}
+
 /** Download a single AI tool generation record as a named PDF. */
 export async function openAiToolRecordPdf(id: string): Promise<void> {
+  // Records shown in the six-section view get a PDF of that same view (same
+  // sections, numbering and maths). The server PDF walks the raw saved JSON,
+  // so it only serves plain-text records or when the screen view can't map.
+  if (await downloadScreenMatchedPdf(id)) return;
   const urls = [
     `${API_BASE_URL}/api/super-admin/ai-tool-generations/document/${id}/pdf`,
     `${API_BASE_URL}/api/ai-generator/pdf/${id}`,

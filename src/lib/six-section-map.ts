@@ -2,6 +2,7 @@ import { reconcileInstructionCounts } from '@/lib/reconcile-instructions';
 import { FileText, Target, Users, KeyRound, GraduationCap, Globe } from 'lucide-react';
 import { resolveWorksheetFromPayload } from '@/lib/parse-worksheet-mcq';
 import { resolveLessonsFromPayload } from '@/lib/parse-lesson-planner';
+import { normalizeQuestionNumbering } from '@/lib/question-numbering';
 import type { ContentBlock, SixSection, SixSectionViewerProps } from '@/components/ai-v2/six-section-viewer';
 
 /**
@@ -157,30 +158,38 @@ function questionsCore(core: Dict, toolSlug = ''): ContentBlock[] {
     const qs = arr(core[key]);
     if (!qs.length) continue;
     blocks.push({ kind: 'titleLine', text: title });
-    const matches = qs.filter((q) => Array.isArray(q.matchPairs) && q.matchPairs.length >= 2);
-    if (matches.length) {
-      blocks.push({
-        kind: 'mcq',
-        questions: matches.map((q) => ({
-          n: String(++n),
-          stem: str(q.question),
-          marks: marks(q.marks),
-          imageUrl: str(q.imageUrl || q.image_url || q.questionImage) || undefined,
-          matchPairs: q.matchPairs as { left: string; right: string; leftKey?: string; rightKey?: string }[],
-          options: [],
-        })),
-      });
+    // Keep the saved order: matching questions used to be pulled ahead of the
+    // rest of their section, so displayed numbers drifted from the answer key.
+    const isMatch = (q: Dict) => Array.isArray(q.matchPairs) && q.matchPairs.length >= 2;
+    for (let start = 0; start < qs.length; ) {
+      let end = start;
+      while (end < qs.length && isMatch(qs[end]) === isMatch(qs[start])) end += 1;
+      const run = qs.slice(start, end);
+      if (isMatch(qs[start])) {
+        blocks.push({
+          kind: 'mcq',
+          questions: run.map((q) => ({
+            n: String(++n),
+            stem: str(q.question),
+            marks: marks(q.marks),
+            imageUrl: str(q.imageUrl || q.image_url || q.questionImage) || undefined,
+            matchPairs: q.matchPairs as { left: string; right: string; leftKey?: string; rightKey?: string }[],
+            options: [],
+          })),
+        });
+      } else {
+        blocks.push({
+          kind: 'shortAnswer',
+          questions: run.map((q) => ({
+            n: String(++n),
+            stem: str(q.question),
+            marks: marks(q.marks),
+            imageUrl: str(q.imageUrl || q.image_url || q.questionImage) || undefined,
+          })),
+        });
+      }
+      start = end;
     }
-    const regular = qs.filter((q) => !(Array.isArray(q.matchPairs) && q.matchPairs.length >= 2));
-    if (regular.length) blocks.push({
-      kind: 'shortAnswer',
-      questions: regular.map((q) => ({
-        n: String(++n),
-        stem: str(q.question),
-        marks: marks(q.marks),
-        imageUrl: str(q.imageUrl || q.image_url || q.questionImage) || undefined,
-      })),
-    });
   }
   return blocks;
 }
@@ -525,7 +534,15 @@ export function mapRecordToSixSectionViewer(
   if (!v2Like) return null;
 
   const props = mapV2ToViewer(toolSlug, v2Like, meta);
-  const sections = props.sections.filter(sectionHasContent);
+  // Screen and PDF both come through here, so they show the same numbers.
+  const core = ((v2Like as Dict).core ?? {}) as Dict;
+  const sectionStarts: Record<string, number> = {};
+  let next = 1;
+  for (const key of QUESTION_SECTION_KEYS) {
+    sectionStarts[key.charAt(7)] = next;
+    next += arr(core[key]).length;
+  }
+  const sections = normalizeQuestionNumbering(props.sections.filter(sectionHasContent), sectionStarts);
   if (!sections.length) return null;
   return { ...props, sections };
 }

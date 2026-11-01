@@ -2,6 +2,9 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { renderMarkdown } from "@/lib/render-teacher-markdown";
 import { formatClassroomScienceText } from "@/lib/exam-text-normalize";
+import { mathToReadableText } from "@/lib/math-segments";
+import { sixSectionToPrintSections } from "@/lib/six-section-print";
+import { mapRecordToScreenSixSection } from "@/components/super-admin/generator-record-viewer";
 import "katex/dist/katex.min.css";
 
 export type PdfRecord = {
@@ -13,7 +16,25 @@ export type PdfRecord = {
   subtopic?: string;
   content?: string;
   createdAt?: string;
+  /** Full saved record; when it maps to the six-section view the PDF shows exactly that view. */
+  record?: Record<string, unknown>;
 };
+
+/** Print sections matching the on-screen six-section view, or null for plain-text records. */
+function screenPrintSections(rec: PdfRecord, plainMath = false): string[] | null {
+  if (!rec.record) return null;
+  try {
+    const mapped = mapRecordToScreenSixSection(rec.record);
+    if (!mapped) return null;
+    const sections = sixSectionToPrintSections(mapped, {
+      normalize: (t) => formatClassroomScienceText(t, rec.subject),
+      plainMath,
+    });
+    return sections.length ? sections : null;
+  } catch {
+    return null;
+  }
+}
 
 const PROSE_CLASSES =
   "prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-img:rounded-lg prose-img:shadow-md prose-table:w-full prose-table:border-collapse prose-th:border prose-th:border-gray-300 prose-th:bg-gray-50 prose-th:p-2 prose-td:border prose-td:border-gray-300 prose-td:p-2";
@@ -40,9 +61,27 @@ function addMetaRow(container: HTMLElement, label: string, value: string) {
 function stripToPlainText(value: string) {
   return String(value || "")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
     .replace(/[#*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// jsPDF's built-in Helvetica only has Latin-1; spell out the other maths symbols.
+const PLAIN_PDF_SWAPS: Record<string, string> = {
+  "√": "sqrt", "∛": "cbrt", "π": "pi", "θ": "theta", "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "Δ": "Delta",
+  "λ": "lambda", "σ": "sigma", "Σ": "Sum", "ω": "omega", "Ω": "Ohm", "φ": "phi", "ρ": "rho", "ε": "epsilon",
+  "≤": "<=", "≥": ">=", "≠": "!=", "≈": "~", "≡": "==", "∞": "infinity", "→": "->", "←": "<-", "⇒": "=>", "↔": "<->",
+  "∠": "angle ", "△": "triangle ", "∥": "||", "⊥": "perp", "∴": "therefore", "∵": "because", "∓": "-/+", "∝": "prop. to", "∫": "integral",
+  "⁰": "^0", "⁴": "^4", "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9", "⁺": "^+", "⁻": "^-", "ⁿ": "^n",
+  "–": "-", "—": "-", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "...", "•": "*",
+};
+
+function latin1PdfText(value: string) {
+  return value.replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, (ch) => PLAIN_PDF_SWAPS[ch] ?? "");
 }
 
 /**
@@ -99,7 +138,14 @@ function addCanvasToPdf(
   }
 }
 
-function buildRecordWrapper(title: string | null, rec: PdfRecord, idx: number) {
+function buildRecordWrapper(
+  title: string | null,
+  rec: PdfRecord,
+  idx: number,
+  /** Six-section print HTML for this page chunk; omitted for plain-text records. */
+  bodyHtml?: string,
+  withHeader = true,
+) {
   const wrapper = document.createElement("div");
   wrapper.style.boxSizing = "border-box";
   wrapper.style.width = "210mm";
@@ -126,6 +172,14 @@ function buildRecordWrapper(title: string | null, rec: PdfRecord, idx: number) {
   const section = document.createElement("section");
   section.className = "mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm";
 
+  if (!withHeader && bodyHtml !== undefined) {
+    const body = document.createElement("div");
+    body.innerHTML = bodyHtml;
+    section.appendChild(body);
+    wrapper.appendChild(section);
+    return wrapper;
+  }
+
   const genLabel = document.createElement("div");
   genLabel.className = "text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4";
   genLabel.textContent = `Generation ${idx + 1}`;
@@ -146,13 +200,17 @@ function buildRecordWrapper(title: string | null, rec: PdfRecord, idx: number) {
   section.appendChild(meta);
 
   const body = document.createElement("div");
-  body.className = PROSE_CLASSES;
-  try {
-    body.innerHTML = renderMarkdown(
-      formatClassroomScienceText(rec.content || "(no content)", rec.subject),
-    );
-  } catch {
-    body.textContent = rec.content || "(no content)";
+  if (bodyHtml !== undefined) {
+    body.innerHTML = bodyHtml;
+  } else {
+    body.className = PROSE_CLASSES;
+    try {
+      body.innerHTML = renderMarkdown(
+        formatClassroomScienceText(rec.content || "(no content)", rec.subject),
+      );
+    } catch {
+      body.textContent = rec.content || "(no content)";
+    }
   }
   section.appendChild(body);
   wrapper.appendChild(section);
@@ -168,7 +226,9 @@ async function rasterizeWrapper(wrapper: HTMLElement, scale: number) {
     return await html2canvas(wrapper, {
       scale,
       useCORS: true,
-      allowTaint: true,
+      // A figure served without CORS used to taint the canvas, which made the
+      // whole record fall back to plain text; now only that image is skipped.
+      allowTaint: false,
       backgroundColor: "#ffffff",
       logging: false,
       foreignObjectRendering: false,
@@ -185,7 +245,7 @@ function addPlainTextRecord(pdf: jsPDF, rec: PdfRecord, idx: number, startNewPag
   let y = 48;
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(13);
-  pdf.text(`Generation ${idx + 1}: ${rec.toolDisplayName || rec.toolName || "AI Tool"}`, 40, y, {
+  pdf.text(latin1PdfText(`Generation ${idx + 1}: ${rec.toolDisplayName || rec.toolName || "AI Tool"}`), 40, y, {
     maxWidth: pageW - 80,
   });
   y += 22;
@@ -198,11 +258,14 @@ function addPlainTextRecord(pdf: jsPDF, rec: PdfRecord, idx: number, startNewPag
     `Subtopic: ${rec.subtopic || "—"}`,
   ];
   for (const line of meta) {
-    pdf.text(line, 40, y);
+    pdf.text(latin1PdfText(line), 40, y);
     y += 14;
   }
   y += 8;
-  const body = stripToPlainText(rec.content || "(no content)") || "(no content)";
+  // Same sections as the screen when available; maths as readable text, never raw "$\frac".
+  const sections = screenPrintSections(rec, true);
+  const source = sections ? sections.join(" \n ") : mathToReadableText(rec.content || "");
+  const body = latin1PdfText(stripToPlainText(source)) || "(no content)";
   const lines = pdf.splitTextToSize(body, pageW - 80) as string[];
   for (const line of lines) {
     if (y > pageH - 40) {
@@ -228,22 +291,44 @@ export async function downloadGenerationsPdf(title: string, records: PdfRecord[]
   const list = records.length ? records : [{ content: "No records in this export." }];
   let usedPage = false;
 
+  const fits = (canvas: HTMLCanvasElement) =>
+    canvas.width <= MAX_CANVAS_EDGE && canvas.height <= MAX_CANVAS_EDGE * 4;
+
   for (let i = 0; i < list.length; i++) {
     const rec = list[i];
+    const sections = screenPrintSections(rec);
     let rendered = false;
     for (const scale of [1.5, 1]) {
       try {
-        const wrapper = buildRecordWrapper(i === 0 ? title : null, rec, i);
+        const wrapper = buildRecordWrapper(i === 0 ? title : null, rec, i, sections?.join(""));
         const canvas = await rasterizeWrapper(wrapper, scale);
-        if (canvas.width > MAX_CANVAS_EDGE || canvas.height > MAX_CANVAS_EDGE * 4) {
-          continue;
-        }
+        if (!fits(canvas)) continue;
         addCanvasToPdf(pdf, canvas, PDF_MARGIN, "JPEG", 0.92, usedPage);
         usedPage = true;
         rendered = true;
         break;
       } catch (err) {
         console.warn("Styled PDF rasterize failed; trying next strategy.", err);
+      }
+    }
+    // A long six-section record is too tall for one canvas: page it section by
+    // section instead of dropping to the text-only layout.
+    if (!rendered && sections && sections.length > 1) {
+      try {
+        const canvases: HTMLCanvasElement[] = [];
+        for (let s = 0; s < sections.length; s++) {
+          const wrapper = buildRecordWrapper(i === 0 && s === 0 ? title : null, rec, i, sections[s], s === 0);
+          const canvas = await rasterizeWrapper(wrapper, 1);
+          if (!fits(canvas)) throw new Error("Section too tall for one canvas");
+          canvases.push(canvas);
+        }
+        for (const canvas of canvases) {
+          addCanvasToPdf(pdf, canvas, PDF_MARGIN, "JPEG", 0.92, usedPage);
+          usedPage = true;
+        }
+        rendered = true;
+      } catch (err) {
+        console.warn("Section-by-section PDF failed; using text layout.", err);
       }
     }
     if (!rendered) {

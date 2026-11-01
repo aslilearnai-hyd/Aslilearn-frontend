@@ -2,10 +2,9 @@ import { Fragment } from 'react';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+import { splitMathSegments } from '@/lib/math-segments';
 
 type Props = { text: string; className?: string };
-
-const MATH_SEGMENTS = /(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/g;
 
 const MATH_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'lim', 'max', 'min', 'exp', 'det', 'gcd', 'deg', 'arg', 'mod']);
 const SHORT_WORDS = new Set(['of', 'is', 'at', 'in', 'on', 'to', 'be', 'by', 'an', 'as', 'if', 'or', 'so', 'it', 'we']);
@@ -33,18 +32,12 @@ export default function ExamMathText({ text, className }: Props) {
   // already normalises that text, but this shared renderer previously did not,
   // so the same saved question rendered differently depending on its viewer.
   const displayText = formatClassroomScienceText(text);
-  const parts = displayText.split(MATH_SEGMENTS).filter(Boolean);
+  const parts = splitMathSegments(displayText);
   return (
     <span className={className} data-no-title-case>
       {parts.map((part, index) => {
-        const dollarMath = part.startsWith('$') && part.endsWith('$');
-        const parenMath = part.startsWith('\\(') && part.endsWith('\\)');
-        const bracketMath = part.startsWith('\\[') && part.endsWith('\\]');
-        if (!dollarMath && !parenMath && !bracketMath) return <Fragment key={index}>{part}</Fragment>;
-        const expression = dollarMath
-          ? part.replace(/^\$\$?/, '').replace(/\$\$?$/, '')
-          : part.slice(2, -2);
-        return <InlineMath key={index} math={keepWordsSpacedInMath(expression)} renderError={() => <>{expression}</>} />;
+        if (!part.math) return <Fragment key={index}>{part.value}</Fragment>;
+        return <InlineMath key={index} math={keepWordsSpacedInMath(part.value)} renderError={() => <>{part.value}</>} />;
       })}
     </span>
   );

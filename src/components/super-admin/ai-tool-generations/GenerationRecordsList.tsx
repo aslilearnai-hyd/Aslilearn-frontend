@@ -282,6 +282,7 @@ export function GenerationRecordsList({
               subtopic: full.data?.subtopic || row.subtopic,
               content: body,
               createdAt: full.data?.createdAt || row.createdAt,
+              record: buildViewRecord(row, full.data as Record<string, unknown>, null, defaultToolName),
             },
           ],
         );

@@ -28,6 +28,12 @@ function recordMeta(record: Record<string, unknown>, slug: string) {
   };
 }
 
+/** The six-section view the admin screen shows for a record (also used for its PDF). */
+export function mapRecordToScreenSixSection(record: Record<string, unknown>) {
+  const slug = normalizeAiToolSlug(record.toolSlug || record.toolName);
+  return mapRecordToSixSectionViewer(slug, record, recordMeta(record, slug));
+}
+
 export function resolveViewerForRecord(
   record: Record<string, unknown>,
   slug: string,

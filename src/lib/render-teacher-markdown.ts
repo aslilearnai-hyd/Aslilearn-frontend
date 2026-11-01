@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import { stripMarkdownSyntax } from '@/lib/strip-markdown-syntax';
 import { sanitizeAiHtml } from '@/lib/sanitize-ai-html';
 import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+import { splitMathSegments } from '@/lib/math-segments';
 
 /** Inline Markdown for table cells and line renderer (math only — no bold/italic markers). */
 export function formatInlineMarkdown(t: string): string {
@@ -12,34 +13,19 @@ export function formatInlineMarkdown(t: string): string {
     return t;
   }
 
-  let formatted = stripMarkdownSyntax(formatClassroomScienceText(t))
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  formatted = formatted.replace(/(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g, (match, mathContent) => {
-    try {
-      const cleanedMath = mathContent.trim().replace(/\\\\/g, '\\');
-      const rendered = katex.renderToString(cleanedMath, {
-        displayMode: false,
-        throwOnError: false,
-      });
-      return rendered;
-    } catch {
-      return `<span class="text-red-600 text-sm">Math Error: ${mathContent}</span>`;
-    }
-  });
-
-  formatted = formatted.replace(/\\sqrt\{([^}]+)\}/g, (match, inner) => {
-    try {
-      return katex.renderToString(`\\sqrt{${inner}}`, {
-        displayMode: false,
-        throwOnError: false,
-      });
-    } catch {
-      return match;
-    }
-  });
+  const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Same splitter as the on-screen viewer: $…$, \(…\), bare \frac / \sqrt, and
+  // no stray "$" left behind (BUG-02).
+  let formatted = splitMathSegments(stripMarkdownSyntax(formatClassroomScienceText(t)))
+    .map((part) => {
+      if (!part.math) return escapeHtml(part.value);
+      try {
+        return katex.renderToString(part.value.replace(/\\\\/g, '\\'), { displayMode: false, throwOnError: false });
+      } catch {
+        return escapeHtml(part.value);
+      }
+    })
+    .join('');
 
   formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-2 text-sm font-mono"><code>$1</code></pre>');
 
