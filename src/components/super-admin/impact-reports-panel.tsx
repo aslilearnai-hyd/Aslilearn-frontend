@@ -232,7 +232,7 @@ export function ImpactReportsPanel() {
   }, [mode, fromDate, toDate, weekStart]);
 
   const load = useCallback(
-    async (build = false) => {
+    async (build = false): Promise<SchoolSnap[]> => {
       setLoading(true);
       try {
         const params = new URLSearchParams(periodQuery);
@@ -258,7 +258,9 @@ export function ImpactReportsPanel() {
         if (json.data?.weekStart && mode === "weekly") {
           setWeekStart(toInputDate(new Date(json.data.weekStart)));
         }
-        setSchools(Array.isArray(json.data?.schools) ? json.data.schools : []);
+        const list: SchoolSnap[] = Array.isArray(json.data?.schools) ? json.data.schools : [];
+        setSchools(list);
+        return list;
       } catch (e: unknown) {
         toast({
           title: "Impact reports",
@@ -268,6 +270,7 @@ export function ImpactReportsPanel() {
       } finally {
         setLoading(false);
       }
+      return [];
     },
     [toast, periodQuery, mode],
   );
@@ -484,9 +487,12 @@ export function ImpactReportsPanel() {
                   type="button"
                   size="sm"
                   className="w-full sm:col-span-2 lg:col-span-1 lg:w-auto"
-                  onClick={() => void load(true).then(() => {
-                    // The open school report must follow the new range (it kept the old dates).
-                    if (selected) void openSchoolDetail(selected);
+                  onClick={() => void load(true).then((list) => {
+                    // The open school report must follow the new range: reopen it from the
+                    // reloaded list, not the old snapshot (it kept the previous dates/counts).
+                    if (!selected) return;
+                    const fresh = list.find((sc) => sc.adminId === selected.adminId);
+                    void openSchoolDetail(fresh ?? { ...selected, periodLabel: undefined });
                   })}
                   disabled={loading}
                 >
@@ -512,7 +518,7 @@ export function ImpactReportsPanel() {
                   {selected.schoolName}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  {selected.periodLabel || periodLabel} · student-wise{" "}
+                  {periodLabel || selected.periodLabel} · student-wise{" "}
                   {mode === "custom" ? "day/range" : "weekly"} report
                 </p>
               </div>
