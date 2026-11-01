@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/lib/api-config';
-import { getAuthToken } from '@/lib/auth-utils';
+import { getAuthToken, getUser } from '@/lib/auth-utils';
 import {
   endSession,
   getLocalIsoDateKey,
@@ -40,7 +40,8 @@ async function persistStudentSessionTime(): Promise<void> {
 }
 
 export function startStudentPlatformSessionSync(): () => void {
-  if (!getAuthToken()) return () => {};
+  // /profile and /ai-tools render StudentShell for every role; only students post time here.
+  if (!getAuthToken() || String(getUser()?.role || '').toLowerCase() !== 'student') return () => {};
   startSession();
   void persistStudentSessionTime();
 

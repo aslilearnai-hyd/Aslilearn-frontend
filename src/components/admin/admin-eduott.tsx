@@ -558,7 +558,7 @@ export default function AdminEduOTT() {
                           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 pb-2">
                             <div className="min-w-0">
                               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700">
-                                IIT subject
+                                {group.videos.some((v) => String(v.productCategory || '').trim()) ? 'IIT subject' : 'Subject'}
                               </p>
                               <h4 className="text-base sm:text-lg font-bold text-gray-900">{group.subjectLabel}</h4>
                               <p className="text-xs sm:text-sm text-gray-500">

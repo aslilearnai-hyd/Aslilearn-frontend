@@ -69,5 +69,5 @@ export function clearSuperAdminDashboardQueryFromUrl() {
   const path = window.location.pathname;
   if (!isSuperAdminDashboardPath(path)) return;
   if (!window.location.search) return;
-  window.history.replaceState({}, "", path);
+  window.history.replaceState(window.history.state, "", path + window.location.hash);
 }
