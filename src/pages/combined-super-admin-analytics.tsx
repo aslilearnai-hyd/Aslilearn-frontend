@@ -5,9 +5,10 @@ import DetailedAIAnalyticsDashboard from './detailed-ai-analytics';
 import ImpactReportsPanel from '@/components/super-admin/impact-reports-panel';
 import AuditLogsPanel from '@/components/super-admin/audit-logs-panel';
 import StudentDetailsPanel from '@/components/super-admin/student-details-panel';
-import { BarChart3, BrainCircuit, FileBarChart, ScrollText, Users } from 'lucide-react';
+import UsageAnalysisPanel from '@/components/super-admin/usage-analysis-panel';
+import { BarChart3, BrainCircuit, FileBarChart, ScrollText, UserRound, Users } from 'lucide-react';
 
-export type AnalyticsMainTab = 'overview' | 'students' | 'impact' | 'audit' | 'ai';
+export type AnalyticsMainTab = 'overview' | 'students' | 'individuals' | 'impact' | 'audit' | 'ai';
 
 type Props = {
   /** Open a specific Analytics sub-tab (from legacy sidebar deep links). */
@@ -19,6 +20,7 @@ function tabFromLegacyView(view?: string): AnalyticsMainTab {
   if (view === 'audit-logs' || view === 'audit') return 'audit';
   if (view === 'ai-analytics' || view === 'ai') return 'ai';
   if (view === 'student-details' || view === 'students') return 'students';
+  if (view === 'individuals') return 'individuals';
   return 'overview';
 }
 
@@ -57,7 +59,7 @@ export default function CombinedSuperAdminAnalytics({ initialTab }: Props) {
         onValueChange={(v) => setMainTab(v as AnalyticsMainTab)}
         className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <TabsList className="sticky top-0 z-10 grid h-auto w-full max-w-4xl shrink-0 grid-cols-3 gap-1 bg-gray-50/95 py-1 backdrop-blur sm:grid-cols-5">
+        <TabsList className="sticky top-0 z-10 grid h-auto w-full max-w-4xl shrink-0 grid-cols-3 gap-1 bg-gray-50/95 py-1 backdrop-blur sm:grid-cols-6">
           <TabsTrigger value="overview" className="gap-2 py-2.5">
             <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
             Overview
@@ -65,6 +67,10 @@ export default function CombinedSuperAdminAnalytics({ initialTab }: Props) {
           <TabsTrigger value="students" className="gap-2 py-2.5">
             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             Students
+          </TabsTrigger>
+          <TabsTrigger value="individuals" className="gap-2 py-2.5">
+            <UserRound className="h-3 w-3 sm:h-4 sm:w-4" />
+            Individuals
           </TabsTrigger>
           <TabsTrigger value="impact" className="gap-2 py-2.5">
             <FileBarChart className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -87,6 +93,10 @@ export default function CombinedSuperAdminAnalytics({ initialTab }: Props) {
 
         <TabsContent value="students" className="mt-6 focus-visible:outline-none">
           <StudentDetailsPanel />
+        </TabsContent>
+
+        <TabsContent value="individuals" className="mt-6 focus-visible:outline-none">
+          <UsageAnalysisPanel scope="individual" />
         </TabsContent>
 
         <TabsContent value="impact" className="mt-6 focus-visible:outline-none">

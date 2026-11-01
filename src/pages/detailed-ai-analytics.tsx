@@ -1,3 +1,4 @@
+import UsageAnalysisPanel from '@/components/super-admin/usage-analysis-panel';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -279,7 +280,9 @@ export default function DetailedAIAnalyticsDashboard({
     setIsLoading(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/api/ai/detailed-analytics`, {
+      // One school: the backend scopes the analysis (all schools took over a minute).
+      const scopeQuery = singleAdminId ? `?adminId=${encodeURIComponent(singleAdminId)}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/ai/detailed-analytics${scopeQuery}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -315,8 +318,11 @@ export default function DetailedAIAnalyticsDashboard({
 
   useEffect(() => {
     fetchAdmins();
-    fetchDetailedAnalytics();
   }, []);
+
+  useEffect(() => {
+    fetchDetailedAnalytics();
+  }, [singleAdminId]);
 
   const fetchAdmins = async () => {
     try {
@@ -466,6 +472,33 @@ export default function DetailedAIAnalyticsDashboard({
 
   const filteredAnalytics = getFilteredAnalytics();
 
+  const schoolUsage = singleAdminId ? (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base sm:text-lg">Platform usage — who is using it and how</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <UsageAnalysisPanel scope="school" adminId={singleAdminId} />
+      </CardContent>
+    </Card>
+  ) : null;
+
+  if (isLoading && singleAdminId) {
+    return (
+      <div className="space-y-4">
+        {onClearSchoolFocus && (
+          <Button type="button" variant="outline" size="sm" onClick={onClearSchoolFocus}>
+            Back to all schools
+          </Button>
+        )}
+        {schoolUsage}
+        <p className="flex items-center gap-2 text-sm text-slate-500">
+          <CpuIcon className="h-4 w-4 animate-spin text-purple-600" /> Loading exam analytics for this school…
+        </p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -598,6 +631,8 @@ export default function DetailedAIAnalyticsDashboard({
           </CardContent>
         </Card>
       )}
+
+      {schoolUsage}
 
       {singleAdminId && filteredAnalytics && filteredAnalytics.adminAnalytics.length === 0 && (
         <Card className="border-amber-200 bg-amber-50">
@@ -1030,7 +1065,8 @@ export default function DetailedAIAnalyticsDashboard({
       </Tabs>
 
       {/* AI Insights */}
-      {filteredAnalytics?.aiInsights && filteredAnalytics.aiInsights.length > 0 && (
+      {/* School detail view: the platform-wide low-performance alerts are not useful here. */}
+      {!singleAdminId && filteredAnalytics?.aiInsights && filteredAnalytics.aiInsights.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">

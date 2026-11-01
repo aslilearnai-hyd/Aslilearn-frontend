@@ -484,7 +484,10 @@ export function ImpactReportsPanel() {
                   type="button"
                   size="sm"
                   className="w-full sm:col-span-2 lg:col-span-1 lg:w-auto"
-                  onClick={() => void load(true)}
+                  onClick={() => void load(true).then(() => {
+                    // The open school report must follow the new range (it kept the old dates).
+                    if (selected) void openSchoolDetail(selected);
+                  })}
                   disabled={loading}
                 >
                   Apply range
@@ -553,13 +556,32 @@ export function ImpactReportsPanel() {
 
             {dayBreakdown.length ? (
               <div>
-                <p className="text-xs font-semibold uppercase text-slate-500 mb-1">Day-wise activity</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {dayBreakdown.map((d) => (
-                    <Badge key={String(d.date)} variant="secondary">
-                      {d.date}: {d.sessions} sess · {d.students} students
-                    </Badge>
-                  ))}
+                <p className="text-xs font-semibold uppercase text-slate-500 mb-1">
+                  Day-wise activity ({dayBreakdown.filter((d) => (d.sessions || 0) > 0).length} of {dayBreakdown.length} days active)
+                </p>
+                <div className="max-h-72 overflow-y-auto rounded-md border border-slate-200 bg-white">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium">Date</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Students</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Sessions</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dayBreakdown.map((d) => (
+                        <tr key={String(d.date)} className={`border-t border-slate-100 ${d.sessions ? "text-slate-800" : "text-slate-400"}`}>
+                          <td className="px-2 py-1.5">
+                            {new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">{d.students}</td>
+                          <td className="px-2 py-1.5 text-right">{d.sessions}</td>
+                          <td className="px-2 py-1.5 text-right">{d.minutes ? `${d.minutes} min` : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             ) : null}
