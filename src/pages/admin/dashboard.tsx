@@ -180,7 +180,8 @@ const AdminDashboard = () => {
 
   const selectTab = useCallback((tab: string) => {
     setActiveTab(tab);
-    setLocation(`/admin/dashboard?tab=${tab}`, { replace: true });
+    // Push (not replace) so browser Back returns to the previous tab instead of sign-in.
+    setLocation(`/admin/dashboard?tab=${tab}`);
   }, [setLocation]);
 
   // Memoize sliced arrays to avoid recalculating on every render

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect, useMemo, type FormEvent } from "react";
+import { Suspense, lazy, useState, useEffect, useMemo, useRef, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import SuperAdminSidebar from "@/components/dashboard/SuperAdminSidebar";
 import type { SuperAdminView } from "@/lib/super-admin-views";
@@ -34,6 +34,7 @@ import {
   consumeSuperAdminViewRestore,
   persistSuperAdminView,
   readPersistedSuperAdminView,
+  readSuperAdminViewFromHash,
 } from "@/lib/super-admin-nav";
 import { VidyaAnalyticsCard } from "@/components/super-admin/VidyaAnalyticsCard";
 import { Input } from "@/components/ui/input";
@@ -220,9 +221,19 @@ export default function SuperAdminDashboard() {
     }
   }, []);
 
+  // First sync replaces the entry; later view changes push so browser Back returns
+  // to the previous super-admin page instead of the sign-in page.
+  const viewHistorySyncedRef = useRef(false);
   useEffect(() => {
-    persistSuperAdminView(currentView);
+    persistSuperAdminView(currentView, viewHistorySyncedRef.current ? "push" : "replace");
+    viewHistorySyncedRef.current = true;
   }, [currentView]);
+
+  useEffect(() => {
+    const onPop = () => setCurrentView(readSuperAdminViewFromHash());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const handleViewChange = (view: SuperAdminView) => {
     setCurrentView(view);

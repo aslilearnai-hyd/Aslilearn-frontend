@@ -352,8 +352,8 @@ const TeacherDashboard = () => {
     if (tab === 'vidya-ai') {
       localStorage.removeItem('teacherDashboardTab');
     }
-    // Replace so browser Back does not walk through every sidebar tab.
-    setLocation(`/teacher/dashboard?tab=${tabToUrl(tab)}`, { replace: true });
+    // Push so browser Back returns to the previous tab instead of leaving to sign-in.
+    setLocation(`/teacher/dashboard?tab=${tabToUrl(tab)}`);
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }

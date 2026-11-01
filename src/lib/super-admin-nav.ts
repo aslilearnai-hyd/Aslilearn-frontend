@@ -15,7 +15,11 @@ function isSuperAdminDashboardPath(path: string): boolean {
   );
 }
 
-export function persistSuperAdminView(view: SuperAdminView) {
+/**
+ * Mirror the current view into the URL hash. "push" adds a browser history entry so
+ * Back/Forward move between super-admin pages instead of leaving the dashboard.
+ */
+export function persistSuperAdminView(view: SuperAdminView, mode: "push" | "replace" = "replace") {
   if (typeof window === "undefined") return;
   if (!isSuperAdminView(view)) return;
   sessionStorage.setItem(PERSISTED_VIEW_KEY, view);
@@ -23,8 +27,16 @@ export function persistSuperAdminView(view: SuperAdminView) {
   const base = `${window.location.pathname}${window.location.search}`;
   const next = view === "dashboard" ? base : `${base}#${view}`;
   if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== next) {
-    window.history.replaceState({}, "", next);
+    if (mode === "push") window.history.pushState({ superAdminView: view }, "", next);
+    else window.history.replaceState({ superAdminView: view }, "", next);
   }
+}
+
+/** View encoded in the current URL hash (no hash = dashboard home). */
+export function readSuperAdminViewFromHash(): SuperAdminView {
+  if (typeof window === "undefined") return "dashboard";
+  const hashView = window.location.hash.replace(/^#/, "").trim();
+  return hashView && isSuperAdminView(hashView) ? hashView : "dashboard";
 }
 
 export function readPersistedSuperAdminView(): SuperAdminView | null {

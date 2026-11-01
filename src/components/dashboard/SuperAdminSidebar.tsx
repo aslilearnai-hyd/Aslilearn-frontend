@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useSuperAdminDrawerNav } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SuperAdminView } from "@/lib/super-admin-views";
 import { ContactSupportLink } from "@/components/ContactSupportLink";
 
@@ -145,6 +145,17 @@ const NAV_ACCENTS = [
 export function SuperAdminSidebar({ currentView, onViewChange, user, onLogout }: SuperAdminSidebarProps) {
   const useDrawerNav = useSuperAdminDrawerNav();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // The menu opened scrolled to the top, so the highlighted current page
+  // (e.g. Exam Management, Subscriptions) was off screen. Bring it into view.
+  useEffect(() => {
+    if (!useDrawerNav || !mobileOpen) return;
+    const t = window.setTimeout(() => {
+      document
+        .querySelectorAll<HTMLElement>('[data-super-admin-nav-active="true"]')
+        .forEach((el) => el.scrollIntoView({ block: "center", behavior: "auto" }));
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [mobileOpen, currentView, useDrawerNav]);
   const menuItems = NAV_SECTIONS.flatMap((section) => section.items);
   const mobileNavItems = menuItems.slice(0, 5);
 
@@ -161,6 +172,8 @@ export function SuperAdminSidebar({ currentView, onViewChange, user, onLogout }:
       <button
         key={item.id}
         type="button"
+        data-super-admin-nav-active={isActive ? "true" : undefined}
+        aria-current={isActive ? "page" : undefined}
         onClick={() => {
           onViewChange(item.id as SuperAdminView);
           setMobileOpen(false);
