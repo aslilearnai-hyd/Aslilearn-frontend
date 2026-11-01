@@ -26,7 +26,8 @@ type Person = {
   topSubject: string;
   vidyaQuestions: number;
   practiceQuestions?: number;
-  videoOpens?: number;
+  videoMinutes?: number;
+  videosWatched?: number;
   contentOpens?: number;
   chaptersCompleted?: number;
   examAttempts?: number;
@@ -48,7 +49,9 @@ type Summary = {
   aiToolUses: number;
   vidyaQuestions: number;
   chaptersCompleted: number;
-  videoOpens: number;
+  videoMinutes: number;
+  videoTimeLabel: string;
+  videosWatched: number;
   contentOpens: number;
   examAttempts: number;
   homeworkSubmitted: number;
@@ -197,15 +200,15 @@ export default function UsageAnalysisPanel({ scope, adminId }: { scope: "school"
             <Tile label="Active" value={`${s.active} / ${s.total}`} hint={`${s.activePct}% · ${s.inactive} inactive`} />
             <Tile label="Time on platform" value={s.totalTimeLabel} hint={`avg ${s.avgMinutesPerActive} min per active user`} />
             <Tile label="AI tool uses" value={s.aiToolUses} hint={`${s.vidyaQuestions} Vidya questions`} />
-            {isStudents ? (
-              <Tile
-                label="Videos"
-                value={`${s.chaptersCompleted} chapters`}
-                hint={`${s.videoOpens} video opens · ${s.contentOpens} content opens`}
-              />
-            ) : (
-              <Tile label="Vidya questions" value={s.vidyaQuestions} />
-            )}
+            <Tile
+              label="Video watch time"
+              value={s.videoTimeLabel}
+              hint={
+                isStudents
+                  ? `${s.videosWatched} videos · ${s.chaptersCompleted} chapters · ${s.contentOpens} content opens`
+                  : `${s.videosWatched} videos`
+              }
+            />
             {isStudents ? (
               <>
                 <Tile label="Exam attempts" value={s.examAttempts} />
@@ -301,6 +304,7 @@ export default function UsageAnalysisPanel({ scope, adminId }: { scope: "school"
                           p.classNumber ? `Class ${p.classNumber}` : "",
                           `last login ${formatDate(p.lastLogin)}`,
                           p.aiToolUses ? `${p.aiToolUses} AI uses` : "",
+                          p.videoMinutes ? `${p.videoMinutes} min video` : "",
                           p.topTool ? `top: ${p.topTool}` : "",
                           p.topSubject ? p.topSubject : "",
                         ]
@@ -318,7 +322,8 @@ export default function UsageAnalysisPanel({ scope, adminId }: { scope: "school"
                           {p.paidAmount ? ` · paid ₹${p.paidAmount}` : ""}
                         </p>
                         <p>
-                          {p.sessions} sessions over {p.activeDays} days · {p.vidyaQuestions} Vidya questions
+                          {p.sessions} sessions over {p.activeDays} days · {p.vidyaQuestions} Vidya questions ·{" "}
+                          {p.videoMinutes || 0} min video ({p.videosWatched || 0} videos)
                           {p.role === "student"
                             ? ` · ${p.chaptersCompleted || 0} chapters · ${p.practiceQuestions || 0} practice questions · ${p.examAttempts || 0} exams${
                                 p.avgExamPct != null ? ` (avg ${p.avgExamPct}%)` : ""

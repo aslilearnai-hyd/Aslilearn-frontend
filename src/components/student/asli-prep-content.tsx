@@ -15,6 +15,7 @@ import {
   resolveIsAsliPrepExclusive,
 } from '@/lib/school-program';
 import { getVideoDisplayTitle } from '@/lib/video-chapter-schedule';
+import { TrackedVideo, TrackedYouTubeIframe } from '@/components/tracked-video';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Content {
@@ -410,7 +411,9 @@ export default function AsliPrepContent() {
             if (youtubeEmbedUrl) {
               return (
                 <div className="m-3 w-auto aspect-video overflow-hidden rounded-lg bg-gray-100 sm:m-4">
-                  <iframe
+                  <TrackedYouTubeIframe
+                    watchVideoId={previewContent?._id}
+                    watchSubjectId={previewContent?.subject?._id}
                     className="w-full h-full border-0"
                     src={youtubeEmbedUrl}
                     title={previewContent?.title || 'YouTube content'}
@@ -447,7 +450,13 @@ export default function AsliPrepContent() {
             if (isVideo) {
               return (
                 <div className="m-3 aspect-video w-auto overflow-hidden rounded-lg bg-gray-100 sm:m-4">
-                  <video src={fileUrl} controls className="w-full h-full" />
+                  <TrackedVideo
+                    watchVideoId={previewContent?._id}
+                    watchSubjectId={previewContent?.subject?._id}
+                    src={fileUrl}
+                    controls
+                    className="w-full h-full"
+                  />
                 </div>
               );
             }

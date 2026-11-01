@@ -62,6 +62,7 @@ import PdfPreviewPanel from "@/components/shared/PdfPreviewPanel";
 import VidyaAIFloatingAssistant from "@/components/student/VidyaAIFloatingAssistant";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DriveViewer from "@/components/drive-viewer";
+import { TrackedVideo, TrackedYouTubeIframe } from "@/components/tracked-video";
 import {
   learningPathDisplayName,
   normalizeSubjectDisplayKey,
@@ -1254,6 +1255,8 @@ export default function LearningPaths() {
             const isYouTube = isYouTubeUrl(fileUrl);
             const youtubeEmbedUrl = getYouTubeEmbedUrl(fileUrl);
             const isGoogleDrive = lower.includes("drive.google.com");
+            const watchVideoId = previewContent?._id || previewContent?.id || null;
+            const watchSubjectId = previewContent?.subject?._id || previewContent?.subjectId || null;
 
             if (!fileUrl) {
               return <p className="text-xs sm:text-sm text-gray-500">No preview URL available.</p>;
@@ -1262,7 +1265,9 @@ export default function LearningPaths() {
             if (isYouTube && youtubeEmbedUrl) {
               return (
                 <div className="w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  <iframe
+                  <TrackedYouTubeIframe
+                    watchVideoId={watchVideoId}
+                    watchSubjectId={watchSubjectId}
                     className="w-full h-full border-0"
                     src={youtubeEmbedUrl}
                     title={previewContent?.title || "YouTube content"}
@@ -1311,7 +1316,13 @@ export default function LearningPaths() {
             if (isVideo) {
               return (
                 <div className="w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  <video src={fileUrl} controls className="w-full h-full" />
+                  <TrackedVideo
+                    watchVideoId={watchVideoId}
+                    watchSubjectId={watchSubjectId}
+                    src={fileUrl}
+                    controls
+                    className="w-full h-full"
+                  />
                 </div>
               );
             }

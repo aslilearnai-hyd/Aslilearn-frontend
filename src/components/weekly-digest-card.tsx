@@ -90,6 +90,8 @@ type DigestMetrics = {
   mostUsedSubject?: { subject?: string; sessions?: number; pct?: number } | null;
   toolsUsed?: Array<{ name?: string; count?: number; subjects?: string[] }>;
   videosWatched?: number;
+  videoWatchMinutes?: number;
+  videoWatchTimeLabel?: string;
   chaptersCompleted?: number;
   streak?: number;
   masteryPct?: number;
@@ -655,7 +657,11 @@ export function WeeklyDigestCard({ apiBase }: { apiBase: "/api/teacher" | "/api/
                     : undefined
                 }
               />
-              <MetricTile label="Videos watched" value={n(m.videosWatched)} hint="Lesson videos you viewed" />
+              <MetricTile
+                label="Videos watched"
+                value={n(m.videosWatched)}
+                hint={m.videoWatchMinutes ? `${m.videoWatchTimeLabel || `${m.videoWatchMinutes} min`} of lesson video` : "Lesson videos you watched"}
+              />
               <MetricTile label="Chapters updated" value={n(m.chaptersCompleted)} hint="Chapters you progressed in" />
               <MetricTile
                 label="Current streak"

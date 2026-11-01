@@ -30,6 +30,7 @@ import { subjectDisplayLabel } from '@/lib/subject-names';
 import { extractYouTubeId } from '@/lib/eduott-video-utils';
 import { capAdaptiveRecommendationsPerSubject } from '@/utils/adaptive-recommendations-display';
 import PdfPreviewPanel from '@/components/shared/PdfPreviewPanel';
+import { TrackedVideo, TrackedYouTubeIframe } from '@/components/tracked-video';
 
 /** Optional legacy props (dashboard may still pass them; recommendations come from API). */
 export interface AdaptiveRecommendationsProps {
@@ -52,6 +53,8 @@ interface RecommendedItem {
   navigatePath?: string;
   examId?: string;
   openMode?: string;
+  /** Set when opened from a subject card (for video watch-time tracking). */
+  subjectId?: string;
 }
 
 interface AdaptiveCard {
@@ -241,7 +244,7 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
     fetchAdaptive();
   }, [fetchAdaptive]);
 
-  const openResource = (item: RecommendedItem) => {
+  const openResource = (item: RecommendedItem, subjectId?: string) => {
     const mode = item.openMode || 'url';
     const rawUrl = item.fileUrl || '';
     const fullUrl = rawUrl ? resolveFileUrl(rawUrl) : '';
@@ -249,7 +252,7 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
 
     // Videos always stay on this page (modal player) — never navigate away.
     if (video && fullUrl) {
-      setPreviewItem({ ...item, fileUrl: fullUrl, openMode: 'preview' });
+      setPreviewItem({ ...item, fileUrl: fullUrl, openMode: 'preview', subjectId });
       return;
     }
 
@@ -481,7 +484,7 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
                             {/* Single-box colored border per resource row */}
                             <button
                               type="button"
-                              onClick={() => openResource(item)}
+                              onClick={() => openResource(item, rec.subjectId)}
                               className={`flex w-full items-center gap-2 rounded-lg border-2 bg-white px-3 py-2.5 text-left text-xs text-gray-800 shadow-sm transition-colors sm:text-sm ${itemBorderClass(item.displayType)}`}
                             >
                               <Icon className="h-3 w-3 shrink-0 text-purple-600 sm:h-4 sm:w-4" />
@@ -564,7 +567,9 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
                     if (yt) {
                       return (
                         <div className="relative mx-auto aspect-video w-full max-h-[70vh] bg-black">
-                          <iframe
+                          <TrackedYouTubeIframe
+                            watchVideoId={previewItem._id}
+                            watchSubjectId={previewItem.subjectId}
                             title={previewItem.title}
                             src={yt}
                             className="absolute inset-0 h-full w-full border-0"
@@ -575,7 +580,9 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
                       );
                     }
                     return (
-                      <video
+                      <TrackedVideo
+                        watchVideoId={previewItem._id}
+                        watchSubjectId={previewItem.subjectId}
                         key={src}
                         src={src}
                         controls
@@ -587,7 +594,7 @@ export default function AdaptiveRecommendations(_props: AdaptiveRecommendationsP
                       >
                         <track kind="captions" />
                         Your browser does not support embedded video.
-                      </video>
+                      </TrackedVideo>
                     );
                   })()}
                 </div>

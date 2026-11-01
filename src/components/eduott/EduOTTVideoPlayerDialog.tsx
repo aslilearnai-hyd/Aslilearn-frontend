@@ -13,6 +13,7 @@ import {
   resolveContentDurationSeconds,
 } from '@/lib/eduott-video-utils';
 import type { EduOTTVideoCardItem } from '@/components/eduott/EduOTTVideoCard';
+import { TrackedVideo, TrackedYouTubeIframe } from '@/components/tracked-video';
 
 type EduOTTVideoPlayerDialogProps = {
   video: EduOTTVideoCardItem | null;
@@ -30,6 +31,7 @@ export function EduOTTVideoPlayerDialog({
     : { isYouTube: false, url: null as string | null };
   const subject = String(video?.subjectName || video?.subject || '').trim();
   const duration = video ? formatEduOTTDurationLabel(resolveContentDurationSeconds(video)) : '';
+  const watchVideoId = open ? video?._id || video?.id || null : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,7 +72,9 @@ export function EduOTTVideoPlayerDialog({
                         );
                       }
                       return (
-                        <iframe
+                        <TrackedYouTubeIframe
+                          watchVideoId={watchVideoId}
+                          watchSubjectId={video.subjectId}
                           title={video.title}
                           // No web-share permission: YouTube's Share button can no longer open the device share sheet.
                           src={`https://www.youtube-nocookie.com/embed/${ytId}?rel=0&modestbranding=1&playsinline=1`}
@@ -84,7 +88,9 @@ export function EduOTTVideoPlayerDialog({
                 </div>
               ) : (
                 <div className="flex w-full flex-col items-stretch overflow-hidden bg-black">
-                  <video
+                  <TrackedVideo
+                    watchVideoId={watchVideoId}
+                    watchSubjectId={video.subjectId}
                     key={playbackUrl}
                     src={playbackUrl}
                     controls
@@ -100,7 +106,7 @@ export function EduOTTVideoPlayerDialog({
                   >
                     <track kind="captions" />
                     Your browser does not support embedded video.
-                  </video>
+                  </TrackedVideo>
                 </div>
               )}
             </div>

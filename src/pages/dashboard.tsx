@@ -129,6 +129,7 @@ import {
   writeDashboardStatsCache,
 } from '@/utils/dashboard-stats-cache';
 import AdaptiveRecommendations from "@/components/dashboard/AdaptiveRecommendations";
+import { TrackedVideo, TrackedYouTubeIframe } from "@/components/tracked-video";
 
 // Mock user ID - in a real app, this would come from authentication
 const MOCK_USER_ID = "user-1";
@@ -3037,7 +3038,9 @@ export default function Dashboard() {
                               const videoId = getYouTubeId(fileUrl);
                               return videoId ? (
                                 <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                                  <iframe
+                                  <TrackedYouTubeIframe
+                                    watchVideoId={selectedScheduleItem._id || selectedScheduleItem.id}
+                                    watchSubjectId={getContentSubjectId(selectedScheduleItem)}
                                     className="w-full h-full"
                                     src={`https://www.youtube.com/embed/${videoId}`}
                                     title={selectedScheduleItem.title}
@@ -3056,13 +3059,15 @@ export default function Dashboard() {
                               // Regular video
                               return (
                                 <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                                  <video
+                                  <TrackedVideo
+                                    watchVideoId={selectedScheduleItem._id || selectedScheduleItem.id}
+                                    watchSubjectId={getContentSubjectId(selectedScheduleItem)}
                                     src={fileUrl}
                                     controls
                                     className="w-full h-full"
                                   >
                                     Your browser does not support the video tag.
-                                  </video>
+                                  </TrackedVideo>
                                 </div>
                               );
                             }

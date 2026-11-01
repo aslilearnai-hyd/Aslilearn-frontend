@@ -20,6 +20,7 @@ export type EduOTTVideoCardItem = EduOTTVideoLike & {
   duration?: number;
   subjectName?: string;
   subject?: string;
+  subjectId?: string;
 };
 
 type EduOTTVideoCardProps = {

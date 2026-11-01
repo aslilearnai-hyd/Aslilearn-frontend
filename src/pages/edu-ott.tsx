@@ -25,6 +25,7 @@ import { getUser, getAuthToken } from '@/lib/auth-utils';
 import { EduOTTVideoCard, EduOTTSubjectBadges } from '@/components/eduott/EduOTTVideoCard';
 import type { EduOTTVideoCardItem } from '@/components/eduott/EduOTTVideoCard';
 import { EduOTTVideoPlayerDialog } from '@/components/eduott/EduOTTVideoPlayerDialog';
+import { TrackedVideo, TrackedYouTubeIframe } from '@/components/tracked-video';
 import { EduOTTLiveSessionDialog } from '@/components/eduott/EduOTTLiveSessionDialog';
 import { EduOTTJoinSessionButton } from '@/components/eduott/EduOTTJoinSessionButton';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -278,6 +279,7 @@ export default function EduOTT() {
   const [selectedVideo, setSelectedVideo] = useState<EduOTTVideoCardItem | null>(null);
   const [selectedLiveSession, setSelectedLiveSession] = useState<LiveSession | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<{
+    id?: string;
     title: string;
     type: string;
     fileUrl: string;
@@ -1061,6 +1063,7 @@ export default function EduOTT() {
                                 type="button"
                                 onClick={() =>
                                   setPreviewMaterial({
+                                    id: row._id,
                                     title,
                                     type,
                                     fileUrl: href,
@@ -1153,7 +1156,8 @@ export default function EduOTT() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
-                      <iframe
+                      <TrackedYouTubeIframe
+                        watchVideoId={previewMaterial.id || ytId}
                         title={previewMaterial.title}
                         src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1`}
                         className="absolute inset-0 h-full w-full border-0"
@@ -1214,7 +1218,8 @@ export default function EduOTT() {
                         Playing in AsliLearn — stays on this page
                       </DialogDescription>
                     </DialogHeader>
-                    <video
+                    <TrackedVideo
+                      watchVideoId={previewMaterial.id || url}
                       key={url}
                       src={url}
                       controls
@@ -1224,7 +1229,7 @@ export default function EduOTT() {
                       style={{ aspectRatio: '16 / 9', maxHeight: '70vh' }}
                     >
                       <track kind="captions" />
-                    </video>
+                    </TrackedVideo>
                   </>
                 );
               }
