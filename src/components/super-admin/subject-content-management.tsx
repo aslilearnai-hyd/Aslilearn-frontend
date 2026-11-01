@@ -1855,10 +1855,19 @@ export default function SubjectContentManagement() {
     }
     setEditingSubject(subject);
     setEditSubjectName(extractPlainSubjectName(subject.name));
+    // Stored codes differ from the option values ("IIT/NEET" vs "IIT"); an exact
+    // match failed and the dialog showed CBSE, so Update moved IIT subjects to
+    // CBSE and they vanished from the IIT list. Match loosely, and a subject
+    // with an Alpha/Beta/Gamma category is always IIT.
     const b = (subject.board || BOARD_CODE).toUpperCase() as SyllabusBoard;
-    const allowedSyllabus = new Set(SYLLABUS_OPTIONS.map((o) => o.value));
+    const iitOption = SYLLABUS_OPTIONS.find((o) => boardsMatch(o.value, 'IIT'))?.value || 'IIT';
+    const isIitBoard = boardsMatch(b, 'IIT') || /(iit|neet|jee)/i.test(b.replace(/[_/]/g, ' '));
+    const hasIitCategory = Boolean(normalizeIitCategory(resolveSubjectProductCategory(subject)));
+    const matched = SYLLABUS_OPTIONS.find((o) => boardsMatch(o.value, b))?.value;
     setEditSubjectSyllabus(
-      allowedSyllabus.has(b) || b === 'ASLI_EXCLUSIVE_SCHOOLS' ? b : (SYLLABUS_OPTIONS[0]?.value || 'CBSE')
+      isIitBoard || hasIitCategory
+        ? iitOption
+        : matched || (b === 'ASLI_EXCLUSIVE_SCHOOLS' ? b : SYLLABUS_OPTIONS[0]?.value || 'CBSE')
     );
     setEditSubjectStateName(subject.stateName?.trim() || '');
     setEditSubjectProductCategory(resolveSubjectProductCategory(subject));
