@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -872,6 +872,8 @@ export default function SubjectContentManagement() {
   const [isLoadingContents, setIsLoadingContents] = useState(false);
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  /** Plain name of the last selected subject: survives id changes after a save/refetch. */
+  const lastSubjectNameRef = useRef('');
   /** Chapter key for content list dropdown: "1" | "2" | … | "unassigned" */
   const [selectedChapterKey, setSelectedChapterKey] = useState<string>('');
 
@@ -1260,15 +1262,25 @@ export default function SubjectContentManagement() {
       setSelectedSubjectId(null);
       return;
     }
-    const stillValid = subjectsForClass.some(
+    const current = subjectsForClass.find(
       (s) => String(s._id) === String(selectedSubjectId)
     );
-    if (!stillValid) {
-      const catalog =
-        subjectsForClass.find((s) => isCatalogSubjectId(s._id, subjects)) ??
-        subjectsForClass[0];
-      setSelectedSubjectId(catalog._id);
+    if (current) {
+      lastSubjectNameRef.current = extractPlainSubjectName(current.name).toLowerCase();
+      return;
     }
+    // The row id can change after a save/refetch (inferred id -> real id, or the
+    // edit dialog selected the content's own subject id). Keep the same subject
+    // by name; jumping to the first subject (Biology) lost the admin's place.
+    const wanted = lastSubjectNameRef.current;
+    const sameName = wanted
+      ? subjectsForClass.find((s) => extractPlainSubjectName(s.name).toLowerCase() === wanted)
+      : undefined;
+    const catalog =
+      sameName ??
+      subjectsForClass.find((s) => isCatalogSubjectId(s._id, subjects)) ??
+      subjectsForClass[0];
+    setSelectedSubjectId(catalog._id);
   }, [
     selectedClassNumber,
     subjectsForClass,
@@ -2131,7 +2143,16 @@ export default function SubjectContentManagement() {
         : `inferred-${plain.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
     if (classLabel) setSelectedClassLabel(classLabel);
-    setSelectedSubjectId(subjectId);
+    // Keep the sidebar row the admin is on when it is the same subject; only
+    // switch when editing content of another subject.
+    const plainKey = (resolvedSubj ? extractPlainSubjectName(resolvedSubj.name) : plain).toLowerCase();
+    const selectedRow = subjectsForClass.find((s) => String(s._id) === String(selectedSubjectId));
+    const sidebarRow =
+      selectedRow && extractPlainSubjectName(selectedRow.name).toLowerCase() === plainKey
+        ? selectedRow
+        : subjectsForClass.find((s) => extractPlainSubjectName(s.name).toLowerCase() === plainKey);
+    if (plainKey) lastSubjectNameRef.current = plainKey;
+    setSelectedSubjectId(sidebarRow ? String(sidebarRow._id) : subjectId);
 
     setEditContentContext({
       classLabel,
@@ -3020,7 +3041,7 @@ export default function SubjectContentManagement() {
             </Button>
           </CardHeader>
           <CardContent>
-            {isLoadingContents ? (
+            {isLoadingContents && contents.length === 0 ? (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 animate-spin text-sky-500" />
               </div>

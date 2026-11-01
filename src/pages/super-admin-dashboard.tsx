@@ -595,7 +595,7 @@ export default function SuperAdminDashboard() {
         {/* Student Analytics Widget */}
         <Card 
           className="bg-white cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-orange-300"
-          onClick={() => setCurrentView('analytics')}
+          onClick={() => handleViewChange('student-details')}
         >
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Student Analytics</CardTitle>
@@ -995,7 +995,7 @@ export default function SuperAdminDashboard() {
     </Suspense>
   );
 
-  const renderAnalyticsContent = (initialTab?: "overview" | "impact" | "audit" | "ai") => (
+  const renderAnalyticsContent = (initialTab?: "overview" | "students" | "impact" | "audit" | "ai") => (
     <Suspense fallback={lazySectionFallback}>
       <CombinedSuperAdminAnalytics initialTab={initialTab} />
     </Suspense>
@@ -1471,6 +1471,8 @@ export default function SuperAdminDashboard() {
         return renderAnalyticsContent('impact');
       case 'analytics':
         return renderAnalyticsContent('overview');
+      case 'student-details':
+        return renderAnalyticsContent('students');
       case 'board-comparison':
         return renderBoardComparisonContent();
       case 'ai-analytics':

@@ -28,7 +28,8 @@ export type SuperAdminView =
   | 'trial-members'
   | 'offline-results'
   | 'audit-logs'
-  | 'impact-reports';
+  | 'impact-reports'
+  | 'student-details';
 
 export const SUPER_ADMIN_VIEWS: SuperAdminView[] = [
   'dashboard',
@@ -60,6 +61,7 @@ export const SUPER_ADMIN_VIEWS: SuperAdminView[] = [
   'offline-results',
   'audit-logs',
   'impact-reports',
+  'student-details',
 ];
 
 export function isSuperAdminView(value: string): value is SuperAdminView {
