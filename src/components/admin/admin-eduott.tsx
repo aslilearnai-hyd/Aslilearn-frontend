@@ -21,7 +21,9 @@ import {
   Radio,
   Eye,
   Users,
-  Calendar
+  Calendar,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { getVideoDisplayTitle } from '@/lib/video-chapter-schedule';
@@ -84,6 +86,11 @@ interface LiveSession {
   createdAt: string;
 }
 
+const PREVIEW_VIDEO_COUNT = 3;
+
+type VideoSubjectGroup = { key: string; subjectLabel: string; videos: Video[] };
+type VideoClassGroup = { key: string; classLabel: string; subjects: VideoSubjectGroup[]; total: number };
+
 export default function AdminEduOTT() {
   const [activeTab, setActiveTab] = useState('videos');
   const [videos, setVideos] = useState<Video[]>([]);
@@ -100,6 +107,7 @@ export default function AdminEduOTT() {
   const [selectedLiveSession, setSelectedLiveSession] = useState<LiveSession | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [videosEmptyMessage, setVideosEmptyMessage] = useState('');
+  const [expandedVideoGroups, setExpandedVideoGroups] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     setVideoSubjectFilter('all');
@@ -304,6 +312,50 @@ export default function AdminEduOTT() {
     });
   }, [videos, searchTerm, videoClassFilter, videoSubjectFilter]);
 
+  // Same layout as the teacher EduOTT page: Class → Subject sections, 3 videos each.
+  const videoClassGroups = useMemo((): VideoClassGroup[] => {
+    const classes = new Map<string, VideoClassGroup>();
+    for (const video of filteredVideos) {
+      const classLabel =
+        getSubjectClassLabel({ name: video.subjectName, classNumber: video.classNumber }) || '';
+      const subjectLabel =
+        formatSubjectWithIitCategory(video.subjectName || '', video.productCategory).trim() || 'Subject';
+      const classKey = classLabel.toLowerCase() || 'other';
+      let cls = classes.get(classKey);
+      if (!cls) {
+        cls = { key: classKey, classLabel, subjects: [], total: 0 };
+        classes.set(classKey, cls);
+      }
+      const subjectKey = `${classKey}::${subjectLabel.toLowerCase()}`;
+      let subject = cls.subjects.find((g) => g.key === subjectKey);
+      if (!subject) {
+        subject = { key: subjectKey, subjectLabel, videos: [] };
+        cls.subjects.push(subject);
+      }
+      subject.videos.push(video);
+      cls.total += 1;
+    }
+    const groups = Array.from(classes.values());
+    groups.forEach((g) => g.subjects.sort((a, b) => a.subjectLabel.localeCompare(b.subjectLabel)));
+    return groups.sort((a, b) => {
+      if (!a.classLabel) return 1;
+      if (!b.classLabel) return -1;
+      return (
+        (parseInt(a.classLabel, 10) || 0) - (parseInt(b.classLabel, 10) || 0) ||
+        a.classLabel.localeCompare(b.classLabel)
+      );
+    });
+  }, [filteredVideos]);
+
+  const toggleVideoGroup = (key: string) => {
+    setExpandedVideoGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const sessionClassOptions = useMemo(() => {
     const set = new Set<string>();
     liveSessions.forEach((session) => {
@@ -481,30 +533,74 @@ export default function AdminEduOTT() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:p-4 lg:p-6">
-                {filteredVideos.map((video) => (
-                  <EduOTTVideoCard
-                    key={video._id}
-                    video={video}
-                    onPlay={() => setSelectedVideo(video)}
-                    playAccentClass="text-sky-600"
-                    subjectBadges={
-                      video.subjectName ? (
-                        <EduOTTSubjectBadges
-                          subjectLabel={formatSubjectWithIitCategory(
-                            video.subjectName || '',
-                            video.productCategory,
-                          )}
-                          classLabel={
-                            getSubjectClassLabel({
-                              name: video.subjectName,
-                              classNumber: video.classNumber,
-                            }) || undefined
-                          }
-                        />
-                      ) : undefined
-                    }
-                  />
+              <div className="space-y-8 sm:p-2 lg:p-4">
+                <p className="text-sm text-gray-500">
+                  {videoClassGroups.length} class{videoClassGroups.length === 1 ? '' : 'es'} ·{' '}
+                  {filteredVideos.length} video{filteredVideos.length === 1 ? '' : 's'}
+                </p>
+                {videoClassGroups.map((cls) => (
+                  <div key={cls.key} className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                        {cls.classLabel ? `Class ${cls.classLabel}` : 'Other videos'}
+                      </h3>
+                      <Badge variant="secondary" className="rounded-full">
+                        {cls.total} video{cls.total === 1 ? '' : 's'}
+                      </Badge>
+                      <div className="h-px flex-1 bg-gray-200" />
+                    </div>
+                    {cls.subjects.map((group) => {
+                      const expanded = expandedVideoGroups.has(group.key);
+                      const shown = expanded ? group.videos : group.videos.slice(0, PREVIEW_VIDEO_COUNT);
+                      const hasMore = group.videos.length > PREVIEW_VIDEO_COUNT;
+                      return (
+                        <section key={group.key} className="space-y-3">
+                          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-100 pb-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700">
+                                IIT subject
+                              </p>
+                              <h4 className="text-base sm:text-lg font-bold text-gray-900">{group.subjectLabel}</h4>
+                              <p className="text-xs sm:text-sm text-gray-500">
+                                {cls.classLabel ? `Class ${cls.classLabel} · ` : ''}
+                                {group.videos.length} video{group.videos.length === 1 ? '' : 's'}
+                              </p>
+                            </div>
+                            {hasMore ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 gap-1.5 rounded-xl"
+                                onClick={() => toggleVideoGroup(group.key)}
+                              >
+                                {expanded ? 'Show less' : `View all ${group.videos.length}`}
+                                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </Button>
+                            ) : null}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {shown.map((video) => (
+                              <EduOTTVideoCard
+                                key={video._id}
+                                video={video}
+                                onPlay={() => setSelectedVideo(video)}
+                                playAccentClass="text-sky-600"
+                                subjectBadges={
+                                  video.subjectName ? (
+                                    <EduOTTSubjectBadges
+                                      subjectLabel={group.subjectLabel}
+                                      classLabel={cls.classLabel || undefined}
+                                    />
+                                  ) : undefined
+                                }
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
                 ))}
               </div>
             )}
