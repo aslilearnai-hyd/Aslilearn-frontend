@@ -1245,7 +1245,22 @@ export default function SubjectContentManagement() {
       }
     });
 
-    return Array.from(map.values()).sort((a, b) =>
+    // Content pointing at one non-catalog subject id can still infer different labels
+    // (Chemistry, Maths, Physics…). Rows sharing that id made every click select the
+    // first one alphabetically (Biology), so give each such row its own name-based id.
+    const rows = Array.from(map.values());
+    const idCounts = new Map<string, number>();
+    rows.forEach((r) => idCounts.set(String(r._id), (idCounts.get(String(r._id)) || 0) + 1));
+    const uniqueRows = rows.map((r) =>
+      (idCounts.get(String(r._id)) || 0) > 1
+        ? {
+            ...r,
+            _id: `inferred-${extractPlainSubjectName(r.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+          }
+        : r
+    );
+
+    return uniqueRows.sort((a, b) =>
       extractPlainSubjectName(a.name).localeCompare(extractPlainSubjectName(b.name))
     );
   }, [subjects, selectedClassNumber, selectedBoard, selectedProductCategory, contents]);

@@ -316,12 +316,22 @@ function normalizeSubjectKey(raw: unknown): string {
     .trim()
     .split('__deleted__')[0]
     .replace(/_\d+$/, '')
+    // "Chemistry IIT" / "chemistry_iit" are still Chemistry for topics and weak areas;
+    // without this they fell through to the Maths bucket with any subject's topics.
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b(?:iit|neet|jee)\b/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
   return SUBJECT_NAME_ALIASES[plain] || plain || 'general';
 }
 
 function subjectDisplayName(raw: unknown): string {
   const key = normalizeSubjectKey(raw);
+  const iit = /\b(?:iit|neet|jee)\b/i.test(String(raw || '').replace(/[_-]+/g, ' ')) ? ' (IIT)' : '';
+  if (iit && key !== 'general') {
+    const base = subjectDisplayName(key);
+    return `${base}${iit}`;
+  }
   const labels: Record<string, string> = {
     maths: 'Mathematics',
     physics: 'Physics',
@@ -1881,6 +1891,22 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
     result.answers,
   ]);
 
+  /**
+   * Bucket for a question's weak topics — the same subject its score card uses.
+   * A question with no subject takes the exam's only subject (as the backend
+   * grades it), never a hard-coded Maths.
+   */
+  const questionSubjectBucket = useMemo(() => {
+    const cardKeys = [
+      ...new Set(Object.keys(result.subjectWiseScore || {}).map((s) => normalizeSubjectKey(s))),
+    ];
+    const soleCard = cardKeys.length === 1 ? cardKeys[0] : '';
+    return (q: Question) => {
+      const subj = normalizeSubjectKey(q.subject);
+      return subj === 'general' && soleCard ? soleCard : subj;
+    };
+  }, [result.subjectWiseScore]);
+
   const chapterHeatmap = useMemo(() => {
     const bySubject: Record<string, Array<{ name: string; pct: number; wrong: number; total: number }>> = {
       physics: [],
@@ -1897,8 +1923,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
       const ua = getUserAnswerForQuestion(q, i);
       const attempted = ua !== undefined && ua !== null && ua !== '';
       const correct = attempted && compareAnswers(q, ua, q.correctAnswer);
-      const subj = normalizeSubjectKey(q.subject);
-      const heatmapSubj = subj in bySubject ? subj : 'maths';
+      const heatmapSubj = questionSubjectBucket(q);
       const qi = findQuestionInsight(aiAnalysis?.questionInsights, analysisQuestions[i], i);
       const topic = resolveQuestionTopicLabel(q, qi);
       const key = `${heatmapSubj}::${topic.toLowerCase()}`;
@@ -1920,7 +1945,8 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
       if (v.wrong === 0 && v.correct === v.total) return;
       if (!isUsableTopicLabel(v.name)) return;
       const pct = v.total > 0 ? (v.correct / v.total) * 100 : 0;
-      const subj = v.subject in bySubject ? v.subject : 'maths';
+      const subj = v.subject;
+      if (!bySubject[subj]) bySubject[subj] = [];
       bySubject[subj].push({ name: v.name, pct, wrong: v.wrong, total: v.total });
     });
 
@@ -1930,7 +1956,7 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
     });
 
     return bySubject;
-  }, [analysisQuestions, aiAnalysis, result.subjectWiseScore, displayResult.answers, result.answers]);
+  }, [analysisQuestions, aiAnalysis, questionSubjectBucket, displayResult.answers, result.answers]);
 
   /**
    * Per subject: 1-based numbers of wrong / unanswered questions that no topic
@@ -1945,13 +1971,12 @@ export default function DetailedAnalysis({ result, examTitle, onBack }: Detailed
       if (attempted && compareAnswers(q, ua, q.correctAnswer)) return;
       const qi = findQuestionInsight(aiAnalysis?.questionInsights, q, i);
       if (isUsableTopicLabel(resolveQuestionTopicLabel(q, qi))) return;
-      const subj = normalizeSubjectKey(q.subject);
-      const key = ['physics', 'maths', 'chemistry', 'biology'].includes(subj) ? subj : 'maths';
+      const key = questionSubjectBucket(q);
       if (!out[key]) out[key] = [];
       out[key].push(i + 1);
     });
     return out;
-  }, [analysisQuestions, aiAnalysis, displayResult.answers, result.answers]);
+  }, [analysisQuestions, aiAnalysis, questionSubjectBucket, displayResult.answers, result.answers]);
 
   const planTopics = useMemo(
     () => generatePlanTopics(result, aiAnalysis, chapterHeatmap),
