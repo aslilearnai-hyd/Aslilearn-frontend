@@ -25,8 +25,11 @@ import { dedupeStudentExamResults } from "@/lib/dedupe-exam-results";
 import {
   buildWeeklyActivityStats,
   computeProfileOverviewStats,
+  formatActivityMinutes,
   getExamIdFromResult,
+  type ServerWeeklyActivity,
 } from "@/lib/profile-overview-stats";
+import { updateStudyTime } from "@/utils/studyTimeTracker";
 import { IndividualSubscriptionReceiptCard } from "@/components/b2c/IndividualSubscriptionReceipt";
 import { TrialUpgradeBanner } from "@/components/b2c/TrialUpgradeBanner";
 import {
@@ -54,6 +57,8 @@ export default function Profile() {
   const [rankings, setRankings] = useState<any[]>([]);
   const [progressRecords, setProgressRecords] = useState<any[]>([]);
   const [sessionMinutesByDate, setSessionMinutesByDate] = useState<Record<string, number>>({});
+  const [serverWeek, setServerWeek] = useState<ServerWeeklyActivity | null>(null);
+  const [localTodayMinutes, setLocalTodayMinutes] = useState(0);
   const [streakCount, setStreakCount] = useState(0);
   const [overviewLoading, setOverviewLoading] = useState(true);
 
@@ -104,18 +109,28 @@ export default function Profile() {
         'Content-Type': 'application/json',
       };
       try {
-        const [resultsRes, rankingsRes, focusRes, progressRes, meRes] = await Promise.all([
+        const [resultsRes, rankingsRes, focusRes, progressRes, meRes, weekRes, sessionRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/student/exam-results`, { headers }),
           fetch(`${API_BASE_URL}/api/student/rankings`, { headers }),
           apiFetch('/api/vidya/student/focus-card').catch(() => null),
           fetch(`${API_BASE_URL}/api/student/learning-progress`, { headers }),
           fetch(`${API_BASE_URL}/api/auth/me`, { headers }),
+          // Per-day app time for this IST week - same UserSession rows teachers see.
+          fetch(`${API_BASE_URL}/api/student/weekly-activity`, { headers }).catch(() => null),
+          // Older backends only have the rolling 7-day session-time endpoint.
+          fetch(`${API_BASE_URL}/api/student/session-time`, { headers }).catch(() => null),
         ]);
-        // Daily logged-in time; the week view was 0h for students who used the app without exams.
-        fetch(`${API_BASE_URL}/api/student/session-time`, { headers })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((json) => setSessionMinutesByDate(json?.data?.weeklyData && typeof json.data.weeklyData === 'object' ? json.data.weeklyData : {}))
-          .catch(() => setSessionMinutesByDate({}));
+
+        const weekJson = weekRes?.ok ? await weekRes.json().catch(() => null) : null;
+        const week: ServerWeeklyActivity | null =
+          weekJson?.success && Array.isArray(weekJson?.data?.days) ? weekJson.data : null;
+        setServerWeek(week);
+        const sessionJson = sessionRes?.ok ? await sessionRes.json().catch(() => null) : null;
+        setSessionMinutesByDate(
+          sessionJson?.data?.weeklyData && typeof sessionJson.data.weeklyData === 'object'
+            ? sessionJson.data.weeklyData
+            : {}
+        );
 
         if (resultsRes.ok) {
           const json = await resultsRes.json();
@@ -132,16 +147,19 @@ export default function Profile() {
           setRankings([]);
         }
 
-        let streak = 0;
+        // Focus card needs Vidya enabled for the school, and user.studyStreak is only
+        // bumped by an unused ping - so also take the login-day streak from weekly-activity.
+        const streakCandidates: number[] = [Number(week?.streak) || 0];
         if (focusRes?.ok) {
-          const focusJson = await focusRes.json();
-          streak = Number(focusJson?.studyStreak?.current ?? focusJson?.studyStreak?.count ?? 0);
+          const focusJson = await focusRes.json().catch(() => null);
+          streakCandidates.push(Number(focusJson?.studyStreak?.current ?? focusJson?.studyStreak?.count ?? 0));
         }
-        if ((!Number.isFinite(streak) || streak <= 0) && meRes.ok) {
-          const meJson = await meRes.json();
-          streak = Number(meJson?.user?.studyStreak?.current ?? 0);
+        if (meRes.ok) {
+          const meJson = await meRes.json().catch(() => null);
+          streakCandidates.push(Number(meJson?.user?.studyStreak?.current ?? 0));
         }
-        setStreakCount(Number.isFinite(streak) ? Math.max(0, streak) : 0);
+        const streak = Math.max(0, ...streakCandidates.filter((n) => Number.isFinite(n)));
+        setStreakCount(streak);
 
         if (progressRes.ok) {
           const progressJson = await progressRes.json();
@@ -159,6 +177,20 @@ export default function Profile() {
       }
     };
     fetchOverviewData();
+  }, []);
+
+  // Include today's not-yet-synced minutes from this browser so the card is live.
+  useEffect(() => {
+    const read = () => {
+      try {
+        setLocalTodayMinutes(updateStudyTime().today);
+      } catch {
+        /* storage unavailable */
+      }
+    };
+    read();
+    const id = setInterval(read, 60_000);
+    return () => clearInterval(id);
   }, []);
 
   // Update profile mutation (use apiFetch so request goes to backend URL with auth token)
@@ -205,12 +237,19 @@ export default function Profile() {
   );
 
   const weeklyStats = useMemo(
-    () => buildWeeklyActivityStats(examResults, progressRecords, sessionMinutesByDate),
-    [examResults, progressRecords, sessionMinutesByDate]
+    () =>
+      buildWeeklyActivityStats(
+        examResults,
+        progressRecords,
+        sessionMinutesByDate,
+        serverWeek,
+        localTodayMinutes
+      ),
+    [examResults, progressRecords, sessionMinutesByDate, serverWeek, localTodayMinutes]
   );
 
-  const weeklyHoursTotal = useMemo(
-    () => Math.round(weeklyStats.reduce((sum, day) => sum + day.hours, 0) * 10) / 10,
+  const weeklyMinutesTotal = useMemo(
+    () => weeklyStats.reduce((sum, day) => sum + day.minutes, 0),
     [weeklyStats]
   );
 
@@ -674,14 +713,14 @@ export default function Profile() {
                                     : 'bg-gray-100 text-gray-600'
                                 }`}
                               >
-                                {day.hours}h
+                                {formatActivityMinutes(day.minutes)}
                               </div>
                             </div>
                           ))}
                         </div>
                         <div className="mt-4 text-center">
                           <p className="text-xs sm:text-sm text-gray-600">
-                            Total: {weeklyHoursTotal} hours this week
+                            Total: {formatActivityMinutes(weeklyMinutesTotal)} this week
                           </p>
                           <p className="text-micro text-gray-500 mt-1">
                             From time in the app, exams and study sessions

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
 import { useToast } from '@/hooks/use-toast';
+import { formatMarks, formatMarksPair } from '@/lib/format-marks';
 
 interface StudentRiskAnalysisModalProps {
   open: boolean;
@@ -51,6 +52,7 @@ interface AnalysisData {
   };
   predictions: {
     nextExamPrediction: number;
+    nextExamPredictionMarks?: { obtained: number; total: number } | null;
     confidence: number;
     trend: 'declining' | 'stable' | 'improving';
   };
@@ -67,6 +69,22 @@ interface AnalysisData {
       recommendation: string;
     };
   };
+  examResults?: Array<{
+    examResultId?: string;
+    examId?: string;
+    examTitle: string;
+    completedAt?: string | null;
+    obtainedMarks: number;
+    totalMarks: number;
+    correctAnswers?: number;
+    totalQuestions?: number;
+    subjects?: Array<{
+      subject: string;
+      marks: number;
+      correct: number;
+      questions: number;
+    }>;
+  }>;
   generatedAt?: string;
   dataPoints?: number;
 }
@@ -270,26 +288,62 @@ export function StudentRiskAnalysisModal({
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs sm:text-sm font-medium text-gray-700">Risk Score</span>
-                      <span className="text-base sm:text-lg font-bold">{Math.round(analysisData.riskScore * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          analysisData.riskLevel === 'high' ? 'bg-red-500' :
-                          analysisData.riskLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${analysisData.riskScore * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs sm:text-sm text-gray-600">{analysisData.analysis.summary}</p>
-                </div>
+                <p className="text-xs sm:text-sm text-gray-600">{analysisData.analysis.summary}</p>
               </CardContent>
             </Card>
+
+            {/* Exam Results (marks) */}
+            {analysisData.examResults && analysisData.examResults.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Exam Results
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[...analysisData.examResults].reverse().map((exam, idx) => {
+                      const marks = formatMarks(exam.obtainedMarks, exam.totalMarks);
+                      const subjects = (exam.subjects || []).filter((s) => s.questions > 0);
+                      return (
+                        <div key={exam.examResultId || `${exam.examTitle}-${idx}`} className="p-3 border rounded-lg">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-gray-900 break-words">{exam.examTitle}</h4>
+                              {exam.completedAt && (
+                                <p className="text-xs text-gray-500">
+                                  {new Date(exam.completedAt).toLocaleDateString(undefined, {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-sm sm:text-base font-bold text-gray-900 whitespace-nowrap">
+                              {marks ? `${marks} marks` : '—'}
+                            </span>
+                          </div>
+                          {subjects.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {subjects.map((s) => (
+                                <span
+                                  key={s.subject}
+                                  className="text-xs rounded-md bg-gray-100 text-gray-700 px-2 py-1"
+                                >
+                                  {s.subject}: {s.marks} mark{s.marks === 1 ? '' : 's'} ({s.correct}/{s.questions} correct)
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Performance Trends */}
             <Card>
@@ -369,7 +423,9 @@ export function StudentRiskAnalysisModal({
                   <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Next Exam Prediction</p>
                     <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                      {Math.round(analysisData.predictions.nextExamPrediction)}%
+                      {formatMarksPair(analysisData.predictions.nextExamPredictionMarks)
+                        ? `${formatMarksPair(analysisData.predictions.nextExamPredictionMarks)} marks`
+                        : `${Math.round(analysisData.predictions.nextExamPrediction)}%`}
                     </p>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">

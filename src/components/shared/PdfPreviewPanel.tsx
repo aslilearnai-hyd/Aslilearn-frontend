@@ -435,6 +435,8 @@ function getFitWidthScale(containerWidth: number, pageWidth: number): number {
 
 type PageLayout = 'viewport' | 'scroll';
 
+/** Page navigation (prev · page input · of N · Go · next). Lives in the TOP bar so the
+ * phone keyboard never covers the page-number input. */
 function PdfPageJumpBar({
   page,
   pageCount,
@@ -443,11 +445,6 @@ function PdfPageJumpBar({
   onSubmit,
   onPrev,
   onNext,
-  zoomScale = 1,
-  onZoomIn,
-  onZoomOut,
-  onResetZoom,
-  showZoom = true,
   bookPageOffset = null,
 }: {
   bookPageOffset?: number | null;
@@ -458,21 +455,16 @@ function PdfPageJumpBar({
   onSubmit: () => void;
   onPrev: () => void;
   onNext: () => void;
-  zoomScale?: number;
-  onZoomIn?: () => void;
-  onZoomOut?: () => void;
-  onResetZoom?: () => void;
-  showZoom?: boolean;
 }) {
   const knownCount = pageCount > 0;
   const bookPage = bookPageOffset != null && page - bookPageOffset >= 1 ? page - bookPageOffset : null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-stone-300/50 bg-stone-100/95 px-3 py-2.5 backdrop-blur-sm sm:gap-3 sm:py-3">
+    <div className="flex min-w-0 items-center gap-1 sm:gap-2">
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
+        className="h-10 w-10 shrink-0 rounded-xl px-0 sm:h-11 sm:w-11"
         disabled={page <= 1}
         onClick={onPrev}
         aria-label="Previous page"
@@ -480,36 +472,42 @@ function PdfPageJumpBar({
         <ChevronUp className="h-5 w-5" />
       </Button>
       <form
-        className="flex items-center gap-1.5 sm:gap-2"
+        className="flex min-w-0 items-center gap-1 sm:gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit();
         }}
       >
-        <span className="text-sm font-semibold text-stone-700">Page</span>
+        <span className="hidden text-sm font-semibold text-stone-700 sm:inline">Page</span>
         <Input
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          enterKeyHint="go"
           value={draft}
           onChange={(e) => onDraftChange(e.target.value.replace(/[^\d]/g, ''))}
           onBlur={onSubmit}
           onFocus={(e) => e.currentTarget.select()}
-          className="h-10 w-14 rounded-xl text-center text-sm font-semibold tabular-nums sm:h-11 sm:w-16"
+          className="h-10 w-12 shrink-0 rounded-xl px-1 text-center text-sm font-semibold tabular-nums sm:h-11 sm:w-16"
           aria-label="Go to page number"
         />
         {knownCount && bookPageOffset != null ? (
           // Fixed width: the label used to grow/shrink between front matter and
           // body pages, sliding the Next button out from under the cursor.
-          <span className="min-w-[9.5rem] text-left text-xs font-medium tabular-nums text-stone-500">
-            of {pageCount} · {bookPage == null ? 'front matter' : `book p. ${bookPage}`}
+          // Two short lines on phones, one line from sm up.
+          <span className="flex w-[4.75rem] shrink-0 flex-col text-left text-[11px] font-medium leading-tight tabular-nums text-stone-500 sm:w-[9.5rem] sm:flex-row sm:gap-1 sm:text-xs">
+            <span>of {pageCount}</span>
+            <span className="truncate">
+              <span className="hidden sm:inline">· </span>
+              {bookPage == null ? 'front matter' : `book p. ${bookPage}`}
+            </span>
           </span>
         ) : knownCount ? (
-          <span className="text-sm font-semibold tabular-nums text-stone-700">
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-stone-700">
             of {pageCount}
           </span>
         ) : null}
-        <Button type="submit" variant="outline" size="sm" className="h-10 rounded-xl px-3 sm:h-11">
+        <Button type="submit" variant="outline" size="sm" className="h-10 shrink-0 rounded-xl px-2.5 sm:h-11 sm:px-3">
           Go
         </Button>
       </form>
@@ -517,59 +515,72 @@ function PdfPageJumpBar({
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
+        className="h-10 w-10 shrink-0 rounded-xl px-0 sm:h-11 sm:w-11"
         disabled={knownCount ? page >= pageCount : false}
         onClick={onNext}
         aria-label="Next page"
       >
         <ChevronDown className="h-5 w-5" />
       </Button>
-      {showZoom ? (
-        <>
-          <span className="mx-0.5 hidden h-6 w-px bg-stone-300 sm:block" aria-hidden />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
-            onClick={onZoomOut}
-            aria-label="Zoom out"
-            title="Zoom out"
-            disabled={zoomScale <= 1.02}
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span
-            className="min-w-12 text-center text-xs font-semibold tabular-nums text-stone-700"
-            aria-live="polite"
-            aria-label={`Zoom ${Math.round(zoomScale * 100)} percent`}
-          >
-            {Math.round(zoomScale * 100)}%
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
-            onClick={onZoomIn}
-            aria-label="Zoom in"
-            title="Zoom in"
-            disabled={zoomScale >= 3.24}
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-10 rounded-xl px-2 text-xs sm:h-11"
-            disabled={zoomScale <= 1.02}
-            onClick={onResetZoom}
-          >
-            Reset
-          </Button>
-        </>
-      ) : null}
+    </div>
+  );
+}
+
+/** Zoom controls (− · % · + · Reset). Lives in the BOTTOM bar — the only zoom set. */
+function PdfZoomBar({
+  zoomScale = 1,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+}: {
+  zoomScale?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center justify-center gap-2 border-t border-stone-300/50 bg-stone-100/95 px-3 py-2 backdrop-blur-sm sm:gap-3 sm:py-2.5">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
+        onClick={onZoomOut}
+        aria-label="Zoom out"
+        title="Zoom out"
+        disabled={zoomScale <= 1.02}
+      >
+        <ZoomOut className="h-4 w-4" />
+      </Button>
+      <span
+        className="min-w-12 text-center text-xs font-semibold tabular-nums text-stone-700"
+        aria-live="polite"
+        aria-label={`Zoom ${Math.round(zoomScale * 100)} percent`}
+      >
+        {Math.round(zoomScale * 100)}%
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-10 min-w-10 rounded-xl px-0 sm:h-11 sm:min-w-11"
+        onClick={onZoomIn}
+        aria-label="Zoom in"
+        title="Zoom in"
+        disabled={zoomScale >= 3.24}
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-10 rounded-xl px-2 text-xs sm:h-11"
+        disabled={zoomScale <= 1.02}
+        onClick={onResetZoom}
+      >
+        Reset
+      </Button>
     </div>
   );
 }
@@ -1244,6 +1255,45 @@ export default function PdfPreviewPanel({
     Math.floor(containerSize.width > 40 ? containerSize.width : 320),
   );
 
+  /** Fullscreen / new-tab buttons — icon-only on phones so the top bar fits beside page nav. */
+  const toolbarActions =
+    allowFullscreen || showOpenInNewTab ? (
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {allowFullscreen ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 min-w-10 rounded-xl px-2 sm:h-9 sm:px-3"
+            onClick={() => void toggleFullscreen()}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4 sm:mr-2" />
+            ) : (
+              <Maximize2 className="h-4 w-4 sm:mr-2" />
+            )}
+            <span className="hidden sm:inline">{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
+          </Button>
+        ) : null}
+        {showOpenInNewTab ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 min-w-10 rounded-xl px-2 sm:h-9 sm:px-3"
+            onClick={openInNewTab}
+            aria-label="Open in new tab"
+            title="Open in new tab"
+          >
+            <ExternalLink className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Open in new tab</span>
+          </Button>
+        ) : null}
+      </div>
+    ) : null;
+
   /** Desktop mouse/trackpad — embedded PDF iframe (never on touch tablets / book mode). */
   if (!useCanvasRendering && inlineIframeSupported) {
     return (
@@ -1254,31 +1304,23 @@ export default function PdfPreviewPanel({
         aria-label={title ? `${title} textbook reader` : 'Textbook reader'}
         className={`flex h-full min-h-0 flex-1 flex-col bg-[#d6d3d1] outline-none ${className}`}
       >
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-300/60 bg-stone-100/95 px-3 py-2.5 backdrop-blur-sm sm:px-4">
+        <div className="flex shrink-0 flex-col gap-1.5 border-b border-stone-300/60 bg-stone-100/95 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-2.5">
           {contextLabel ? (
-            <p className="min-w-0 flex-1 truncate text-xs font-semibold text-stone-800 sm:text-sm">
+            <p className="min-w-0 truncate text-xs font-semibold text-stone-800 sm:text-sm">
               {contextLabel}
             </p>
-          ) : (
-            <span />
-          )}
-          <div className="flex flex-wrap items-center justify-end gap-2">
-          {allowFullscreen ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => void toggleFullscreen()}>
-              {isFullscreen ? (
-                <Minimize2 className="mr-2 h-4 w-4" />
-              ) : (
-                <Maximize2 className="mr-2 h-4 w-4" />
-              )}
-              {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            </Button>
           ) : null}
-          {showOpenInNewTab ? (
-            <Button type="button" variant="outline" size="sm" onClick={openInNewTab}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Open in new tab
-            </Button>
-          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            <PdfPageJumpBar
+              page={readerPage}
+              pageCount={0}
+              draft={pageJumpDraft}
+              onDraftChange={setPageJumpDraft}
+              onSubmit={submitPageJump}
+              onPrev={() => jumpReaderPage(readerPage - 1)}
+              onNext={() => jumpReaderPage(readerPage + 1)}
+            />
+            {toolbarActions}
           </div>
         </div>
         <div
@@ -1299,16 +1341,6 @@ export default function PdfPreviewPanel({
             />
           </div>
         </div>
-        <PdfPageJumpBar
-          page={readerPage}
-          pageCount={0}
-          draft={pageJumpDraft}
-          onDraftChange={setPageJumpDraft}
-          onSubmit={submitPageJump}
-          onPrev={() => jumpReaderPage(readerPage - 1)}
-          onNext={() => jumpReaderPage(readerPage + 1)}
-          showZoom={false}
-        />
       </div>
     );
   }
@@ -1327,76 +1359,32 @@ export default function PdfPreviewPanel({
       aria-label={title ? `${title} textbook reader` : 'Textbook reader'}
       className={`flex h-full min-h-0 flex-1 flex-col bg-[#d6d3d1] outline-none ${className}`}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-300/60 bg-stone-100/95 px-3 py-2.5 backdrop-blur-sm sm:px-4">
-        <div className="min-w-0 flex-1">
+      <div className="flex shrink-0 flex-col gap-1.5 border-b border-stone-300/60 bg-stone-100/95 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-2.5">
+        <div
+          className={`${contextLabel ? 'flex' : 'hidden md:flex'} min-w-0 items-baseline justify-between gap-3`}
+        >
           {contextLabel ? (
-            <p className="truncate text-xs font-semibold text-stone-800 sm:text-sm">{contextLabel}</p>
+            <p className="min-w-0 truncate text-xs font-semibold text-stone-800 sm:text-sm">{contextLabel}</p>
           ) : null}
-          <p className="text-xs font-medium text-stone-600 sm:text-sm">
+          {/* Keyboard/mouse hint — hidden on phones so the bar never wraps badly. */}
+          <p className="ml-auto hidden shrink-0 text-xs font-medium text-stone-600 md:block">
             {useIframeFallback
               ? 'Use the scrollbar to move through pages'
-              : '↑↓ pages · Ctrl+scroll or +/− to zoom · drag anywhere to pan when zoomed'}
+              : '↑↓ pages · Ctrl+scroll to zoom · drag to pan when zoomed'}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!useIframeFallback ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => mobileViewerRef.current?.zoomOut()}
-                aria-label="Zoom out"
-                title="Zoom out"
-                disabled={readerZoomScale <= 1.02}
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => mobileViewerRef.current?.zoomIn()}
-                aria-label="Zoom in"
-                title="Zoom in"
-                disabled={readerZoomScale >= 3.24}
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <span
-                className="min-w-12 text-center text-xs font-semibold tabular-nums text-stone-700"
-                aria-live="polite"
-                aria-label={`Zoom ${Math.round(readerZoomScale * 100)} percent`}
-              >
-                {Math.round(readerZoomScale * 100)}%
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={readerZoomScale <= 1.02}
-                onClick={() => mobileViewerRef.current?.resetZoom()}
-              >
-                Reset zoom
-              </Button>
-            </>
-          ) : null}
-          {allowFullscreen ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => void toggleFullscreen()}>
-              {isFullscreen ? (
-                <Minimize2 className="mr-2 h-4 w-4" />
-              ) : (
-                <Maximize2 className="mr-2 h-4 w-4" />
-              )}
-              {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            </Button>
-          ) : null}
-          {showOpenInNewTab ? (
-            <Button type="button" variant="outline" size="sm" onClick={openInNewTab}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Open in new tab
-            </Button>
-          ) : null}
+        <div className="flex items-center justify-between gap-2">
+          <PdfPageJumpBar
+            page={readerPage}
+            pageCount={readerPageCount || totalPages}
+            bookPageOffset={useIframeFallback ? null : bookPageOffset}
+            draft={pageJumpDraft}
+            onDraftChange={setPageJumpDraft}
+            onSubmit={submitPageJump}
+            onPrev={() => jumpReaderPage(readerPage - 1)}
+            onNext={() => jumpReaderPage(readerPage + 1)}
+          />
+          {toolbarActions}
         </div>
       </div>
 
@@ -1467,21 +1455,14 @@ export default function PdfPreviewPanel({
         </div>
       </div>
 
-      <PdfPageJumpBar
-        page={readerPage}
-        pageCount={readerPageCount || totalPages}
-        bookPageOffset={useIframeFallback ? null : bookPageOffset}
-        draft={pageJumpDraft}
-        onDraftChange={setPageJumpDraft}
-        onSubmit={submitPageJump}
-        onPrev={() => jumpReaderPage(readerPage - 1)}
-        onNext={() => jumpReaderPage(readerPage + 1)}
-        showZoom={!useIframeFallback}
-        zoomScale={readerZoomScale}
-        onZoomIn={() => mobileViewerRef.current?.zoomIn()}
-        onZoomOut={() => mobileViewerRef.current?.zoomOut()}
-        onResetZoom={() => mobileViewerRef.current?.resetZoom()}
-      />
+      {!useIframeFallback ? (
+        <PdfZoomBar
+          zoomScale={readerZoomScale}
+          onZoomIn={() => mobileViewerRef.current?.zoomIn()}
+          onZoomOut={() => mobileViewerRef.current?.zoomOut()}
+          onResetZoom={() => mobileViewerRef.current?.resetZoom()}
+        />
+      ) : null}
     </div>
   );
 }

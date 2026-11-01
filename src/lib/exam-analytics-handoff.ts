@@ -1,4 +1,5 @@
 import {
+  type QuestionSnapshotRow,
   type SchoolAnalysisExamResult,
   type SubjectAgg,
   buildSchoolPerformanceAnalysisReport,
@@ -51,7 +52,42 @@ export type HandoffQuestionRow = {
   chapter?: string;
   difficulty?: string;
   timeTaken?: number;
+  /** For the shared answer review: options, the student pick and the key. */
+  questionType?: string;
+  options?: Array<string | { text?: string; label?: string; _id?: string }>;
+  selectedAnswer?: unknown;
+  correctAnswer?: unknown;
+  assertionText?: string;
+  reasonText?: string;
 };
+
+function snapshotOptions(
+  snap: QuestionSnapshotRow | null,
+): HandoffQuestionRow['options'] {
+  if (!snap) return [];
+  if (Array.isArray(snap.options) && snap.options.length) return snap.options;
+  return [snap.option1, snap.option2, snap.option3, snap.option4].filter(
+    (o): o is string => typeof o === 'string' && o.trim() !== '',
+  );
+}
+
+/** Student answer for question i (keys: _id, q-<i>, 0-based or 1-based index). */
+function lookupAttemptAnswer(
+  answers: Record<string, unknown> | undefined,
+  questionId: string,
+  index: number,
+): unknown {
+  if (!answers || typeof answers !== 'object') return undefined;
+  const keys = [questionId, questionId.toLowerCase(), `q-${index}`, String(index), String(index + 1)];
+  for (const key of keys) {
+    if (!key) continue;
+    const value = answers[key];
+    if (value === undefined || value === null || value === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    return value;
+  }
+  return undefined;
+}
 
 function stripHtmlPreview(text: string) {
   return String(text || '')
@@ -91,15 +127,26 @@ export function buildHandoffQuestionRows(
       stripHtmlPreview(snap?.questionText || snap?.assertionText || '') ||
       `Question ${i + 1}`;
 
+    const questionId = String(row?.questionId || snap?._id || `q-${i}`);
     rows.push({
       questionNumber: i + 1,
-      questionId: String(row?.questionId || snap?._id || `q-${i}`),
+      questionId,
       status,
-      questionText: questionText.slice(0, 280),
+      questionText: questionText.slice(0, 1200),
       subject: row?.subject || snap?.subject || '',
       chapter: row?.chapter || snap?.chapter || '',
       difficulty: row?.difficulty || snap?.difficulty || '',
       timeTaken: Number(row?.timeTaken) > 0 ? Number(row?.timeTaken) : undefined,
+      questionType: snap?.questionType || row?.questionType || '',
+      options: snapshotOptions(snap),
+      selectedAnswer: lookupAttemptAnswer(
+        result.answers,
+        String(snap?._id || row?.questionId || ''),
+        i,
+      ),
+      correctAnswer: snap?.correctAnswer,
+      assertionText: stripHtmlPreview(snap?.assertionText || ''),
+      reasonText: stripHtmlPreview(snap?.reasonText || ''),
     });
   }
   return rows;

@@ -323,6 +323,20 @@ export default function LearningPaths() {
     setLocation(`${base}?${params.toString()}`);
   };
 
+  /**
+   * Book rows inside a subject card ("MATHEMATICS 10th >", IIT / NEET books).
+   * Opens that specific book in the same in-page viewer the library uses
+   * (role-agnostic: no student-only route involved). Rows without a file fall
+   * back to the subject page, i.e. where "View Content" goes.
+   */
+  const handleSubjectBookClick = (subject: any, content: any) => {
+    if (content?.fileUrl) {
+      openContentPreview(content);
+      return;
+    }
+    handleSubjectClick(subject);
+  };
+
   const isYouTubeUrl = (url?: string) => {
     if (!url) return false;
     const lower = url.toLowerCase();
@@ -746,7 +760,7 @@ export default function LearningPaths() {
         {activeTab === 'subjects' && (
         <div className="mb-8">
           <h2 className="mb-6 font-display text-2xl font-bold text-ink">Browse by Subject</h2>
-          <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {isLoadingSubjects ? (
               <div className="col-span-full flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 text-sky-500 animate-spin mb-3" aria-hidden />
@@ -812,7 +826,7 @@ export default function LearningPaths() {
                 return (
                   <div
                     key={subject._id || subject.id}
-                    className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-elevated"
+                    className="flex h-full min-w-0 flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-elevated"
                     onMouseEnter={prefetchSubjectPage}
                   >
                     <div className="flex items-center gap-3">
@@ -832,11 +846,11 @@ export default function LearningPaths() {
                       </span>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="mt-4 grid grid-cols-3 auto-rows-fr gap-2">
                       {tiles.map((t) => (
                         <div
                           key={t.label}
-                          className={`rounded-xl border px-2 py-2.5 text-center ${
+                          className={`flex h-full min-w-0 flex-col items-center justify-center rounded-xl border px-2 py-2.5 text-center ${
                             t.iit
                               ? 'border-slate-800 bg-slate-900 text-amber-200'
                               : 'border-border bg-background'
@@ -850,7 +864,7 @@ export default function LearningPaths() {
                             {t.value}
                           </p>
                           <p
-                            className={`mt-1 text-micro font-medium ${
+                            className={`mt-1 w-full truncate whitespace-nowrap text-micro font-medium ${
                               t.iit ? 'text-amber-200/80' : 'text-muted-foreground'
                             }`}
                           >
@@ -867,14 +881,18 @@ export default function LearningPaths() {
                         </p>
                         <ul className="space-y-1.5">
                           {recentBoard.map((c: any, i: number) => (
-                            <li
-                              key={c?._id || c?.id || `board-${i}`}
-                              className="flex items-center justify-between gap-2 rounded-lg bg-background px-3 py-2"
-                            >
-                              <span className="truncate text-sm text-ink-soft">
-                                {c?.title || c?.name || 'Untitled'}
-                              </span>
-                              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            <li key={c?._id || c?.id || `board-${i}`}>
+                              <button
+                                type="button"
+                                onClick={() => handleSubjectBookClick(subject, c)}
+                                title={`Open ${c?.title || c?.name || 'book'}`}
+                                className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg bg-background px-3 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                <span className="truncate text-sm text-ink-soft">
+                                  {c?.title || c?.name || 'Untitled'}
+                                </span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                              </button>
                             </li>
                           ))}
                         </ul>
@@ -888,36 +906,43 @@ export default function LearningPaths() {
                         </p>
                         <ul className="space-y-1.5">
                           {recentIit.map((c: any, i: number) => (
-                            <li
-                              key={c?._id || c?.id || `iit-${i}`}
-                              className="flex items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/70 px-3 py-2"
-                            >
-                              <span className="truncate text-sm text-ink-soft">
-                                {/* The header already says "<Subject> · IIT / NEET": show the track and title only. */}
-                                {[
-                                  formatIitLearningPathContentLabel(c, displayName)
-                                    .replace(/^.*?·\s*IIT \/ NEET\s*/i, '')
-                                    .trim(),
-                                  c?.title,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ') || 'IIT / NEET'}
-                              </span>
-                              <ChevronRight className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                            <li key={c?._id || c?.id || `iit-${i}`}>
+                              <button
+                                type="button"
+                                onClick={() => handleSubjectBookClick(subject, c)}
+                                title={`Open ${c?.title || 'IIT / NEET book'}`}
+                                className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/70 px-3 py-2 text-left transition-colors hover:bg-amber-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                <span className="truncate text-sm text-ink-soft">
+                                  {/* The header already says "<Subject> · IIT / NEET": show the track and title only. */}
+                                  {[
+                                    formatIitLearningPathContentLabel(c, displayName)
+                                      .replace(/^.*?·\s*IIT \/ NEET\s*/i, '')
+                                      .trim(),
+                                    c?.title,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ') || 'IIT / NEET'}
+                                </span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                              </button>
                             </li>
                           ))}
                         </ul>
                       </div>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleSubjectClick(subject)}
-                      className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${theme.btn}`}
-                    >
-                      View Content
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    {/* mt-auto pins the CTA to the bottom so cards in a row line up. */}
+                    <div className="mt-auto pt-4">
+                      <button
+                        type="button"
+                        onClick={() => handleSubjectClick(subject)}
+                        className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${theme.btn}`}
+                      >
+                        View Content
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 );
               })

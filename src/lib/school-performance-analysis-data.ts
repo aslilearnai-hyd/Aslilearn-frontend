@@ -15,6 +15,13 @@ export type QuestionSnapshotRow = {
   _id?: string;
   questionText?: string;
   assertionText?: string;
+  reasonText?: string;
+  options?: Array<string | { text?: string; label?: string; _id?: string }>;
+  option1?: string;
+  option2?: string;
+  option3?: string;
+  option4?: string;
+  correctAnswer?: unknown;
   subject?: string;
   chapter?: string;
   questionType?: string;
@@ -43,6 +50,8 @@ export type SchoolAnalysisExamResult = {
   subjectWiseScore?: Record<string, { correct?: number; total?: number; marks?: number }>;
   questionAnalytics?: QuestionAnalyticsRow[];
   questionSnapshot?: QuestionSnapshotRow[];
+  /** Student answers keyed by question _id (or q-<index> / index on older rows). */
+  answers?: Record<string, unknown>;
 };
 
 function studentKeyFromResult(result: SchoolAnalysisExamResult): string {

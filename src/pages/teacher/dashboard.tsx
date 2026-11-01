@@ -2342,7 +2342,7 @@ const TeacherDashboard = () => {
               subtitle: 'Generate lesson materials, worksheets, and teaching aids.',
             },
             calendar: {
-              title: 'Calendar',
+              title: 'Time Table and Calendar',
               subtitle: 'Your timetable photo and day-by-day schedule.',
             },
             settings: {
@@ -2440,7 +2440,7 @@ const TeacherDashboard = () => {
                 {[
                   { tab: 'classes', label: 'My Classes', hint: 'Class roster cards', Icon: GraduationCap },
                   { tab: 'students', label: 'Students', hint: 'Progress & submissions', Icon: Users },
-                  { tab: 'calendar', label: 'Calendar', hint: 'Timetable & schedule', Icon: Calendar },
+                  { tab: 'calendar', label: 'Time Table and Calendar', hint: 'Timetable & schedule', Icon: Calendar },
                   { tab: 'vidya-ai', label: 'Vidya AI', hint: 'Generate teaching aids', Icon: Sparkles },
                 ].map(({ tab, label, hint, Icon }) => (
                   <button
@@ -3363,6 +3363,14 @@ const TeacherDashboard = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Paper discussion (Discuss paper / Show answers) — it used to sit inside the
+                          Track Progress panels that Reports renders; it moved to Students → Exam
+                          Review, so Reports reuses the same component for the class filter here.
+                          A single student's report does not need the whole-class paper review. */}
+                      {dashboardSubTab === 'reports' && filterByStudent === 'all' ? (
+                        <TeacherExamQuestionAnalytics classNumber={filterByClass} />
+                      ) : null}
 
                       {isLoadingProgress ? (
                         <div className="bg-white/60 backdrop-blur-xl rounded-2xl px-4 py-8 shadow-sm border border-white/20 text-center">

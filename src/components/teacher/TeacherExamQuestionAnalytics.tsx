@@ -40,6 +40,10 @@ import {
   examOptionsAsText,
   resolveAnswerListForQuestion,
 } from '@/lib/exam-answer-resolve';
+import {
+  QuestionAnswerReview,
+  type QuestionAnswerReviewItem,
+} from '@/components/shared/QuestionAnswerReview';
 
 export interface ExamListItem {
   _id: string;
@@ -103,6 +107,8 @@ interface StudentReport {
     questionText: string;
     subject?: string;
     status: QuestionStatus;
+    /** The answer this student submitted (raw: option text, letter, index or value). */
+    selectedAnswer?: unknown;
     timeTaken?: number;
   }>;
 }
@@ -121,6 +127,16 @@ interface QuestionAnalyticsPayload {
 
 interface TeacherExamQuestionAnalyticsProps {
   classNumber?: string;
+  /**
+   * API root for the paper endpoints. Teachers use /api/teacher (default);
+   * the school admin reuses this component with /api/admin.
+   */
+  apiBase?: string;
+  /**
+   * Review one fixed paper (admin exam detail page): hides the exam picker and
+   * skips the exam list call.
+   */
+  examId?: string;
 }
 
 type ReviewMode = 'idle' | 'inline' | 'discuss';
@@ -375,13 +391,36 @@ function StudentReportDialog({
   onOpenChange,
   report,
   examTitle,
+  questions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   report: StudentReport | null;
   examTitle?: string;
+  /** Paper questions (options + correct answer), joined to the report by index. */
+  questions: QuestionStat[];
 }) {
   if (!report) return null;
+
+  const byIndex = new Map(questions.map((q) => [q.index, q]));
+  const reviewItems: QuestionAnswerReviewItem[] = report.questionBreakdown.map((row) => {
+    const q = byIndex.get(row.index);
+    return {
+      questionNumber: row.questionNumber,
+      questionId: row.questionId,
+      status: row.status,
+      questionText: row.questionText,
+      assertionText: q?.assertionText,
+      reasonText: q?.reasonText,
+      questionType: q?.questionType,
+      options: q?.options,
+      selectedAnswer: row.selectedAnswer,
+      correctAnswer: q?.correctAnswer,
+      subject: row.subject,
+      chapter: q?.chapter,
+      timeTaken: row.timeTaken,
+    };
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -416,32 +455,7 @@ function StudentReportDialog({
           )}
         </div>
 
-        <ul className="space-y-2">
-          {report.questionBreakdown.map((row) => {
-            const meta =
-              row.status === 'correct'
-                ? { label: 'Correct', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200', Icon: CheckCircle2 }
-                : row.status === 'wrong'
-                  ? { label: 'Wrong', cls: 'bg-rose-50 text-rose-800 border-rose-200', Icon: XCircle }
-                  : { label: 'Unattempted', cls: 'bg-slate-50 text-slate-700 border-slate-200', Icon: CircleDashed };
-            return (
-              <li
-                key={`${row.questionId}-${row.index}`}
-                className={`rounded-xl border px-3 py-2.5 ${meta.cls}`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold">Q{row.questionNumber}</span>
-                  <meta.Icon className="h-3.5 w-3.5" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wide">{meta.label}</span>
-                  {row.subject ? (
-                    <span className="ml-auto text-[10px] opacity-70 capitalize">{row.subject}</span>
-                  ) : null}
-                </div>
-                <p className="text-xs sm:text-sm line-clamp-3">{row.questionText}</p>
-              </li>
-            );
-          })}
-        </ul>
+        <QuestionAnswerReview items={reviewItems} />
       </DialogContent>
     </Dialog>
   );
@@ -449,10 +463,12 @@ function StudentReportDialog({
 
 export function TeacherExamQuestionAnalytics({
   classNumber = 'all',
+  apiBase = '/api/teacher',
+  examId: fixedExamId,
 }: TeacherExamQuestionAnalyticsProps) {
   const [exams, setExams] = useState<ExamListItem[]>([]);
   const [studentCount, setStudentCount] = useState(0);
-  const [selectedExamId, setSelectedExamId] = useState('');
+  const [selectedExamId, setSelectedExamId] = useState(fixedExamId || '');
   const [analytics, setAnalytics] = useState<QuestionAnalyticsPayload | null>(null);
   const [isLoadingExams, setIsLoadingExams] = useState(false);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
@@ -463,11 +479,15 @@ export function TeacherExamQuestionAnalytics({
   const [reportStudent, setReportStudent] = useState<StudentReport | null>(null);
 
   const loadExams = useCallback(async () => {
+    if (fixedExamId) {
+      setSelectedExamId(fixedExamId);
+      return;
+    }
     setIsLoadingExams(true);
     setError(null);
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/teacher/exams${classQuery(classNumber)}`,
+        `${API_BASE_URL}${apiBase}/exams${classQuery(classNumber)}`,
         { headers: authHeaders() },
       );
       const json = await res.json().catch(() => ({}));
@@ -488,7 +508,7 @@ export function TeacherExamQuestionAnalytics({
     } finally {
       setIsLoadingExams(false);
     }
-  }, [classNumber]);
+  }, [classNumber, apiBase, fixedExamId]);
 
   const loadAnalytics = useCallback(
     async (examId: string) => {
@@ -500,7 +520,7 @@ export function TeacherExamQuestionAnalytics({
       setError(null);
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api/teacher/exams/${encodeURIComponent(examId)}/question-analytics${classQuery(classNumber)}`,
+          `${API_BASE_URL}${apiBase}/exams/${encodeURIComponent(examId)}/question-analytics${classQuery(classNumber)}`,
           { headers: authHeaders() },
         );
         const json = await res.json().catch(() => ({}));
@@ -518,7 +538,7 @@ export function TeacherExamQuestionAnalytics({
         setIsLoadingAnalytics(false);
       }
     },
-    [classNumber],
+    [classNumber, apiBase],
   );
 
   useEffect(() => {
@@ -539,7 +559,10 @@ export function TeacherExamQuestionAnalytics({
   }, [mode]);
 
   const questions = analytics?.questions || [];
-  const studentReports = analytics?.studentReports || [];
+  // Only students who actually sat this paper are listed; the rest are a count.
+  const allStudentReports = analytics?.studentReports || [];
+  const studentReports = allStudentReports.filter((s) => s.attempted);
+  const notAttemptedCount = allStudentReports.length - studentReports.length;
   const activeDiscuss = questions[discussIndex] || null;
 
   const selectOption = useCallback((questionKey: string, optionText: string) => {
@@ -603,7 +626,15 @@ export function TeacherExamQuestionAnalytics({
                     <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
                       <Users className="h-4 w-4 text-indigo-600" />
                       Individual student reports
+                      {notAttemptedCount > 0 ? (
+                        <span className="text-[11px] font-normal text-gray-500">
+                          ({notAttemptedCount} not attempted)
+                        </span>
+                      ) : null}
                     </h3>
+                    {studentReports.length === 0 ? (
+                      <p className="text-xs text-gray-500">No student has taken this paper yet.</p>
+                    ) : null}
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {studentReports.map((s) => (
                         <button
@@ -617,9 +648,7 @@ export function TeacherExamQuestionAnalytics({
                             <span className="text-sm font-semibold text-gray-900 truncate">{s.name}</span>
                           </div>
                           <p className="text-[11px] text-gray-500 mt-1 pl-6">
-                            {s.attempted
-                              ? `${studentMarksLabel(s)} · ${s.correctAnswers} correct ${s.wrongAnswers} incorrect`
-                              : 'Not attempted'}
+                            {`${studentMarksLabel(s)} · ${s.correctAnswers} correct · ${s.wrongAnswers} incorrect`}
                           </p>
                         </button>
                       ))}
@@ -707,6 +736,7 @@ export function TeacherExamQuestionAnalytics({
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-4">
+          {fixedExamId ? null : (
           <div className="flex-1 min-w-0 space-y-1.5">
             <Label className="text-xs font-medium text-gray-700">Exam paper</Label>
             <Select
@@ -729,6 +759,7 @@ export function TeacherExamQuestionAnalytics({
               </SelectContent>
             </Select>
           </div>
+          )}
           {analytics ? (
             <div className="flex flex-wrap gap-2 text-xs text-gray-600 pb-1">
               <Badge variant="secondary" className="rounded-lg font-normal">
@@ -753,7 +784,7 @@ export function TeacherExamQuestionAnalytics({
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading paper…
           </div>
-        ) : !selectedExamId || exams.length === 0 ? (
+        ) : !selectedExamId || (!fixedExamId && exams.length === 0) ? (
           <p className="text-sm text-gray-500 py-6 text-center">No exams found for this class filter yet.</p>
         ) : !questions.length ? (
           <p className="text-sm text-gray-500 py-6 text-center">
@@ -809,7 +840,15 @@ export function TeacherExamQuestionAnalytics({
               <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
                 <Users className="h-4 w-4 text-indigo-600" />
                 Individual student reports
+                {notAttemptedCount > 0 ? (
+                  <span className="text-[11px] font-normal text-gray-500">
+                    ({notAttemptedCount} not attempted)
+                  </span>
+                ) : null}
               </h4>
+              {studentReports.length === 0 ? (
+                <p className="text-xs text-gray-500">No student has taken this paper yet.</p>
+              ) : null}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-64 overflow-y-auto pr-1">
                 {studentReports.map((s) => (
                   <button
@@ -823,9 +862,7 @@ export function TeacherExamQuestionAnalytics({
                       <span className="text-sm font-semibold text-gray-900 truncate">{s.name}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-1 pl-6">
-                      {s.attempted
-                        ? `${studentMarksLabel(s)} · ${s.correctAnswers} correct · ${s.wrongAnswers} wrong`
-                        : 'Not attempted'}
+                      {`${studentMarksLabel(s)} · ${s.correctAnswers} correct · ${s.wrongAnswers} wrong`}
                     </p>
                   </button>
                 ))}
@@ -844,6 +881,7 @@ export function TeacherExamQuestionAnalytics({
         }}
         report={reportStudent}
         examTitle={analytics?.examTitle}
+        questions={questions}
       />
     </>
   );

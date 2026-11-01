@@ -28,6 +28,7 @@ import {
   extractPlainSubjectName,
   getLearningPathClassLabel,
   isSoftDeletedSubjectName,
+  subjectDisplayLabel,
 } from '@/lib/subject-names';
 import {
   formatIitLearningPathContentLabel,
@@ -332,12 +333,21 @@ export default function AdminLearningPaths() {
           return ta - tb;
         });
 
+      // Name matching strips "IIT", so an IIT book whose own subject is on the roster
+      // would also land on the board subject (Class 6 CBSE Maths + Class 6 IIT Maths).
+      const rosterSubjectIds = new Set(
+        subjects.filter(isActiveCatalogSubject).map((s: any) => String(s._id || s.id)),
+      );
+
       for (const subject of subjects) {
         if (!isActiveCatalogSubject(subject)) continue;
         const subjectId = String(subject._id || subject.id);
         const nameKey = subjectNameClassKey(subject);
         const fromId = bySubjectId.get(subjectId) || [];
-        const fromName = nameKey ? byNameClass.get(nameKey) || [] : [];
+        const fromName = (nameKey ? byNameClass.get(nameKey) || [] : []).filter((item) => {
+          const ownerId = getContentSubjectId(item);
+          return !ownerId || ownerId === subjectId || !rosterSubjectIds.has(ownerId);
+        });
         const seen = new Set<string>();
         const asliPrepContent = sortContent(
           [...fromId, ...fromName].filter((item) => {
@@ -559,7 +569,8 @@ export default function AdminLearningPaths() {
                   <div className="grid grid-cols-1 items-start md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {group.subjects.map((subject: any) => {
                       const Icon = getSubjectIcon(subject.name);
-                      const displayName = extractPlainSubjectName(subject.name || '');
+                      const displayName =
+                        subjectDisplayLabel(subject.name || '') || extractPlainSubjectName(subject.name || '');
                       const primaryId = String(subject._id || subject.id);
                       const mergedIds: string[] = Array.isArray(subject.mergedSubjectIds)
                         ? subject.mergedSubjectIds.map(String)

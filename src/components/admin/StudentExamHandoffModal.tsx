@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, CircleDashed, XCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import {
   type HandoffIndividualReport,
 } from '@/lib/exam-analytics-handoff';
 import type { SchoolAnalysisExamResult } from '@/lib/school-performance-analysis-data';
+import { QuestionAnswerReview } from '@/components/shared/QuestionAnswerReview';
 
 type Props = {
   open: boolean;
@@ -41,28 +41,6 @@ function behaviourDisplay(value: string | number, metric: string) {
   if (m.includes('time')) return `${formatHandoffNumber(value)}s`;
   if (m.includes('correct')) return formatHandoffNumber(value, 2);
   return formatHandoffPct(value);
-}
-
-function statusMeta(status: 'correct' | 'wrong' | 'not_answered') {
-  if (status === 'correct') {
-    return {
-      label: 'Correct',
-      className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-      Icon: CheckCircle2,
-    };
-  }
-  if (status === 'wrong') {
-    return {
-      label: 'Wrong',
-      className: 'bg-rose-50 text-rose-800 border-rose-200',
-      Icon: XCircle,
-    };
-  }
-  return {
-    label: 'Unattempted',
-    className: 'bg-slate-100 text-slate-700 border-slate-200',
-    Icon: CircleDashed,
-  };
 }
 
 export function StudentExamHandoffModal({
@@ -175,52 +153,26 @@ export function StudentExamHandoffModal({
               ) : (
                 <>
                   <p className="text-xs text-slate-500 mb-3">
-                    This student’s result on each question (correct / wrong / unattempted) and time
-                    spent.
+                    This student’s answer on each question next to the correct answer — wrong picks in
+                    red, the correct option in green.
                   </p>
-                  <ul className="space-y-2.5">
-                    {questionRows.map((q) => {
-                      const meta = statusMeta(q.status);
-                      const Icon = meta.Icon;
-                      return (
-                        <li
-                          key={`${q.questionId}-${q.questionNumber}`}
-                          className="rounded-xl border border-slate-100 bg-white px-3 py-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="inline-flex rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">
-                                  Q{q.questionNumber}
-                                </span>
-                                <Badge variant="outline" className={`text-[10px] ${meta.className}`}>
-                                  <Icon className="mr-1 h-3 w-3" />
-                                  {meta.label}
-                                </Badge>
-                                {q.subject ? (
-                                  <span className="text-[10px] text-slate-500 capitalize">
-                                    {q.subject}
-                                  </span>
-                                ) : null}
-                                {q.timeTaken != null ? (
-                                  <span className="text-[10px] text-slate-400">{q.timeTaken}s</span>
-                                ) : null}
-                              </div>
-                              <p className="mt-1.5 text-sm text-slate-800 line-clamp-3">
-                                {q.questionText}
-                              </p>
-                              {q.chapter ? (
-                                <p className="mt-0.5 text-[11px] text-slate-500 truncate">
-                                  {q.chapter}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <QuestionAnswerReview
+                    items={questionRows.map((q) => ({
+                      questionNumber: q.questionNumber,
+                      questionId: q.questionId,
+                      status: q.status,
+                      questionText: q.questionText,
+                      assertionText: q.assertionText,
+                      reasonText: q.reasonText,
+                      questionType: q.questionType,
+                      options: q.options,
+                      selectedAnswer: q.selectedAnswer,
+                      correctAnswer: q.correctAnswer,
+                      subject: q.subject,
+                      chapter: q.chapter,
+                      timeTaken: q.timeTaken,
+                    }))}
+                  />
                 </>
               )}
             </section>

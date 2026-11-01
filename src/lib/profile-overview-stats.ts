@@ -14,10 +14,29 @@ export function getExamIdFromResult(result: any): string | null {
 
 export type WeeklyDayStat = {
   day: string;
+  /** Whole minutes of activity that day. */
+  minutes: number;
+  /** Kept for older callers; prefer `minutes` + formatActivityMinutes. */
   hours: number;
   completed: boolean;
   dateKey: string;
 };
+
+/** Server-computed week (IST) from /api/student/weekly-activity. */
+export type ServerWeeklyActivity = {
+  days?: Array<{ date: string; minutes?: number }>;
+  streak?: number;
+};
+
+/** "0m", "40m", "1h", "1h 20m" - never rounds 40 minutes down to "0h". */
+export function formatActivityMinutes(totalMinutes: number): string {
+  const mins = Math.max(0, Math.round(Number(totalMinutes) || 0));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h <= 0) return `${m}m`;
+  if (m <= 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
 
 export type ProfileOverviewStats = {
   streak: number;
@@ -33,7 +52,11 @@ export function buildWeeklyActivityStats(
   examResults: any[],
   progressRecords: any[] = [],
   /** Logged-in minutes per day (YYYY-MM-DD) from /api/student/session-time. */
-  sessionMinutesByDate: Record<string, number> = {}
+  sessionMinutesByDate: Record<string, number> = {},
+  /** Per-day minutes from /api/student/weekly-activity (same source as teacher reports). */
+  serverWeek: ServerWeeklyActivity | null = null,
+  /** Live minutes for today from this browser's tracker (not yet synced). */
+  localTodayMinutes = 0
 ): WeeklyDayStat[] {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -58,18 +81,31 @@ export function buildWeeklyActivityStats(
     secondsByDate.set(key, prev + (Number(row.timeSpent) || 0));
   }
 
+  const serverMinutesByDate = new Map<string, number>();
+  for (const row of serverWeek?.days || []) {
+    if (row?.date) serverMinutesByDate.set(row.date, Number(row.minutes) || 0);
+  }
+  const todayKey = toLocalDateKey(now);
+
   return WEEK_LABELS.map((label, index) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + index);
     const dateKey = toLocalDateKey(d);
     // A student who studies without finishing an exam still shows their time:
-    // take whichever is larger, study activity or time logged in that day.
-    const seconds = Math.max(secondsByDate.get(dateKey) || 0, (Number(sessionMinutesByDate[dateKey]) || 0) * 60);
-    const hours = Math.round((seconds / 3600) * 10) / 10;
+    // take whichever is largest - app time logged that day, or exam/study activity.
+    const minutes = Math.round(
+      Math.max(
+        (secondsByDate.get(dateKey) || 0) / 60,
+        Number(sessionMinutesByDate[dateKey]) || 0,
+        serverMinutesByDate.get(dateKey) || 0,
+        dateKey === todayKey ? Number(localTodayMinutes) || 0 : 0
+      )
+    );
     return {
       day: label,
-      hours,
-      completed: hours > 0,
+      minutes,
+      hours: Math.round((minutes / 60) * 10) / 10,
+      completed: minutes > 0,
       dateKey,
     };
   });

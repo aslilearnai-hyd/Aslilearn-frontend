@@ -23,6 +23,7 @@ import {
   setUser as persistUser,
 } from "@/lib/auth-utils";
 import { cn } from "@/lib/utils";
+import { startStudentPlatformSessionSync } from "@/lib/student-session-sync";
 
 /**
  * Student-portal chrome.
@@ -48,6 +49,10 @@ export function StudentShell({
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);
   }, []);
+
+  // Record time in the app on every student page (was only tracked on /dashboard,
+  // so the profile week view and teacher reports showed 0 for most usage).
+  useEffect(() => startStudentPlatformSessionSync(), []);
 
   // Refresh school name/logo from /api/auth/me — login cache is often missing schoolLogo.
   useEffect(() => {

@@ -25,6 +25,7 @@ import {
 } from '@/lib/exam-analytics-handoff';
 import StudentExamHandoffModal from '@/components/admin/StudentExamHandoffModal';
 import AdminExamQuestionBreakdown from '@/components/admin/AdminExamQuestionBreakdown';
+import { TeacherExamQuestionAnalytics } from '@/components/teacher/TeacherExamQuestionAnalytics';
 import type { HandoffIndividualReport } from '@/lib/exam-analytics-handoff';
 import type { SchoolAnalysisExamResult } from '@/lib/school-performance-analysis-data';
 import { enrichExamResultsWithAttempts } from '@/lib/school-performance-analysis-data';
@@ -824,6 +825,15 @@ export default function ExamViewOnly() {
               ))}
             </CardContent>
           </Card>
+        ) : null}
+
+        {/* Paper discussion / answer review — same component teachers use, on the admin API. */}
+        {selectedExam?._id ? (
+          <TeacherExamQuestionAnalytics
+            apiBase="/api/admin"
+            examId={String(selectedExam._id)}
+            classNumber={filters.classNumber || 'all'}
+          />
         ) : null}
 
         <AdminExamQuestionBreakdown

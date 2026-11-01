@@ -42,7 +42,7 @@ export const teacherNav: NavItem[] = [
   { id: "vidya-ai", label: "Vidya AI", icon: Sparkles, href: "/teacher/dashboard?tab=vidya-ai" },
   // NOTE: /teacher/timetable is currently a redirect back to the dashboard,
   // so Calendar points at a tab until a real calendar page exists.
-  { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/teacher/dashboard?tab=calendar" },
+  { id: "calendar", label: "Time Table and Calendar", icon: CalendarDays, href: "/teacher/dashboard?tab=calendar" },
   { id: "results", label: "Offline Results", icon: ScanLine, href: "/teacher/results" },
   { id: "settings", label: "Settings", icon: Settings, href: "/teacher/dashboard?tab=settings" },
   // Last item — mirrors student Profile: dedicated reports / student analysis
