@@ -335,8 +335,10 @@ export function BookCurriculumMappingDialog({
           (s.mappingStatus === "unmapped" ||
           s.mappingStatus === "needs_review" ||
           // Numbered sub-sections that only reached topic level still need a subtopic.
-          // Exercise blocks are chapter-level by design, not a gap to review.
-          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected")),
+          // Exercise blocks are chapter-level by design, not a gap to review, and an
+          // admin's "reviewed" chapter-general choice is final (the server serves it
+          // as chapter-general), so it leaves the queue.
+          (s.level >= 2 && !s.kind && !s.aiSubtopicId && s.mappingStatus !== "rejected" && s.mappingStatus !== "reviewed")),
       ),
     [sections],
   );
