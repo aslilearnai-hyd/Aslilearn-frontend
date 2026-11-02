@@ -1067,7 +1067,7 @@ const ClassDashboard = () => {
                     <div className="flex items-center justify-between gap-2 text-xs sm:text-sm min-w-0">
                       <div className="flex items-center text-sky-700 min-w-0">
                         <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-3 text-sky-600 shrink-0" />
-                        <span className="shrink-0">Students:</span>
+                        <span className="shrink-0">Students in this class:</span>
                       </div>
                       <span className="font-medium text-sky-900 shrink-0">{classItem.studentCount || 0}</span>
                     </div>
@@ -1110,7 +1110,7 @@ const ClassDashboard = () => {
                     <div className="flex items-start justify-between gap-3 text-xs sm:text-sm min-w-0">
                       <div className="flex items-center text-sky-700 shrink-0">
                         <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-3 text-sky-600 shrink-0" />
-                        <span>School students:</span>
+                        <span title="Students across all classes of the school (seat usage)">Whole school (all classes):</span>
                       </div>
                       <span className="min-w-0 flex-1 text-right font-medium text-sky-900 leading-snug break-words">
                         {formatSeatUsage(seats.usedStudents, seats.licensedStudents)}

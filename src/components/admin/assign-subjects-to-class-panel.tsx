@@ -42,6 +42,7 @@ export function AssignSubjectsToClassPanel({
   const { toast } = useToast();
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [subjectsError, setSubjectsError] = useState(false);
   const [classNumber, setClassNumber] = useState('');
   const [section, setSection] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -49,11 +50,21 @@ export function AssignSubjectsToClassPanel({
 
   const fetchSubjects = useCallback(async () => {
     setLoadingSubjects(true);
+    setSubjectsError(false);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/subjects`, {
-        headers: { Authorization: `Bearer ${getAuthToken()}` },
-      });
-      const data = await res.json().catch(() => null);
+      // A failed request used to show "No subjects available" even though the
+      // school has subjects (mobile listed them). Retry once, then say it failed.
+      const load = () =>
+        fetch(`${API_BASE_URL}/api/admin/subjects`, {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
+      let res = await load();
+      if (!res.ok) {
+        await new Promise((r) => setTimeout(r, 1200));
+        res = await load();
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
       const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
       setSubjects(
         rows
@@ -71,6 +82,7 @@ export function AssignSubjectsToClassPanel({
       );
     } catch {
       setSubjects([]);
+      setSubjectsError(true);
     } finally {
       setLoadingSubjects(false);
     }
@@ -220,6 +232,13 @@ export function AssignSubjectsToClassPanel({
         {loadingSubjects ? (
           <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading subjects…
+          </div>
+        ) : subjectsError ? (
+          <div className="mt-3 flex items-center gap-3 text-sm text-rose-600">
+            Could not load subjects.
+            <Button type="button" size="sm" variant="outline" onClick={() => void fetchSubjects()}>
+              Retry
+            </Button>
           </div>
         ) : subjects.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">No subjects available.</p>

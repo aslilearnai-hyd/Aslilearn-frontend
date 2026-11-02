@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { getAuthToken } from '@/lib/auth-utils';
@@ -1284,7 +1283,10 @@ export default function BookKnowledgeBase() {
             </div>
             <div>
               <p className="text-sm font-medium mb-2">Extracted text preview</p>
-              <Textarea readOnly className="min-h-[160px] text-xs font-mono" value={textPreview} />
+              {/* Book text keeps its LaTeX; show the maths typeset, not as raw $\frac$ code. */}
+              <div className="min-h-[160px] max-h-72 overflow-y-auto rounded-md border bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
+                {textPreview ? <ExamMathText text={textPreview} /> : <span className="text-slate-400">No text extracted.</span>}
+              </div>
             </div>
             <div>
               <p className="text-sm font-medium mb-2">
