@@ -332,16 +332,16 @@ export default function ExamViewOnly() {
     }
   };
 
-  const fetchExamResults = async (examId: string) => {
+  const fetchExamResults = async (examId: string, f: typeof filters = filters) => {
     setIsLoadingResults(true);
     try {
       const token = getAuthToken();
       const queryParams = new URLSearchParams();
       queryParams.append('examId', String(examId));
-      if (filters.classNumber) queryParams.append('classNumber', filters.classNumber);
-      if (filters.subject) queryParams.append('subject', filters.subject);
-      if (filters.startDate) queryParams.append('startDate', filters.startDate);
-      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      if (f.classNumber) queryParams.append('classNumber', f.classNumber);
+      if (f.subject) queryParams.append('subject', f.subject);
+      if (f.startDate) queryParams.append('startDate', f.startDate);
+      if (f.endDate) queryParams.append('endDate', f.endDate);
 
       const response = await fetch(`${API_BASE_URL}/api/admin/exam-results?${queryParams}`, {
         headers: {
@@ -350,16 +350,27 @@ export default function ExamViewOnly() {
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setExamResults(enrichExamResultsWithAttempts(data.data || []));
-          setSelectedAttemptByStudent({});
-          setAttemptView('all');
-        }
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.success) {
+        setExamResults(enrichExamResultsWithAttempts(data.data || []));
+        setSelectedAttemptByStudent({});
+        setAttemptView('all');
+      } else {
+        setExamResults([]);
+        toast({
+          title: 'Could not load exam results',
+          description: data?.message || `Request failed (${response.status})`,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Failed to fetch exam results:', error);
+      setExamResults([]);
+      toast({
+        title: 'Could not load exam results',
+        description: error instanceof Error ? error.message : 'Network error',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoadingResults(false);
     }
@@ -376,12 +387,12 @@ export default function ExamViewOnly() {
     classPerformance: [] as any[],
   });
 
-  const fetchAnalytics = async (examId: string) => {
+  const fetchAnalytics = async (examId: string, f: typeof filters = filters) => {
     setIsLoadingAnalytics(true);
     try {
       const token = getAuthToken();
       const qs = new URLSearchParams();
-      if (filters.classNumber) qs.set('classNumber', filters.classNumber);
+      if (f.classNumber) qs.set('classNumber', f.classNumber);
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       const response = await fetch(
         `${API_BASE_URL}/api/admin/exams/${encodeURIComponent(examId)}/analytics${suffix}`,
@@ -459,19 +470,21 @@ export default function ExamViewOnly() {
       ]);
       const resultsData = await resultsRes.json().catch(() => ({}));
       const analyticsData = await analyticsRes.json().catch(() => ({}));
-      if (resultsRes.ok && resultsData.success) {
-        setExamResults(enrichExamResultsWithAttempts(resultsData.data || []));
-        setSelectedAttemptByStudent({});
-        setAttemptView('all');
-      } else {
-        setExamResults([]);
-        setSelectedAttemptByStudent({});
-        setAttemptView('all');
-      }
-      if (analyticsRes.ok && analyticsData.success && analyticsData.data) {
-        setAnalytics(analyticsData.data);
-      } else {
-        setAnalytics(emptyAnalytics());
+      // A failed request here used to show "0 of 0 students" and "No results"
+      // while the same exam had 28 attempts (mobile showed them). Retry the
+      // failed call once through the normal loaders, which also report errors.
+      const resultsOk = resultsRes.ok && resultsData.success;
+      const analyticsOk = analyticsRes.ok && analyticsData.success && analyticsData.data;
+      setSelectedAttemptByStudent({});
+      setAttemptView('all');
+      if (resultsOk) setExamResults(enrichExamResultsWithAttempts(resultsData.data || []));
+      if (analyticsOk) setAnalytics(analyticsData.data);
+      if (!resultsOk || !analyticsOk) {
+        await new Promise((r) => setTimeout(r, 1200));
+        await Promise.all([
+          resultsOk ? null : fetchExamResults(examId, nextFilters),
+          analyticsOk ? null : fetchAnalytics(examId, nextFilters),
+        ]);
       }
     } catch (error) {
       console.error('Failed to load exam detail:', error);

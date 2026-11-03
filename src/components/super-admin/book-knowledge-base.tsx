@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { formatIitCategoryLabel, isIitStyleBoard, normalizeIitCategory } from "@/lib/products";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import { bookMetaLine } from "@/lib/book-labels";
+import { bookTextBlocks } from "@/lib/book-text-blocks";
 
 type BookRow = {
   _id: string;
@@ -1285,7 +1286,41 @@ export default function BookKnowledgeBase() {
               <p className="text-sm font-medium mb-2">Extracted text preview</p>
               {/* Book text keeps its LaTeX; show the maths typeset, not as raw $\frac$ code. */}
               <div className="min-h-[160px] max-h-72 overflow-y-auto rounded-md border bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
-                {textPreview ? <ExamMathText text={textPreview} /> : <span className="text-slate-400">No text extracted.</span>}
+                {textPreview ? (
+                  // Line by line (and tables as tables) so one line's maths never swallows the next.
+                  bookTextBlocks(textPreview).map((block, i) =>
+                    block.kind === "line" ? (
+                      <div key={i}><ExamMathText text={block.text} /></div>
+                    ) : (
+                      <div key={i} className="my-2 overflow-x-auto">
+                        <table className="min-w-full border-collapse text-xs">
+                          <thead>
+                            <tr>
+                              {block.header.map((cell, c) => (
+                                <th key={c} className="border border-slate-200 bg-slate-100 px-2 py-1 text-left font-semibold">
+                                  <ExamMathText text={cell} />
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {block.rows.map((row, r) => (
+                              <tr key={r}>
+                                {row.map((cell, c) => (
+                                  <td key={c} className="border border-slate-200 px-2 py-1 align-top">
+                                    <ExamMathText text={cell} />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ),
+                  )
+                ) : (
+                  <span className="text-slate-400">No text extracted.</span>
+                )}
               </div>
             </div>
             <div>

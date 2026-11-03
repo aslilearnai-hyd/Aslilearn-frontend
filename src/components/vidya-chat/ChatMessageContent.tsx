@@ -128,7 +128,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         : token.slice(2, -2);
     const display = token.startsWith("$$") || token.startsWith("\\[") || /\\(?:right)?arrow/.test(expression) || expression.length > 50;
     nodes.push(
-      <span key={`${keyPrefix}-m-${index++}`} className={display ? "my-2 block max-w-full overflow-x-auto py-1" : "inline-block max-w-full overflow-x-auto align-middle"}>
+      <span key={`${keyPrefix}-m-${index++}`} className={display ? "my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1" : "inline-block max-w-full overflow-x-auto overflow-y-hidden px-0.5 py-0.5 align-middle"}>
         <InlineMath math={expression.trim()} renderError={() => <code className="break-words">{expression}</code>} />
       </span>
     );

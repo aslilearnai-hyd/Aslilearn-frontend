@@ -29,6 +29,21 @@ const normalizeClassNumber = (value: string) =>
     .replace(/^class\s*/i, '')
     .trim();
 
+/** "Second Language Hindi_9" is the Class 9 copy of a subject; returns 9. */
+const subjectClassSuffix = (name: string) => name.match(/_(\d{1,2})\s*$/)?.[1] || '';
+
+/** Hide other classes' copies and show "Second Language Hindi (Class 9)" instead of "_9". */
+const subjectsForClass = (rows: SubjectRow[], classNumber: string) =>
+  rows
+    .filter((s) => {
+      const grade = subjectClassSuffix(s.name);
+      return !grade || !classNumber || grade === classNumber;
+    })
+    .map((s) => {
+      const grade = subjectClassSuffix(s.name);
+      return grade ? { ...s, name: `${s.name.replace(/_\d{1,2}\s*$/, '').trim()} (Class ${grade})` } : s;
+    });
+
 const rowMatches = (row: SubjectRow, storedId: string) =>
   row.id === storedId || row.variantIds.includes(storedId);
 
@@ -107,6 +122,8 @@ export function AssignSubjectsToClassPanel({
         .sort((a, b) => String(a.section).localeCompare(String(b.section))),
     [classes, classNumber],
   );
+
+  const visibleSubjects = useMemo(() => subjectsForClass(subjects, classNumber), [subjects, classNumber]);
 
   const target = useMemo(
     () =>
@@ -240,11 +257,11 @@ export function AssignSubjectsToClassPanel({
               Retry
             </Button>
           </div>
-        ) : subjects.length === 0 ? (
+        ) : visibleSubjects.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">No subjects available.</p>
         ) : (
           <div className="mt-3 grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-            {subjects.map((s) => {
+            {visibleSubjects.map((s) => {
               const checked = selectedIds.includes(s.id);
               return (
                 <label
