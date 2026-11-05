@@ -416,7 +416,6 @@ const TOOL_CONFIGS: Record<string, ToolConfig> = {
       { name: 'subject', label: 'Subject *', type: 'select', required: true, dependsOn: 'gradeLevel' },
       { name: 'topic', label: 'Topic *', type: 'select', required: true, placeholder: 'Select topic', isNCERT: true },
       { name: 'subTopic', label: 'Sub Topic (Optional)', type: 'select', required: false, placeholder: 'Whole chapter', isCascadeSubtopic: true },
-      { name: 'questionCount', label: 'Number of Questions', type: 'select', placeholder: '10', options: ['5', '10', '15', '20', '25', '30', '40'] },
       { name: 'difficulty', label: 'Difficulty', type: 'select', options: ['easy', 'medium', 'hard'] }
     ]
   },
@@ -1084,7 +1083,12 @@ export default function StudentToolPage() {
           subject: selectedSubject,
           topic: selectedTopic,
           section: selectedSection,
-          questionCount: formParams.questionCount ? parseInt(String(formParams.questionCount), 10) : undefined,
+          // Smart Q&A has no count picker for students: it is always 20 questions.
+          questionCount: formParams.questionCount
+            ? parseInt(String(formParams.questionCount), 10)
+            : (apiToolType || toolType) === 'smart-qa-practice-generator'
+              ? 20
+              : undefined,
           duration: formParams.duration ? parseInt(String(formParams.duration), 10) : undefined,
           ...formParams,
           subTopic: selectedSubTopic,
