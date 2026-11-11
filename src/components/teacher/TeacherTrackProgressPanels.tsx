@@ -475,7 +475,11 @@ export function TeacherTrackProgressPanels({
                   <p className="font-semibold text-gray-900 mt-0.5">
                     {(impPerf.dailyAverageWatchTime ?? 0) > 0
                       ? `${Math.round(impPerf.dailyAverageWatchTime ?? 0)} min/day`
-                      : 'No usage yet'}
+                      : (impPerf.usageActiveDays ?? 0) > 0
+                        ? 'Active, under 1 min/day'
+                        : (examSummary?.distinctExams ?? impPerf.totalExams ?? 0) > 0
+                          ? 'Exams only, no study time yet'
+                          : 'No usage yet'}
                   </p>
                   {(impPerf.usageActiveDays ?? 0) > 0 ? (
                     <p className="text-gray-500 mt-1">

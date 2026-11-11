@@ -1,3 +1,4 @@
+import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 import { reconcileInstructionCounts, sectionLetter } from '@/lib/reconcile-instructions';
 import ExamMathText from '@/components/exam/ExamMathText';
 import { cleanAnswerKeyText } from '@/lib/answer-key-text';
@@ -372,7 +373,7 @@ function PracticeQaBody({
           className="sm:col-span-2"
         >
           <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 px-2.5 py-2">
-            <ExpandableText text={cleanAnswerKeyText(practice.answerKey)} />
+            <ExpandableText text={formatClassroomScienceText(cleanAnswerKeyText(practice.answerKey))} />
           </div>
         </SectionCard>
       ) : null}

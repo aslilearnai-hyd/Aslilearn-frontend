@@ -267,7 +267,9 @@ export function useCurriculumCascade(
         });
         if (cancelled) return;
         const managedSubtopics = (managed as { data?: { subTopics?: string[] } })?.data?.subTopics || [];
-        setSubtopics(sortChapterWiseLabels(managedSubtopics));
+        // Keep the textbook order the server sends (1.1, 1.2 …); an A–Z sort
+        // put "Cube Roots" before "Square Numbers".
+        setSubtopics([...new Set(managedSubtopics.map((s) => String(s || '').trim()).filter(Boolean))]);
       } catch {
         if (!cancelled) setSubtopics([]);
       } finally {

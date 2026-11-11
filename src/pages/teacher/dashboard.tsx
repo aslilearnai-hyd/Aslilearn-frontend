@@ -3874,9 +3874,21 @@ const TeacherDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All classes</SelectItem>
-                            {sortedAssignedClasses.map((classItem) => (
-                              <SelectItem key={classItem._id || classItem.id} value={String(classItem.classNumber || classItem.name)}>
-                                {classItem.name || classItem.classNumber}
+                            {/* 8A and 8B share the value "8" (the review filters by class number),
+                                so two items with one value showed "8A 8B" stacked in the trigger.
+                                One option per class number, labelled with its sections. */}
+                            {Array.from(
+                              sortedAssignedClasses.reduce((map, classItem) => {
+                                const value = String(classItem.classNumber || classItem.name || '');
+                                if (!value) return map;
+                                const label = String(classItem.name || classItem.classNumber || '');
+                                const prev = map.get(value);
+                                map.set(value, prev && !prev.includes(label) ? `${prev}, ${label}` : prev || label);
+                                return map;
+                              }, new Map<string, string>()),
+                            ).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
                               </SelectItem>
                             ))}
                           </SelectContent>

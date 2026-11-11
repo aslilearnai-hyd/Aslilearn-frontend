@@ -325,7 +325,7 @@ function AnswerKeySnapshotTable({
             {rows.map((row, i) => (
               <tr key={`${row.qNo}-${i}`} className="bg-white text-slate-800">
                 <td className="border border-emerald-50 px-2.5 py-2 font-medium">{row.qNo}</td>
-                <td className="whitespace-normal break-words border border-emerald-50 px-2.5 py-2 leading-relaxed [overflow-wrap:anywhere]">{cleanAnswerText(row.answer)}</td>
+                <td className="whitespace-normal break-words border border-emerald-50 px-2.5 py-2 leading-relaxed [overflow-wrap:anywhere]">{formatClassroomScienceText(cleanAnswerText(row.answer))}</td>
                 <td className="border border-emerald-50 px-2.5 py-2">{row.marks ?? '—'}</td>
               </tr>
             ))}
@@ -334,7 +334,7 @@ function AnswerKeySnapshotTable({
       </div>
     );
   }
-  return <RichTextBlock text={cleanAnswerKeyText(fallbackText)} />;
+  return <RichTextBlock text={formatClassroomScienceText(cleanAnswerKeyText(fallbackText))} />;
 }
 
 /** Hide answer/solution content behind a tap so a mock test stays a real self-test. */

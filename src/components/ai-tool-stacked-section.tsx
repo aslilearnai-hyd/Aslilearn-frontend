@@ -112,7 +112,7 @@ export function AiToolStackedSection({
         className,
       )}
     >
-      <header className="flex items-start justify-between gap-3 px-4 py-4 sm:px-5 sm:py-5">
+      <header className="flex items-start justify-between gap-3 px-3 py-3 sm:px-5 sm:py-5">
         <div className="flex min-w-0 items-start gap-3">
           <div
             className={cn(
@@ -157,11 +157,11 @@ export function AiToolStackedSection({
       </header>
 
       {/* Nested soft tinted box — Concept Mastery inner panel */}
-      <div className="px-4 pb-4 sm:px-5 sm:pb-5" data-ai-section-body>
+      <div className="px-2 pb-2 sm:px-5 sm:pb-5" data-ai-section-body>
         <div
           ref={bodyRef}
           className={cn(
-            'ai-tool-section-body rounded-xl border px-5 py-5 sm:px-6 sm:py-6 outline-none',
+            'ai-tool-section-body rounded-xl border px-3 py-3.5 sm:px-6 sm:py-6 outline-none',
             palette.inner,
             palette.innerBorder,
             aiToolSectionBodyClasses(palette),

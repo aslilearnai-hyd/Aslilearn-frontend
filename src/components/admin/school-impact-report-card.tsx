@@ -350,12 +350,12 @@ export function SchoolImpactReportCard() {
                   </p>
                   {snap.studentReports.length > 9 ? (
                     <Button variant="ghost" size="sm" className="h-8 text-sky-700" onClick={() => setShowAllStudents((v) => !v)}>
-                      {showAllStudents ? "Show less" : `Show ${Math.min(40, snap.studentReports.length)}`}
+                      {showAllStudents ? "Show less" : `Show all ${snap.studentReports.length}`}
                     </Button>
                   ) : null}
                 </div>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-                  {snap.studentReports.slice(0, showAllStudents ? 40 : 9).map((s, idx) => (
+                  {snap.studentReports.slice(0, showAllStudents ? snap.studentReports.length : 9).map((s, idx) => (
                     <div
                       key={`${s.name}-${idx}`}
                       className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm"

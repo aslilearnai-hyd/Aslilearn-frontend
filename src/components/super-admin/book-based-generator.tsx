@@ -212,6 +212,21 @@ type BookBasedGeneratorProps = {
   onOpenAiToolData?: () => void;
 };
 
+/** "IIT" and "IIT" with stray spaces / zero-width characters / other case showed twice. */
+const cleanBoardLabel = (value: string) =>
+  String(value || '').replace(/[​-‍﻿]/g, '').replace(/\s+/g, ' ').trim();
+const normalizedBoardKey = (value: string) => cleanBoardLabel(value).toUpperCase();
+
+function uniqueBoardLabels(values: string[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const raw of values) {
+    const label = cleanBoardLabel(raw);
+    const key = normalizedBoardKey(label);
+    if (key && !byKey.has(key)) byKey.set(key, label);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
+
 export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolData }: BookBasedGeneratorProps) {
   const { toast } = useToast();
   const [selectedTool, setSelectedTool] = useState<BookBasedToolId | "">("");
@@ -299,7 +314,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     return classOptionsForSelect;
   }, [classOptionsForSelect, classNumber]);
   const boardOptionsForSelect = useMemo(() => {
-    if (board && !boardOptions.some((b) => b.toLowerCase() === board.toLowerCase())) {
+    if (board && !boardOptions.some((b) => normalizedBoardKey(b) === normalizedBoardKey(board))) {
       return [...boardOptions, board].sort((a, b) => a.localeCompare(b));
     }
     return boardOptions;
@@ -474,7 +489,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
           ? json.data.boards.map((b: unknown) => String(b || "").trim()).filter(Boolean)
           : [];
         if (boardsFromOptions.length > 0) {
-          const boards = Array.from(new Set<string>(boardsFromOptions)).sort((a, b) => a.localeCompare(b));
+          const boards = uniqueBoardLabels(boardsFromOptions);
           setBoardOptions(boards);
           return;
         }
@@ -489,7 +504,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
           const boardsFromRows: string[] = Array.isArray(listJson?.data?.items)
             ? listJson.data.items.map((row: any) => String(row?.board || "").trim()).filter(Boolean)
             : [];
-          const boards = Array.from(new Set<string>(boardsFromRows)).sort((a, b) => a.localeCompare(b));
+          const boards = uniqueBoardLabels(boardsFromRows);
           if (!cancelled) {
             setBoardOptions(boards);
           }

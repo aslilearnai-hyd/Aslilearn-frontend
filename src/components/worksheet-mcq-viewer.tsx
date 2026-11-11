@@ -1,6 +1,7 @@
 import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { QuestionFigure } from '@/components/ai-tools/QuestionFigure';
 import ExamMathText from '@/components/exam/ExamMathText';
+import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 import { MatchFollowingCard } from '@/components/ai-tools/MatchFollowingCard';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import {
@@ -244,7 +245,7 @@ function buildTimelineBlocks(worksheet: NormalizedWorksheet): TimelineBlock[] {
       content: (
         <TapToRevealCard
           prompt="Answer key"
-          detail={cleanAnswerKeyText(worksheet.answerKey)}
+          detail={formatClassroomScienceText(cleanAnswerKeyText(worksheet.answerKey))}
           tone="sky"
           revealLabel="Show answer key"
         />

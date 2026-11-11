@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -76,6 +77,17 @@ type CurriculumSubtopic = {
   number?: string;
   chunkCount: number;
   assets: Record<string, number>;
+};
+
+type BookAssetItem = {
+  assetId: string;
+  type?: string;
+  page?: number | null;
+  caption?: string;
+  description?: string;
+  semanticText?: string;
+  imageUrl?: string;
+  approvalStatus?: string;
 };
 
 type CurriculumTopic = {
@@ -339,8 +351,67 @@ export function BookCurriculumMappingDialog({
   const [testSubtopic, setTestSubtopic] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [assetView, setAssetView] = useState<{ id: string; name: string } | null>(null);
+  const [assetItems, setAssetItems] = useState<BookAssetItem[]>([]);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [textEditSection, setTextEditSection] = useState<MappedSection | null>(null);
+  const [textEditValue, setTextEditValue] = useState("");
+  const [textEditLoading, setTextEditLoading] = useState(false);
+  const [textEditShared, setTextEditShared] = useState(false);
+  const [textEditExisting, setTextEditExisting] = useState(false);
 
   const base = bookId ? `${API_BASE_URL}/api/book-knowledge/books/${bookId}/curriculum-mapping` : "";
+
+  const viewAssets = async (sub: { id: string; name: string }) => {
+    if (!bookId) return;
+    setAssetView(sub);
+    setAssetItems([]);
+    setAssetLoading(true);
+    try {
+      const qs = new URLSearchParams({ aiSubtopicId: sub.id });
+      const res = await fetch(`${API_BASE_URL}/api/book-knowledge/books/${bookId}/assets?${qs.toString()}`, {
+        headers: { ...authHeaders() },
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "Could not load figures");
+      setAssetItems(Array.isArray(json.data) ? json.data : []);
+    } catch (e: any) {
+      toast({ title: "Could not load figures", description: e.message, variant: "destructive" });
+    } finally {
+      setAssetLoading(false);
+    }
+  };
+
+  const openTextEdit = async (section: MappedSection) => {
+    setTextEditSection(section);
+    setTextEditValue("");
+    setTextEditShared(false);
+    setTextEditExisting(false);
+    setTextEditLoading(true);
+    try {
+      const res = await fetch(`${base}/sections/${encodeURIComponent(section.sectionKey)}/text`, {
+        headers: { ...authHeaders() },
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "Could not load section text");
+      setTextEditValue(String(json.data?.text || ""));
+      setTextEditShared(Boolean(json.data?.sharedChunks));
+      setTextEditExisting(Boolean(json.data?.edited));
+    } catch (e: any) {
+      toast({ title: "Could not load section text", description: e.message, variant: "destructive" });
+    } finally {
+      setTextEditLoading(false);
+    }
+  };
+
+  const saveTextEdit = async (clear = false) => {
+    if (!textEditSection) return;
+    const section = textEditSection;
+    setTextEditSection(null);
+    await saveSection(section, { editedText: clear ? "" : textEditValue });
+  };
 
   const load = async () => {
     if (!bookId) return;
@@ -443,7 +514,9 @@ export function BookCurriculumMappingDialog({
       if (!res.ok || !json.success) throw new Error(json.message || "Update failed");
       toast({
         title: json.data?.reindexScheduled ? "Saved — re-chunking book" : "Mapping saved",
-        description: json.data?.reindexScheduled
+        description: typeof body.editedText === "string"
+          ? json.message
+          : json.data?.reindexScheduled
           ? "This section shared chunks with its neighbours, so the book is being re-chunked."
           : `${json.data?.updatedChunks ?? 0} chunk(s) relabelled.`,
       });
@@ -634,6 +707,7 @@ export function BookCurriculumMappingDialog({
               savingKey={savingKey}
               onExclude={(section) => void saveSection(section, { reject: true })}
               onFormulaOk={(section) => void saveSection(section, { formulaOk: true })}
+              onEditText={(section) => void openTextEdit(section)}
             />
 
             <IndexHealth health={data.embeddingHealth} auditLog={data.auditLog || []} sections={sections} />
@@ -754,6 +828,7 @@ export function BookCurriculumMappingDialog({
                           coverageById={coverageById}
                           onAssign={(section, aiSubtopicId) => void saveSection(section, { aiSubtopicId })}
                           onNotCovered={(aiSubtopicId, notCovered) => void setSubtopicCoverage(aiSubtopicId, notCovered)}
+                          onViewAssets={(id, name) => void viewAssets({ id, name })}
                         />
                       ))}
                     </tbody>
@@ -855,6 +930,93 @@ export function BookCurriculumMappingDialog({
           </div>
         )}
       </DialogContent>
+      <Dialog open={textEditSection != null} onOpenChange={(v) => { if (!v) setTextEditSection(null); }}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Edit section text: {textEditSection ? cleanCurriculumLabel([textEditSection.number, textEditSection.title].filter(Boolean).join(" ")) || "(untitled)" : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {textEditLoading ? (
+            <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading text…
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                Fix the formulas (for example x^2, √2, a/b) and save. This text is used for AI content instead of the PDF text,
+                and the book is re-chunked and re-embedded in the background.
+                {textEditShared ? " Some of this text came from a neighbouring section: remove anything that is not part of this section." : ""}
+              </p>
+              <Textarea
+                data-no-title-case
+                value={textEditValue}
+                onChange={(e) => setTextEditValue(e.target.value)}
+                className="min-h-[320px] font-mono text-xs"
+                maxLength={50000}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-500">{textEditValue.length.toLocaleString()} / 50,000 characters</span>
+                <div className="flex flex-wrap gap-2">
+                  {textEditExisting ? (
+                    <Button type="button" variant="ghost" size="sm" disabled={savingKey != null} onClick={() => void saveTextEdit(true)}>
+                      Use PDF text again
+                    </Button>
+                  ) : null}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setTextEditSection(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={savingKey != null || !textEditValue.trim()}
+                    onClick={() => void saveTextEdit(false)}
+                  >
+                    Save text
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={assetView != null} onOpenChange={(v) => { if (!v) setAssetView(null); }}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tables & figures: {assetView ? cleanCurriculumLabel(assetView.name) : ""}</DialogTitle>
+          </DialogHeader>
+          {assetLoading ? (
+            <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : assetItems.length === 0 ? (
+            <p className="py-6 text-sm text-slate-500">No tables or figures found for this subtopic.</p>
+          ) : (
+            <div className="space-y-3">
+              {assetItems.map((a) => (
+                <div key={a.assetId} className="rounded-lg border border-slate-200 p-3">
+                  <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <Badge variant="outline" className="capitalize">{String(a.type || "").replace(/_/g, " ")}</Badge>
+                    {a.page != null ? <span>Page {a.page}</span> : null}
+                    {a.approvalStatus ? <span>· {String(a.approvalStatus).replace(/_/g, " ")}</span> : null}
+                  </div>
+                  {a.imageUrl ? (
+                    <a href={a.imageUrl} target="_blank" rel="noreferrer">
+                      <img src={a.imageUrl} alt={a.caption || a.type} className="max-h-72 w-auto max-w-full rounded border border-slate-100 bg-white object-contain" loading="lazy" />
+                    </a>
+                  ) : null}
+                  {a.caption ? <p className="mt-2 text-sm font-medium text-slate-800">{a.caption}</p> : null}
+                  {a.description || a.semanticText ? (
+                    <div className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-600">
+                      <ExamMathText text={String(a.description || a.semanticText)} />
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
@@ -866,12 +1028,14 @@ function ReadinessPanel({
   savingKey,
   onExclude,
   onFormulaOk,
+  onEditText,
 }: {
   mapping: CurriculumMappingSummary;
   sections: MappedSection[];
   savingKey: string | null;
   onExclude: (section: MappedSection) => void;
   onFormulaOk: (section: MappedSection) => void;
+  onEditText: (section: MappedSection) => void;
 }) {
   const gates = mapping.gates || [];
   const chunkStatus = mapping.chunkStatus || {};
@@ -950,6 +1114,10 @@ function ReadinessPanel({
                 <strong>Formulas are correct</strong>: the text below reads right (false alarm). Its chunks are served again.
               </li>
               <li>
+                <strong>Edit text</strong>: type the correct text yourself. It replaces the PDF text for that section, also after
+                every Remap, and the book is re-embedded.
+              </li>
+              <li>
                 <strong>Exclude section</strong>: removes only that section from AI retrieval for good. Or upload a better PDF
                 and Reindex.
               </li>
@@ -982,6 +1150,17 @@ function ReadinessPanel({
                       onClick={() => onFormulaOk(section)}
                     >
                       Formulas are correct
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      disabled={savingKey != null || section.mappingStatus === "rejected"}
+                      title="Type the correct text for this section; it is used instead of the PDF text"
+                      onClick={() => onEditText(section)}
+                    >
+                      Edit text
                     </Button>
                     <Button
                       type="button"
@@ -1132,6 +1311,7 @@ function FragmentRows({
   coverageById,
   onAssign,
   onNotCovered,
+  onViewAssets,
 }: {
   topic: CurriculumTopic;
   sections: MappedSection[];
@@ -1139,6 +1319,7 @@ function FragmentRows({
   coverageById: Map<string, { status: SubtopicCoverageStatus; manual?: boolean }>;
   onAssign: (section: MappedSection, aiSubtopicId: string) => void;
   onNotCovered: (aiSubtopicId: string, notCovered: boolean) => void;
+  onViewAssets: (aiSubtopicId: string, name: string) => void;
 }) {
   const assetText = (assets: Record<string, number>) =>
     Object.entries(assets || {})
@@ -1169,7 +1350,22 @@ function FragmentRows({
           </td>
           <td className="px-3 py-1.5 text-xs text-slate-500">
             {sub.chunkCount ? (
-              assetText(sub.assets)
+              Object.keys(sub.assets || {}).length ? (
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  {assetText(sub.assets)}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={() => onViewAssets(sub.aiSubtopicId, sub.name)}
+                  >
+                    View
+                  </Button>
+                </span>
+              ) : (
+                assetText(sub.assets)
+              )
             ) : coverageById.get(sub.aiSubtopicId)?.status === "not_covered_by_source" ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-slate-300 bg-slate-100 text-[11px] text-slate-700">

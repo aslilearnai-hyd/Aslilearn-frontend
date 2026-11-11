@@ -477,9 +477,8 @@ export default function AiToolTopicsManagement() {
 
   const hierarchySubTopics = useMemo(() => {
     if (!hierarchyTree || !selectedClass || !selectedSubject || !selectedTopic) return [];
-    return sortNatural(
-      hierarchyTree[selectedClass]?.[selectedSubject]?.[selectedTopic] || [],
-    );
+    // Textbook order from the server (1.1, 1.2 …), not A–Z ("Accuracy…" before "Curiosity…").
+    return [...(hierarchyTree[selectedClass]?.[selectedSubject]?.[selectedTopic] || [])];
   }, [hierarchyTree, selectedClass, selectedSubject, selectedTopic]);
 
   const fetchDialogOptions = async (

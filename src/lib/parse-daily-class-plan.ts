@@ -534,6 +534,18 @@ export function planHasVisibleContent(plan: NormalizedDailyPlan): boolean {
   );
 }
 
+/** Two saved days with identical content showed as "Day 1" and "Day 2" with no difference. */
+function dropRepeatedPlans(plans: NormalizedDailyPlan[]): NormalizedDailyPlan[] {
+  const seen = new Set<string>();
+  return plans.filter((plan) => {
+    const { sl: _sl, ...body } = plan;
+    const key = JSON.stringify(body).toLowerCase().replace(/\s+/g, ' ');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function resolveDailyPlansFromPayload(
   content: string,
   rawContent?: unknown,
@@ -582,12 +594,12 @@ export function resolveDailyPlansFromPayload(
       }, content);
     });
     if (plans.some(planHasVisibleContent)) {
-      return { plans, markdownFallback: null };
+      return { plans: dropRepeatedPlans(plans), markdownFallback: null };
     }
   }
 
   if (markdownPlans.some(planHasVisibleContent)) {
-    return { plans: markdownPlans, markdownFallback: null };
+    return { plans: dropRepeatedPlans(markdownPlans), markdownFallback: null };
   }
 
   return {

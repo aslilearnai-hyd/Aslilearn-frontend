@@ -420,7 +420,7 @@ export function SmartStudyGuideViewer({ content, rawContent, className }: SmartS
         }}
       />
 
-      <div className="relative space-y-5 p-3 sm:space-y-6 sm:p-5 lg:p-6">
+      <div className="relative space-y-4 p-1.5 sm:space-y-6 sm:p-5 lg:p-6">
         {!complete && missingSections.length > 0 ? (
           <div
             className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-base text-amber-950"
@@ -473,7 +473,7 @@ export function SmartStudyGuideViewer({ content, rawContent, className }: SmartS
               <RealisticIcon
                 name="books"
                 alt="Books"
-                className="mx-auto h-20 w-20 sm:h-24 sm:w-24"
+                className="mx-auto hidden h-20 w-20 sm:block sm:h-24 sm:w-24"
               />
             </div>
           </SectionShell>
@@ -491,7 +491,7 @@ export function SmartStudyGuideViewer({ content, rawContent, className }: SmartS
                 <RealisticIcon
                   name="notebook"
                   alt="Notebook"
-                  className="mx-auto h-20 w-20"
+                  className="mx-auto hidden h-20 w-20 sm:block"
                 />
               </div>
             </SectionShell>
@@ -510,7 +510,7 @@ export function SmartStudyGuideViewer({ content, rawContent, className }: SmartS
                 <RealisticIcon
                   name="target"
                   alt="Target"
-                  className="mx-auto h-20 w-20"
+                  className="mx-auto hidden h-20 w-20 sm:block"
                 />
               </div>
             </SectionShell>

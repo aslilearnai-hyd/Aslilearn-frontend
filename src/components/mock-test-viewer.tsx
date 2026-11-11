@@ -1,3 +1,4 @@
+import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
 import { cleanAnswerKeyText } from '@/lib/answer-key-text';
 import { AiToolStackedSection } from '@/components/ai-tool-stacked-section';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -334,7 +335,7 @@ export function MockTestViewer({ content, rawContent, className }: MockTestViewe
       stripe: 'border-emerald-500',
       iconWrap: 'bg-emerald-100 text-emerald-800',
       hasContent: !!meta.answerKey.trim(),
-      body: <RevealBlock text={cleanAnswerKeyText(meta.answerKey)} label="Answer Key" />,
+      body: <RevealBlock text={formatClassroomScienceText(cleanAnswerKeyText(meta.answerKey))} label="Answer Key" />,
     },
     {
       key: 'solutions',
