@@ -406,6 +406,28 @@ export function BookCurriculumMappingDialog({
     }
   };
 
+  const [aiFixing, setAiFixing] = useState(false);
+  const aiFixText = async () => {
+    if (!textEditSection || !textEditValue.trim()) return;
+    setAiFixing(true);
+    try {
+      const res = await fetch(`${base}/sections/${encodeURIComponent(textEditSection.sectionKey)}/ai-fix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        credentials: "include",
+        body: JSON.stringify({ text: textEditValue }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "AI fix failed");
+      setTextEditValue(String(json.data?.text || textEditValue));
+      toast({ title: "Formulas fixed by AI", description: "Check the text, then Save text." });
+    } catch (e: any) {
+      toast({ title: "AI fix failed", description: e.message, variant: "destructive" });
+    } finally {
+      setAiFixing(false);
+    }
+  };
+
   const saveTextEdit = async (clear = false) => {
     if (!textEditSection) return;
     const section = textEditSection;
@@ -944,7 +966,7 @@ export function BookCurriculumMappingDialog({
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-slate-600">
-                Fix the formulas (for example x^2, √2, a/b) and save. This text is used for AI content instead of the PDF text,
+                Fix the formulas yourself (for example x^2, √2, a/b) or click Fix formulas with AI, check the result, and save. This text is used for AI content instead of the PDF text,
                 and the book is re-chunked and re-embedded in the background.
                 {textEditShared ? " Some of this text came from a neighbouring section: remove anything that is not part of this section." : ""}
               </p>
@@ -958,6 +980,17 @@ export function BookCurriculumMappingDialog({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] text-slate-500">{textEditValue.length.toLocaleString()} / 50,000 characters</span>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={aiFixing || savingKey != null || !textEditValue.trim() || textEditValue.length > 20000}
+                    title={textEditValue.length > 20000 ? "AI fix works on up to 20,000 characters" : "Let the AI repair the damaged formulas; you review before saving"}
+                    onClick={() => void aiFixText()}
+                  >
+                    {aiFixing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+                    Fix formulas with AI
+                  </Button>
                   {textEditExisting ? (
                     <Button type="button" variant="ghost" size="sm" disabled={savingKey != null} onClick={() => void saveTextEdit(true)}>
                       Use PDF text again

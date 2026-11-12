@@ -77,11 +77,15 @@ type BookOption = {
   embeddingsCreated?: boolean;
   source?: string;
   contentId?: string;
+  /** Learning-path item / file name ("Mathematics 8th Volume 2"). */
+  sourceTitle?: string;
 };
 
-/** Same title as Book Knowledge Base shows. */
+/** Book title plus its source name, so Volume 1 and Volume 2 are distinguishable. */
 function bookDisplayTitle(book: BookOption): string {
-  return String(book.title || "").trim() || "Untitled";
+  const title = String(book.title || "").trim() || "Untitled";
+  const source = String(book.sourceTitle || "").trim();
+  return source && source.toLowerCase() !== title.toLowerCase() ? `${title} — ${source}` : title;
 }
 
 function statusBadge(status?: string, indexed?: boolean) {

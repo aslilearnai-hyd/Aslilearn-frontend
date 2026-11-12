@@ -227,6 +227,10 @@ export function SchoolImpactReportCard() {
               <Button type="button" size="sm" onClick={() => void load()} disabled={loading}>
                 Apply
               </Button>
+              <p className="w-full text-xs text-slate-500">
+                Weekly reports cover the full Monday–Sunday week of the picked date
+                {snap?.periodLabel ? ` (now showing ${snap.periodLabel})` : ""}. Use Day to day for exact dates.
+              </p>
             </div>
           ) : (
             <div className="flex flex-wrap items-end gap-2">
@@ -391,11 +395,6 @@ export function SchoolImpactReportCard() {
                     </div>
                   ))}
                 </div>
-                {showAllStudents && snap.studentReports.length > 40 ? (
-                  <p className="text-sm text-slate-500">
-                    Showing first 40 — download PDF for the full school report.
-                  </p>
-                ) : null}
               </div>
             ) : null}
           </>

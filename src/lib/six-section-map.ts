@@ -60,7 +60,7 @@ const list = (v: unknown): string[] => {
 };
 const marks = (m: unknown): string | undefined => {
   // Models send 2, "2" or "2 marks"; the last rendered as "2 marks marks".
-  const n = Number(String(m ?? '').match(/d+(?:.d+)?/)?.[0]);
+  const n = Number(String(m ?? '').match(/\d+(?:\.\d+)?/)?.[0]);
   return Number.isFinite(n) && n > 0 ? `${n} mark${n === 1 ? '' : 's'}` : undefined;
 };
 

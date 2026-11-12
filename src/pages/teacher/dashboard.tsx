@@ -292,8 +292,8 @@ const TeacherDashboard = () => {
   const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
   // Class 6-A, 6-B, 7-C, 8-A… everywhere a class is picked (API order is arbitrary).
   const sortedAssignedClasses = useMemo(() => {
-    const num = (c: any) => parseInt(String(c?.classNumber || c?.name || '').replace(/D+/g, ' ').trim(), 10);
-    const sec = (c: any) => String(c?.section || String(c?.name || '').split(/[-s]+/).pop() || '');
+    const num = (c: any) => parseInt(String(c?.classNumber || c?.name || '').replace(/\D+/g, ' ').trim(), 10);
+    const sec = (c: any) => String(c?.section || String(c?.name || '').split(/[-\s]+/).pop() || '');
     return [...(assignedClasses || [])].sort((a, b) => {
       const na = num(a);
       const nb = num(b);
@@ -3874,16 +3874,20 @@ const TeacherDashboard = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All classes</SelectItem>
-                            {/* 8A and 8B share the value "8" (the review filters by class number),
-                                so two items with one value showed "8A 8B" stacked in the trigger.
-                                One option per class number, labelled with its sections. */}
+                            {/* One option per section (8A, 8B): value "8|A" filters the review
+                                to that section's students. */}
                             {Array.from(
                               sortedAssignedClasses.reduce((map, classItem) => {
-                                const value = String(classItem.classNumber || classItem.name || '');
-                                if (!value) return map;
-                                const label = String(classItem.name || classItem.classNumber || '');
-                                const prev = map.get(value);
-                                map.set(value, prev && !prev.includes(label) ? `${prev}, ${label}` : prev || label);
+                                const classNumber = String(classItem.classNumber || '').trim()
+                                  || String(classItem.name || '').match(/\d+/)?.[0] || '';
+                                if (!classNumber) return map;
+                                const section = String(
+                                  classItem.section
+                                    || String(classItem.name || '').replace(classNumber, '').replace(/[^A-Za-z]/g, '')
+                                    || '',
+                                ).trim().toUpperCase();
+                                const value = section ? `${classNumber}|${section}` : classNumber;
+                                if (!map.has(value)) map.set(value, section ? `${classNumber}${section}` : String(classItem.name || classNumber));
                                 return map;
                               }, new Map<string, string>()),
                             ).map(([value, label]) => (
@@ -3894,7 +3898,10 @@ const TeacherDashboard = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      <TeacherExamQuestionAnalytics classNumber={examReviewClass} />
+                      <TeacherExamQuestionAnalytics
+                        classNumber={examReviewClass.split('|')[0]}
+                        section={examReviewClass.split('|')[1] || undefined}
+                      />
                     </div>
                   )}
 

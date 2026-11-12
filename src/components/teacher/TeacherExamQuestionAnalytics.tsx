@@ -126,6 +126,8 @@ interface QuestionAnalyticsPayload {
 }
 
 interface TeacherExamQuestionAnalyticsProps {
+  /** Section letter (e.g. "A") to narrow the class to one section. */
+  section?: string;
   classNumber?: string;
   /**
    * API root for the paper endpoints. Teachers use /api/teacher (default);
@@ -163,9 +165,9 @@ function authHeaders(): HeadersInit {
   };
 }
 
-function classQuery(classNumber?: string) {
+function classQuery(classNumber?: string, section?: string) {
   if (!classNumber || classNumber === 'all') return '';
-  return `?classNumber=${encodeURIComponent(classNumber)}`;
+  return `?classNumber=${encodeURIComponent(classNumber)}${section ? `&section=${encodeURIComponent(section)}` : ''}`;
 }
 
 function optionLabel(index: number) {
@@ -463,6 +465,7 @@ function StudentReportDialog({
 
 export function TeacherExamQuestionAnalytics({
   classNumber = 'all',
+  section,
   apiBase = '/api/teacher',
   examId: fixedExamId,
 }: TeacherExamQuestionAnalyticsProps) {
@@ -487,7 +490,7 @@ export function TeacherExamQuestionAnalytics({
     setError(null);
     try {
       const res = await fetch(
-        `${API_BASE_URL}${apiBase}/exams${classQuery(classNumber)}`,
+        `${API_BASE_URL}${apiBase}/exams${classQuery(classNumber, section)}`,
         { headers: authHeaders() },
       );
       const json = await res.json().catch(() => ({}));
@@ -508,7 +511,7 @@ export function TeacherExamQuestionAnalytics({
     } finally {
       setIsLoadingExams(false);
     }
-  }, [classNumber, apiBase, fixedExamId]);
+  }, [classNumber, section, apiBase, fixedExamId]);
 
   const loadAnalytics = useCallback(
     async (examId: string) => {
@@ -520,7 +523,7 @@ export function TeacherExamQuestionAnalytics({
       setError(null);
       try {
         const res = await fetch(
-          `${API_BASE_URL}${apiBase}/exams/${encodeURIComponent(examId)}/question-analytics${classQuery(classNumber)}`,
+          `${API_BASE_URL}${apiBase}/exams/${encodeURIComponent(examId)}/question-analytics${classQuery(classNumber, section)}`,
           { headers: authHeaders() },
         );
         const json = await res.json().catch(() => ({}));
@@ -538,7 +541,7 @@ export function TeacherExamQuestionAnalytics({
         setIsLoadingAnalytics(false);
       }
     },
-    [classNumber, apiBase],
+    [classNumber, section, apiBase],
   );
 
   useEffect(() => {

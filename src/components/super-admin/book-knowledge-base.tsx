@@ -47,6 +47,8 @@ import { bookTextBlocks } from "@/lib/book-text-blocks";
 type BookRow = {
   _id: string;
   title: string;
+  /** Learning-path item / file name ("Mathematics 8th Volume 2"). */
+  sourceTitle?: string;
   board: string;
   class: string;
   subject: string;
@@ -134,7 +136,8 @@ type BookFilterKey = "board" | "class" | "subject" | "track" | "status" | "curri
 type BookFilters = Record<BookFilterKey, string> & { search: string };
 
 const ALL = "__all__";
-const BOOK_FILTER_STORAGE_KEY = "bookKnowledgeBase.filters.v1";
+// Per tab only: a filter saved forever (e.g. "Class 8") came back on every visit.
+const BOOK_FILTER_STORAGE_KEY = "bookKnowledgeBase.filters.v2";
 const EMPTY_BOOK_FILTERS: BookFilters = {
   search: "",
   board: "",
@@ -664,7 +667,7 @@ export default function BookKnowledgeBase() {
 
   const [bookFilters, setBookFilters] = useState<BookFilters>(() => {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(BOOK_FILTER_STORAGE_KEY) || "null");
+      const saved = JSON.parse(window.sessionStorage.getItem(BOOK_FILTER_STORAGE_KEY) || "null");
       return saved && typeof saved === "object" ? { ...EMPTY_BOOK_FILTERS, ...saved } : EMPTY_BOOK_FILTERS;
     } catch {
       return EMPTY_BOOK_FILTERS;
@@ -672,7 +675,7 @@ export default function BookKnowledgeBase() {
   });
   useEffect(() => {
     try {
-      window.localStorage.setItem(BOOK_FILTER_STORAGE_KEY, JSON.stringify(bookFilters));
+      window.sessionStorage.setItem(BOOK_FILTER_STORAGE_KEY, JSON.stringify(bookFilters));
     } catch {
       /* storage unavailable: filters just reset on reload */
     }
@@ -703,7 +706,7 @@ export default function BookKnowledgeBase() {
         if (wanted && bookFilterValue(book, field.key) !== wanted) return false;
       }
       if (!term) return true;
-      return [book.title, book.subject, book.topic, book.subtopic, book.class]
+      return [book.title, book.sourceTitle, book.subject, book.topic, book.subtopic, book.class]
         .some((value) => String(value || "").toLowerCase().includes(term));
     });
   }, [books, bookFilters]);
@@ -1167,6 +1170,9 @@ export default function BookKnowledgeBase() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-900 break-words">{book.title}</p>
+                  {book.sourceTitle && book.sourceTitle.toLowerCase() !== String(book.title || "").toLowerCase() ? (
+                    <p className="text-xs font-medium text-indigo-700 break-words">{book.sourceTitle}</p>
+                  ) : null}
                   <p className="text-xs text-slate-500 mt-0.5">
                     {bookMetaLine(book, iitLabelMap)}
                   </p>
