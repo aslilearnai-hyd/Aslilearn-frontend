@@ -24,6 +24,7 @@ import {
   Trash2,
   Upload,
   BarChart3,
+  AlertTriangle,
   Network,
   Search,
   X,
@@ -210,7 +211,13 @@ export default function BookKnowledgeBase() {
   const [viewBook, setViewBook] = useState<BookRow | null>(null);
   const [mappingBook, setMappingBook] = useState<BookRow | null>(null);
   const [textPreview, setTextPreview] = useState("");
-  const [chunksPreview, setChunksPreview] = useState<Array<{ chunkIndex: number; chapter: string; contentPreview: string }>>([]);
+  const [chunksPreview, setChunksPreview] = useState<Array<{
+    chunkIndex: number;
+    chapter: string;
+    contentPreview: string;
+    needsSourceReview?: boolean;
+    qualityIssues?: string[];
+  }>>([]);
   const [chunksTotal, setChunksTotal] = useState(0);
 
   const [importableContent, setImportableContent] = useState<ImportableContentRow[]>([]);
@@ -1335,10 +1342,31 @@ export default function BookKnowledgeBase() {
                   ? chunksTotal
                   : `${chunksPreview.length} of ${chunksTotal}`})
               </p>
+              {chunksPreview.some((c) => c.needsSourceReview) ? (
+                <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Suspect OCR or diagram-label text is held back from AI use. Reindex this book to re-read the affected pages.
+                  </span>
+                </div>
+              ) : null}
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {chunksPreview.map((c) => (
-                  <div key={c.chunkIndex} className="rounded border p-2 text-xs text-slate-600">
-                    <span className="font-semibold">#{c.chunkIndex} {c.chapter}</span>
+                  <div
+                    key={c.chunkIndex}
+                    className={cn(
+                      "rounded border p-2 text-xs text-slate-600",
+                      c.needsSourceReview && "border-amber-300 bg-amber-50/60",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">#{c.chunkIndex} {c.chapter}</span>
+                      {c.needsSourceReview ? (
+                        <Badge className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
+                          Source text needs review
+                        </Badge>
+                      ) : null}
+                    </div>
                     <p className="mt-1 break-words">{c.contentPreview ? <ExamMathText text={c.contentPreview} /> : null}</p>
                   </div>
                 ))}
