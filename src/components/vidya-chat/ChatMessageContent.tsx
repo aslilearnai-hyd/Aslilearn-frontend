@@ -2,140 +2,37 @@ import { Fragment, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { InlineMath } from "react-katex";
 import "katex/dist/katex.min.css";
+import { SECTION_LABELS, mathTokenParts, normalizeChatStructure, splitInline, type InlinePart } from "./chat-text-normalize";
 
-const SECTION_LABELS =
-  "Shape|Uses|Rays|Type|Definition|Example|Examples|Worked example|Working|Check|Practice|Try this|Common mistake|Mistake|Recap|Image|Nature|Focus|Tip|Remember|Note|Key point|Key points|Real life|Real-life|Analogy";
+export { normalizeChatStructure };
 
-function flattenMarkdownTables(raw: string): string {
-  const lines = raw.split("\n");
-  const out: string[] = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const header = lines[i];
-    const divider = lines[i + 1] || "";
-    if (/^\s*\|.*\|\s*$/.test(header) && /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(divider)) {
-      const headings = header.split("|").slice(1, -1).map((cell) => cell.trim().replace(/\*\*/g, ""));
-      i += 1;
-      while (i + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[i + 1])) {
-        const cells = lines[i + 1].split("|").slice(1, -1).map((cell) => cell.trim().replace(/\*\*/g, ""));
-        const values = cells
-          .map((cell, index) => cell ? `${headings[index] || `Field ${index + 1}`}: ${cell}` : "")
-          .filter(Boolean);
-        if (values.length) out.push(`• ${values.join(" · ")}`);
-        i += 1;
-      }
-      continue;
-    }
-    out.push(header);
-  }
-  return out.join("\n");
+function renderFormula(token: string, key: string): ReactNode {
+  const { expression, display } = mathTokenParts(token);
+  return (
+    <span key={key} className={display ? "my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1" : "inline-block max-w-full overflow-x-auto overflow-y-hidden px-0.5 py-0.5 align-middle"}>
+      <InlineMath math={expression.trim()} renderError={() => <code className="break-words">{expression}</code>} />
+    </span>
+  );
 }
 
-/**
- * Turn flat Vidya replies (content is fine, markers buried mid-line) into
- * readable sections with real newlines — without changing the meaning.
- */
-export function normalizeChatStructure(raw: string): string {
-  if (!raw) return "";
-  let text = String(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-  // Retrieval evidence remains attached to the message metadata/history, but
-  // the student-facing lesson should not end with a long technical appendix.
-  text = text.replace(/\n\s*(?:#{1,4}\s*)?(?:sources?|retrieved sources?|textbook sections retrieved)\s*:?[ \t]*\n[\s\S]*$/i, "");
-  text = text.replace(/\s*\[B\d+\](?=[\s.,;:!?)]|$)/gi, "");
-  // Platform evidence IDs belong to the server audit payload, not the visible chat.
-  text = text.replace(/\s*\[Q:[^\]\r\n]{1,100}\](?=[\s.,;:!?)]|$)/gi, "");
-  text = flattenMarkdownTables(text);
-  // Models sometimes wrap a display equation over several lines. Keep the
-  // delimited expression together so the line-oriented renderer can parse it.
-  text = text.replace(/\$([^$]*?(?:\\[A-Za-z]+|[_^])[^$]*?)\$/gs, (_m, formula) =>
-    `$${String(formula).replace(/\s*\n\s*/g, " ")}$`
-  );
-
-  // Section rules / dividers
-  text = text.replace(/\s*---+\s*/g, "\n\n");
-
-  // Numbered concept sections: "1. Concave Mirror (...)"
-  text = text.replace(
-    /(?:^|[.!?)\]])\s*(\d{1,2})\.\s+(\*{0,2}[A-Za-z][^\n]{0,80}?)(?=\s+(?:Shape|Uses|Rays|Type|Definition|Example|Image|Nature|Focus|Tip|Remember|Note|•|●|\d{1,2}\.)|\s*$)/gi,
-    (_m, num, title) => `\n\n${num}. ${String(title).trim()}\n`
-  );
-  text = text.replace(/([a-z.!?)])\s+(\d{1,2})\.\s+(\*{0,2}[A-Z])/g, "$1\n\n$2. $3");
-
-  // Field labels → bullets (common in Physics/Chem explanations)
-  const labelRe = new RegExp(
-    `([\\w.!?)"'\\]])\\s+(${SECTION_LABELS})\\s*:`,
-    "gi"
-  );
-  text = text.replace(labelRe, "$1\n• $2:");
-  text = text.replace(new RegExp(`(?:^|\\n)\\s*(${SECTION_LABELS})\\s*:`, "gi"), "\n• $1:");
-
-  // Mid-line bullets already present
-  text = text.replace(/([^\n])\s+[•●]\s+/g, "$1\n• ");
-  text = text.replace(/([^\n])\s+[-*]\s+(?=[A-Z(])/g, "$1\n• ");
-
-  // Soft-wrap long opener prose into short paragraphs (keep meaning)
-  const parts = text.split(/\n{2,}/);
-  text = parts
-    .map((block) => {
-      const b = block.trim();
-      if (!b) return "";
-      if (b.includes("\n") || /^\d{1,2}\./.test(b) || b.startsWith("•")) return b;
-      if (b.length < 220) return b;
-      return b.replace(/([.!?])\s+(?=[A-Z"'])/g, "$1\n\n");
-    })
-    .filter(Boolean)
-    .join("\n\n");
-
-  text = text.replace(/\n{3,}/g, "\n\n").trim();
-  return text;
-}
-
-function renderBold(text: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const re = /(\*\*|__)(.+?)\1/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-  let i = 0;
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > last) {
-      nodes.push(
-        <Fragment key={`${keyPrefix}-t-${i++}`}>{text.slice(last, match.index)}</Fragment>
+function renderParts(parts: InlinePart[], keyPrefix: string): ReactNode[] {
+  return parts.map((part, i) => {
+    const key = `${keyPrefix}-${i}`;
+    if (part.kind === "math") return renderFormula(part.token, key);
+    if (part.kind === "bold") {
+      return (
+        <strong key={key} className="font-semibold text-inherit">
+          {renderParts(part.parts, key)}
+        </strong>
       );
     }
-    nodes.push(
-      <strong key={`${keyPrefix}-b-${i++}`} className="font-semibold text-inherit">
-        {match[2]}
-      </strong>
-    );
-    last = match.index + match[0].length;
-  }
-  if (last < text.length) {
-    nodes.push(<Fragment key={`${keyPrefix}-t-${i++}`}>{text.slice(last)}</Fragment>);
-  }
-  return nodes.length ? nodes : [text];
+    return <Fragment key={key}>{part.text}</Fragment>;
+  });
 }
 
+/** Bold and maths in one line (bold may contain formulas). */
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const math = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+\$|\\\([^\n]*?\\\))/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-  let index = 0;
-  while ((match = math.exec(text)) !== null) {
-    if (match.index > last) nodes.push(...renderBold(text.slice(last, match.index), `${keyPrefix}-p-${index}`));
-    const token = match[0];
-    const expression = token.startsWith("$$") ? token.slice(2, -2)
-      : token.startsWith("$") ? token.slice(1, -1)
-        : token.slice(2, -2);
-    const display = token.startsWith("$$") || token.startsWith("\\[") || /\\(?:right)?arrow/.test(expression) || expression.length > 50;
-    nodes.push(
-      <span key={`${keyPrefix}-m-${index++}`} className={display ? "my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1" : "inline-block max-w-full overflow-x-auto overflow-y-hidden px-0.5 py-0.5 align-middle"}>
-        <InlineMath math={expression.trim()} renderError={() => <code className="break-words">{expression}</code>} />
-      </span>
-    );
-    last = match.index + token.length;
-  }
-  if (last < text.length) nodes.push(...renderBold(text.slice(last), `${keyPrefix}-p-${index}`));
-  return nodes.length ? nodes : renderBold(text, keyPrefix);
+  return renderParts(splitInline(text), keyPrefix);
 }
 
 function isBulletLine(line: string) {

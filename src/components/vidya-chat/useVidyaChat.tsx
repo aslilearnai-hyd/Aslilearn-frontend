@@ -26,6 +26,51 @@ function conversationPayload(messages: Message[]) {
     ? `${m.content.slice(0, Math.floor(limit * 0.7))}\n[Earlier message shortened]\n${m.content.slice(-Math.max(1, Math.floor(limit * 0.3)))}` : m.content }));
 }
 
+type VidyaReply = {
+  message?: string;
+  citations?: Message["citations"];
+  actions?: Message["actions"];
+};
+
+/**
+ * Reads a streamed Vidya reply (?stream=1): calls onText with the text so far,
+ * returns the final payload. Plain JSON (older servers) is returned as is.
+ */
+async function readVidyaReply(response: Response, onText: (text: string) => void): Promise<VidyaReply> {
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("text/event-stream") || !response.body) return response.json();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    let end;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      const event = /^event: (.+)$/m.exec(block)?.[1];
+      const raw = /^data: (.*)$/m.exec(block)?.[1];
+      if (!event || raw === undefined) continue;
+      const data = JSON.parse(raw);
+      if (event === "delta") {
+        text += String(data.text || "");
+        onText(text);
+      } else if (event === "reset") {
+        text = "";
+        onText("");
+      } else if (event === "done") {
+        return data;
+      } else if (event === "error") {
+        throw new Error(String(data.message || "Vidya request failed"));
+      }
+    }
+    if (done) break;
+  }
+  throw new Error("The reply was interrupted. Please try again.");
+}
+
 const CONTROL_ASSISTANT_QUICK_QUESTIONS_ADMIN = [
   "School dashboard overview",
   "How many students and teachers are active?",
@@ -168,21 +213,26 @@ export function useVidyaChat({
     );
   }, [mergedSubjectOptions]);
 
-  const { data: sessions, isLoading: sessionsLoading, refetch } = useQuery({
-    queryKey: ["/api/users", userId, "chat-sessions"],
-    queryFn: async () => {
+  // Saved student/teacher conversation, so Vidya remembers after reload / page change.
+  const { data: mentorHistory, isLoading: sessionsLoading } = useQuery({
+    queryKey: ["vidya-mentor-history", userId],
+    queryFn: async (): Promise<Message[]> => {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/chat-sessions`, {
+      const response = await fetch(`${API_BASE_URL}/api/vidya/mentor/history`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
-      if (!response.ok) throw new Error("Failed to fetch chat sessions");
+      if (!response.ok) throw new Error("Failed to fetch chat history");
       const data = await response.json();
-      return Array.isArray(data?.sessions) ? data.sessions : [];
+      const rows = Array.isArray(data?.messages) ? data.messages : [];
+      return rows
+        .filter((m: Message) => m?.role === "user" || m?.role === "assistant")
+        .map((m: Message) => ({ ...m, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
     },
     refetchInterval: false,
+    refetchOnWindowFocus: false,
     enabled: Boolean(userId) && !isDatabaseBackedAssistant,
   });
 
@@ -233,17 +283,17 @@ export function useVidyaChat({
     };
   }, [role, userId]);
 
-  const currentSession = sessions?.[0];
-  const sessionMessages: Message[] = (currentSession?.messages as Message[]) || [];
+  const sessionMessages: Message[] = useMemo(() => mentorHistory ?? [], [mentorHistory]);
 
   useEffect(() => {
     if (isDatabaseBackedAssistant) return;
-    if (sessions === undefined || historyHydratedRef.current) return;
+    if (mentorHistory === undefined || historyHydratedRef.current) return;
     historyHydratedRef.current = true;
+    // Saved chat replaces the auto-greeting, but never overwrites a chat the user already started.
     if (sessionMessages.length > 0 && !localMessagesRef.current.some(m => m.role === "user")) {
       setLocalMessages(sessionMessages);
     }
-  }, [isDatabaseBackedAssistant, sessions, sessionMessages]);
+  }, [isDatabaseBackedAssistant, mentorHistory, sessionMessages]);
 
   useEffect(() => {
     if (!isDatabaseBackedAssistant) return;
@@ -278,6 +328,24 @@ export function useVidyaChat({
       const historyPayload = conversationPayload(localMessagesRef.current);
 
       setLocalMessages((prev) => [...prev, userMessage]);
+
+      // Shows the reply while it arrives, in one "streaming" message that is replaced at the end.
+      const showStreamingText = (text: string) =>
+        setLocalMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.streaming) return [...prev.slice(0, -1), { ...last, content: text }];
+          return text ? [...prev, { role: "assistant", content: text, timestamp: new Date(), streaming: true }] : prev;
+        });
+      const addFinalReply = (result: VidyaReply) => {
+        const aiMessage: Message = {
+          role: "assistant",
+          content: String(result.message),
+          timestamp: new Date(),
+          ...(Array.isArray(result.citations) && result.citations.length ? { citations: result.citations } : {}),
+          ...(Array.isArray(result.actions) && result.actions.length ? { actions: result.actions } : {}),
+        };
+        setLocalMessages((prev) => [...prev.filter((m) => !m.streaming), aiMessage]);
+      };
 
       if (isDatabaseBackedAssistant) {
         const response = await fetch(`${API_BASE_URL}/api/vidya/control/query`, {
@@ -320,7 +388,7 @@ export function useVidyaChat({
 
       if (isStudentMentorMode) {
         const historyPayload = conversationPayload(localMessagesRef.current);
-        const response = await fetch(`${API_BASE_URL}/api/vidya/student/chat`, {
+        const response = await fetch(`${API_BASE_URL}/api/vidya/student/chat?stream=1`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -344,21 +412,13 @@ export function useVidyaChat({
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        if (result.message) {
-          const aiMessage: Message = {
-            role: "assistant",
-            content: result.message,
-            timestamp: new Date(),
-            ...(Array.isArray(result.citations) && result.citations.length ? { citations: result.citations } : {}),
-          };
-          setLocalMessages((prev) => [...prev, aiMessage]);
-        }
+        const result = await readVidyaReply(response, showStreamingText);
+        if (result.message) addFinalReply(result);
         return result;
       }
 
       if (isTeacherMentorMode) {
-        const response = await fetch(`${API_BASE_URL}/api/vidya/teacher/chat`, {
+        const response = await fetch(`${API_BASE_URL}/api/vidya/teacher/chat?stream=1`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -385,16 +445,8 @@ export function useVidyaChat({
           throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        if (result.message) {
-          const aiMessage: Message = {
-            role: "assistant",
-            content: result.message,
-            timestamp: new Date(),
-            ...(Array.isArray(result.citations) && result.citations.length ? { citations: result.citations } : {}),
-          };
-          setLocalMessages((prev) => [...prev, aiMessage]);
-        }
+        const result = await readVidyaReply(response, showStreamingText);
+        if (result.message) addFinalReply(result);
         return result;
       }
 
@@ -458,9 +510,6 @@ export function useVidyaChat({
         queryClient.invalidateQueries({ queryKey: ["vidya-control-history", userId] });
       } else if (isStudentMentorMode) {
         queryClient.invalidateQueries({ queryKey: ["vidya-student-focus", userId] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "chat-sessions"] });
-        setTimeout(() => refetch(), 1000);
       }
     },
     onError: (error: unknown, variables) => {
@@ -470,7 +519,8 @@ export function useVidyaChat({
         description: msg,
         variant: "destructive",
       });
-      setLocalMessages((prev) => prev.slice(0, -1));
+      // Drop any half-streamed reply, then the unanswered question (it goes back into the input).
+      setLocalMessages((prev) => prev.filter((m) => !m.streaming).slice(0, -1));
       setMessage(prev => prev || variables.message);
     },
     onSettled: () => { sendingRef.current = false; },
@@ -566,9 +616,9 @@ export function useVidyaChat({
 
   const clearChatMutation = useMutation({
     mutationFn: async () => {
-      if (!isDatabaseBackedAssistant) return { success: true };
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/api/vidya/control/history`, {
+      const historyPath = isDatabaseBackedAssistant ? "/api/vidya/control/history" : "/api/vidya/mentor/history";
+      const response = await fetch(`${API_BASE_URL}${historyPath}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -593,7 +643,7 @@ export function useVidyaChat({
       if (isDatabaseBackedAssistant) {
         queryClient.invalidateQueries({ queryKey: ["vidya-control-history", userId] });
       } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "chat-sessions"] });
+        queryClient.setQueryData(["vidya-mentor-history", userId], []);
       }
       toast({
         title: "Chat cleared",
@@ -726,11 +776,26 @@ export function useVidyaChat({
     return localMessages.length > 0 ? localMessages : sessionMessages;
   }, [isDatabaseBackedAssistant, localMessages, sessionMessages]);
 
+  const lastMessageLength = displayMessages[displayMessages.length - 1]?.content.length ?? 0;
+  const lastMessageCount = useRef(0);
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    const end = messagesEndRef.current;
+    if (!end) return;
+    // Scroll only the chat box, never the page. A smooth scrollIntoView on every
+    // streamed piece restarted the animation many times a second (stutter) and
+    // pulled the student back down while they were reading above.
+    let box: HTMLElement | null = end.parentElement;
+    while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+    const newMessage = displayMessages.length !== lastMessageCount.current;
+    lastMessageCount.current = displayMessages.length;
+    if (!box) {
+      if (newMessage) end.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      return;
     }
-  }, [displayMessages.length]);
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+    if (newMessage) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+    else if (nearBottom) box.scrollTop = box.scrollHeight; // streaming: follow instantly
+  }, [displayMessages.length, lastMessageLength]); // also follow a reply while it streams
 
   const formatMessage = (text: string) => {
     if (!text) return null;

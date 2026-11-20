@@ -6,6 +6,10 @@ export interface Message {
   timestamp: Date;
   type?: "text" | "voice" | "image";
   citations?: Array<{ id: string; title?: string; chapter?: string }>;
+  /** Study links under an answer (app paths such as /quiz/<id>). */
+  actions?: Array<{ type?: string; label: string; href: string }>;
+  /** True while the reply is still arriving (streaming). */
+  streaming?: boolean;
 }
 
 export type AIChatPromptVariant = "student" | "teacher" | "admin" | "super-admin";

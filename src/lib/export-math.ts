@@ -1,4 +1,5 @@
-import { formatClassroomScienceText } from '@/lib/exam-text-normalize';
+import { formatClassroomScienceText } from './exam-text-normalize.ts';
+import { splitMathSegments } from './math-segments.ts';
 
 /**
  * Plain-text maths for Word / TXT downloads. On screen KaTeX renders $…$;
@@ -67,7 +68,12 @@ export function exportMathText(text: string): string {
         .replace(/\$\$([^$]+)\$\$/g, (_m, m: string) => latexToText(m))
         .replace(/\\\((.+?)\\\)|\\\[(.+?)\\\]/g, (_m, a: string, b: string) => latexToText(a || b))
         .replace(/\$([^$\n]+)\$/g, (_m, m: string) => latexToText(m));
-      return formatClassroomScienceText(unwrapped);
+      // LaTeX the model wrote without $…$ ("A) \frac{7}{2}"): the app renders it via
+      // splitBareLatex, so downloads use the same detector instead of showing raw code.
+      const bare = /\\[a-zA-Z]/.test(unwrapped)
+        ? splitMathSegments(unwrapped).map((part) => (part.math ? latexToText(part.value) : part.value)).join('')
+        : unwrapped;
+      return formatClassroomScienceText(bare);
     })
     .join('\n');
 }

@@ -112,6 +112,8 @@ export type McqQuestion = {
   imageUrl?: string;
   matchPairs?: { left: string; right: string; leftKey?: string; rightKey?: string }[];
   options: { label: string; text: string; correct?: boolean }[];
+  /** JEE multiple-correct MCQ: the student picks every correct option, then checks. */
+  multiCorrect?: boolean;
 };
 
 export type ContentBlock =
@@ -225,6 +227,8 @@ function InteractiveFlashcards({
 
 function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accent: Accent }) {
   const [picked, setPicked] = useState<Record<string, string>>({});
+  const [multiPicked, setMultiPicked] = useState<Record<string, string[]>>({});
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
   return (
     <div className="space-y-4">
       {questions.map((q, j) => {
@@ -244,8 +248,18 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
             </div>
           );
         }
-        const selected = picked[key];
+        const multi = Boolean(q.multiCorrect);
+        const chosen = multi ? multiPicked[key] || [] : picked[key] ? [picked[key]] : [];
         const hasCorrect = q.options.some((o) => o.correct);
+        const showResult = (multi ? Boolean(checked[key]) : chosen.length > 0) && hasCorrect;
+        const pick = (label: string) => {
+          if (!multi) return setPicked((p) => ({ ...p, [key]: label }));
+          if (checked[key]) return;
+          setMultiPicked((p) => {
+            const cur = p[key] || [];
+            return { ...p, [key]: cur.includes(label) ? cur.filter((l) => l !== label) : [...cur, label] };
+          });
+        };
         return (
           <div
             key={key}
@@ -263,8 +277,7 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
             <QuestionFigure imageUrl={q.imageUrl} alt={`Figure for question ${q.n}`} />
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {q.options.map((o, k) => {
-                const isSelected = selected === o.label;
-                const showResult = Boolean(selected) && hasCorrect;
+                const isSelected = chosen.includes(o.label);
                 const isCorrectOpt = Boolean(o.correct);
                 const wrongPick = showResult && isSelected && !isCorrectOpt;
                 const rightShow = showResult && isCorrectOpt;
@@ -272,7 +285,7 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
                   <button
                     type="button"
                     key={k}
-                    onClick={() => setPicked((p) => ({ ...p, [key]: o.label }))}
+                    onClick={() => pick(o.label)}
                     className={cn(
                       'flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-mini transition-all',
                       rightShow
@@ -304,6 +317,23 @@ function InteractiveMcq({ questions, accent }: { questions: McqQuestion[]; accen
                 );
               })}
             </div>
+            {multi && hasCorrect ? (
+              <div className="mt-2.5 flex items-center gap-3 text-mini">
+                <span className="text-slate-500">Select every correct option.</span>
+                <button
+                  type="button"
+                  disabled={!checked[key] && !chosen.length}
+                  onClick={() =>
+                    checked[key]
+                      ? (setChecked((c) => ({ ...c, [key]: false })), setMultiPicked((p) => ({ ...p, [key]: [] })))
+                      : setChecked((c) => ({ ...c, [key]: true }))
+                  }
+                  className={cn('ml-auto rounded-lg px-3 py-1 font-semibold text-white disabled:opacity-40', accent.badge)}
+                >
+                  {checked[key] ? 'Try again' : 'Check answer'}
+                </button>
+              </div>
+            ) : null}
           </div>
         );
       })}

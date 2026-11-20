@@ -59,6 +59,8 @@ type BookRow = {
   source: string;
   processingStatus: string;
   processingError?: string;
+  /** Pages OCR could not read on the last extraction. */
+  ocrUnreadablePages?: number[];
   chunkCount?: number;
   extractedTextLength?: number;
   embeddingsCreated?: boolean;
@@ -164,6 +166,7 @@ const CURRICULUM_FILTER_LABELS: Record<string, string> = {
   needs_review: "Needs review",
   unmapped: "Unmapped",
   no_curriculum: "No curriculum",
+  mapping_failed: "Mapping failed",
   not_mapped: "Not mapped yet",
 };
 
@@ -1222,6 +1225,12 @@ export default function BookKnowledgeBase() {
                       )}
                     >
                       {book.processingError}
+                    </p>
+                  ) : null}
+                  {book.ocrUnreadablePages?.length ? (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Pages not readable ({book.ocrUnreadablePages.length}): {book.ocrUnreadablePages.slice(0, 30).join(", ")}
+                      {book.ocrUnreadablePages.length > 30 ? "…" : ""}
                     </p>
                   ) : null}
                 </div>
