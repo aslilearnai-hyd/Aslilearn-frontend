@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   BookOpen,
@@ -10,6 +11,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Mic,
+  PlayCircle,
   Send,
   Sparkles,
   Target,
@@ -31,7 +33,11 @@ const CHIP_STYLES = [
 
 const CHIP_ICONS = [Target, ClipboardList, CalendarDays, BookOpen];
 
+/** Study links may only open app pages for subject videos or class quizzes. */
+const STUDY_LINK_RE = /^\/(?:subject|quiz)\/[^/?#\s]+(?:\?focus=[^#\s]*)?$/;
+
 export function StudentChatUI({ model, className }: StudentChatUIProps) {
+  const [, setLocation] = useLocation();
   const [insightsOpen, setInsightsOpen] = useState(true);
   const hasMessages = model.displayMessages.length > 0;
 
@@ -222,11 +228,34 @@ export function StudentChatUI({ model, className }: StudentChatUIProps) {
                         model.formatMessage(msg.content)
                       )}
                     </div>
+                    {!isUser && msg.actions?.length ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {msg.actions
+                          .filter((a) => STUDY_LINK_RE.test(a.href))
+                          .map((a) => (
+                            <button
+                              key={a.href}
+                              type="button"
+                              onClick={() => setLocation(a.href)}
+                              className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-800 hover:bg-indigo-100"
+                            >
+                              {a.type === "quiz" ? (
+                                <ClipboardList className="h-3 w-3" />
+                              ) : a.type === "notes" ? (
+                                <BookOpen className="h-3 w-3" />
+                              ) : (
+                                <PlayCircle className="h-3 w-3" />
+                              )}
+                              {a.label}
+                            </button>
+                          ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
             })}
-            {model.isPending ? (
+            {model.isPending && !model.displayMessages[model.displayMessages.length - 1]?.streaming ? (
               <div className="flex items-center gap-2 pl-9 text-xs text-slate-500">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
                 Checking your Asli app data…

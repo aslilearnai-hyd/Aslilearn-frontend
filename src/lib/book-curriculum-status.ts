@@ -8,6 +8,8 @@ export type MappingGate = { key: string; label: string; pass: boolean; detail?: 
 export type MappingStatusLike = {
   status?: string;
   statusReason?: string;
+  /** Why the last mapping failed (status "mapping_failed"). */
+  error?: string;
   failingGates?: string[];
   gates?: MappingGate[];
   mappedSubtopics?: number;
@@ -38,6 +40,7 @@ const STATUS_LABEL: Record<string, string> = {
   unmapped: "Unmapped",
   no_curriculum: "No curriculum",
   not_mapped: "Not mapped",
+  mapping_failed: "Mapping failed",
 };
 
 export type MappingBadgeInfo = {
@@ -69,9 +72,11 @@ export function mappingBadgeInfo(mapping?: MappingStatusLike | null): MappingBad
   const label = STATUS_LABEL[status] || status;
   return {
     text: [label, subtopics ? `${subtopics} subtopics` : ""].filter(Boolean).join(" · "),
-    tone: status === "ready" ? "ready" : status === "needs_review" ? "warn" : status === "unmapped" ? "error" : "neutral",
+    tone: status === "ready" ? "ready" : status === "needs_review" ? "warn" : status === "unmapped" || status === "mapping_failed" ? "error" : "neutral",
     explanation:
-      status === "needs_review"
+      status === "mapping_failed"
+        ? `Curriculum mapping failed, so the book is searched by chapter only. Reindex to retry. ${mapping?.error || ""}`.trim()
+        : status === "needs_review"
         ? `Failing readiness gate${failing.length === 1 ? "" : "s"}: ${gateText || "see the mapping dialog"}.`
         : status === "ready"
           ? "Every readiness gate passed."

@@ -3,6 +3,7 @@ import { FileText, Target, Users, KeyRound, GraduationCap, Globe } from 'lucide-
 import { resolveWorksheetFromPayload } from '@/lib/parse-worksheet-mcq';
 import { resolveLessonsFromPayload } from '@/lib/parse-lesson-planner';
 import { normalizeQuestionNumbering } from '@/lib/question-numbering';
+import { markMcqOptions } from '@/lib/mcq-correct';
 import type { ContentBlock, SixSection, SixSectionViewerProps } from '@/components/ai-v2/six-section-viewer';
 
 /**
@@ -136,13 +137,7 @@ function questionsCore(core: Dict, toolSlug = ''): ContentBlock[] {
         matchPairs: Array.isArray(q.matchPairs)
           ? (q.matchPairs as { left: string; right: string; leftKey?: string; rightKey?: string }[])
           : undefined,
-        options: (Array.isArray(q.options) ? q.options : []).map((o) => {
-          const t = str(o);
-          const label = t.match(/^([A-D])\)/)?.[1] ?? '';
-          const clean = t.replace(/^[A-D]\)\s*/, '');
-          const correct = str(q.answer).replace(/^[A-D]\)\s*/, '').trim() === clean.trim();
-          return { label, text: clean, correct };
-        }),
+        ...markMcqOptions((Array.isArray(q.options) ? q.options : []).map(str), str(q.answer), q.multiCorrect === true),
       })),
     });
   }

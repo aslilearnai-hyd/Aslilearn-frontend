@@ -38,3 +38,10 @@ test('mojibake labels are repaired for display', () => {
   assert.equal(cleanCurriculumLabel('Baudhāyana'), 'Baudhāyana');
   assert.equal(cleanCurriculumLabel('Squares and Square Roots'), 'Squares and Square Roots');
 });
+
+test('a failed mapping (B7) shows "Mapping failed" with the error, not "No curriculum"', () => {
+  const info = mappingBadgeInfo({ status: 'mapping_failed', error: 'Mapping embeddings failed for 9 of 10 texts: 503' });
+  assert.equal(info.text, 'Mapping failed');
+  assert.equal(info.tone, 'error');
+  assert.match(info.explanation, /embeddings failed/);
+});

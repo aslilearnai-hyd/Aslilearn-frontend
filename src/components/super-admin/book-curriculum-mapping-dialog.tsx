@@ -29,7 +29,7 @@ const CHUNK_STATUS_LABEL: Record<string, string> = {
   rejected: "Excluded",
 };
 
-export type CurriculumMappingStatus = "ready" | "needs_review" | "unmapped" | "no_curriculum" | "not_mapped";
+export type CurriculumMappingStatus = "ready" | "needs_review" | "unmapped" | "no_curriculum" | "not_mapped" | "mapping_failed";
 
 export type CurriculumMappingSummary = {
   status?: CurriculumMappingStatus;
