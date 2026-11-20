@@ -218,6 +218,10 @@ export default function BookKnowledgeBase() {
     chunkIndex: number;
     chapter: string;
     contentPreview: string;
+    chunkLabel?: string;
+    sourcePageStart?: number | null;
+    sourcePageEnd?: number | null;
+    formulaDamaged?: boolean;
     needsSourceReview?: boolean;
     qualityIssues?: string[];
   }>>([]);
@@ -1360,25 +1364,41 @@ export default function BookKnowledgeBase() {
                 </div>
               ) : null}
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {chunksPreview.map((c) => (
-                  <div
-                    key={c.chunkIndex}
-                    className={cn(
-                      "rounded border p-2 text-xs text-slate-600",
-                      c.needsSourceReview && "border-amber-300 bg-amber-50/60",
-                    )}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">#{c.chunkIndex} {c.chapter}</span>
-                      {c.needsSourceReview ? (
-                        <Badge className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
-                          Source text needs review
-                        </Badge>
+                {chunksPreview.map((c, i) => {
+                  // "Ch 1 › 1.2 Square Numbers · part 2 of 3": a heading line where the section changes.
+                  const section = (c.chunkLabel || "").replace(/ · part \d+ of \d+$/, "");
+                  const prevSection = i > 0 ? (chunksPreview[i - 1].chunkLabel || "").replace(/ · part \d+ of \d+$/, "") : null;
+                  const pages = c.sourcePageStart
+                    ? `p${c.sourcePageStart}${c.sourcePageEnd && c.sourcePageEnd !== c.sourcePageStart ? `–${c.sourcePageEnd}` : ""}`
+                    : "";
+                  return (
+                    <div key={c.chunkIndex}>
+                      {section && section !== prevSection ? (
+                        <p className="mt-3 mb-1 text-xs font-semibold text-slate-800">{section}</p>
                       ) : null}
+                      <div
+                        className={cn(
+                          "rounded border p-2 text-xs text-slate-600",
+                          c.needsSourceReview && "border-amber-300 bg-amber-50/60",
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold">
+                            #{c.chunkIndex} {c.chunkLabel ? c.chunkLabel.slice(section.length + 3) : c.chapter}
+                          </span>
+                          {pages ? <span className="text-slate-400">{pages}</span> : null}
+                          {c.needsSourceReview ? (
+                            <Badge className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
+                              Source text needs review
+                            </Badge>
+                          ) : null}
+                          {c.formulaDamaged ? <Badge variant="outline">held back</Badge> : null}
+                        </div>
+                        <p className="mt-1 break-words">{c.contentPreview ? <ExamMathText text={c.contentPreview} /> : null}</p>
+                      </div>
                     </div>
-                    <p className="mt-1 break-words">{c.contentPreview ? <ExamMathText text={c.contentPreview} /> : null}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
