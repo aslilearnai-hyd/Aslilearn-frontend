@@ -28,6 +28,8 @@ import {
   Network,
   Search,
   X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   BookCurriculumMappingDialog,
@@ -202,6 +204,90 @@ function bookFilterLabel(key: BookFilterKey, value: string, iitLabelMap: Record<
   return value;
 }
 
+type BookChunkPreview = {
+  chunkIndex: number;
+  chapter: string;
+  contentPreview: string;
+  chunkLabel?: string;
+  sourcePageStart?: number | null;
+  sourcePageEnd?: number | null;
+  formulaDamaged?: boolean;
+  needsSourceReview?: boolean;
+  qualityIssues?: string[];
+};
+
+function chunkSectionLabel(chunkLabel?: string) {
+  return (chunkLabel || "").replace(/ · part \d+ of \d+$/, "");
+}
+
+function BookChunkCard({ chunk, section }: { chunk: BookChunkPreview; section: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = chunk.contentPreview || "";
+  const isLong = text.length > 320;
+  const partLabel = chunk.chunkLabel
+    ? chunk.chunkLabel.slice(section.length).replace(/^ · /, "") || chunk.chapter
+    : chunk.chapter;
+  const pages = chunk.sourcePageStart
+    ? `p${chunk.sourcePageStart}${
+        chunk.sourcePageEnd && chunk.sourcePageEnd !== chunk.sourcePageStart
+          ? `–${chunk.sourcePageEnd}`
+          : ""
+      }`
+    : "";
+
+  return (
+    <div
+      className={cn(
+        "w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm",
+        chunk.needsSourceReview && "border-amber-300 bg-amber-50/60",
+      )}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-slate-900">#{chunk.chunkIndex}</span>
+        {partLabel ? <span className="text-[13px] font-medium text-slate-600">{partLabel}</span> : null}
+        {pages ? (
+          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{pages}</span>
+        ) : null}
+        {chunk.needsSourceReview ? (
+          <Badge className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
+            Source text needs review
+          </Badge>
+        ) : null}
+        {chunk.formulaDamaged ? <Badge variant="outline">held back</Badge> : null}
+      </div>
+      {text ? (
+        <div
+          className={cn(
+            "break-words text-[13px] leading-[1.65] text-slate-700 sm:text-sm",
+            !expanded && isLong && "max-h-[9rem] overflow-hidden",
+          )}
+        >
+          <ExamMathText text={text} />
+        </div>
+      ) : null}
+      {isLong ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-2 h-8 px-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="mr-1 h-3.5 w-3.5" /> Show less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="mr-1 h-3.5 w-3.5" /> Read more
+            </>
+          )}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function BookKnowledgeBase() {
   const { toast } = useToast();
   const { confirm: askConfirm, ConfirmDialog } = useConfirm();
@@ -214,17 +300,7 @@ export default function BookKnowledgeBase() {
   const [viewBook, setViewBook] = useState<BookRow | null>(null);
   const [mappingBook, setMappingBook] = useState<BookRow | null>(null);
   const [textPreview, setTextPreview] = useState("");
-  const [chunksPreview, setChunksPreview] = useState<Array<{
-    chunkIndex: number;
-    chapter: string;
-    contentPreview: string;
-    chunkLabel?: string;
-    sourcePageStart?: number | null;
-    sourcePageEnd?: number | null;
-    formulaDamaged?: boolean;
-    needsSourceReview?: boolean;
-    qualityIssues?: string[];
-  }>>([]);
+  const [chunksPreview, setChunksPreview] = useState<BookChunkPreview[]>([]);
   const [chunksTotal, setChunksTotal] = useState(0);
 
   const [importableContent, setImportableContent] = useState<ImportableContentRow[]>([]);
@@ -1290,16 +1366,18 @@ export default function BookKnowledgeBase() {
       />
 
       <Dialog open={!!viewBook} onOpenChange={() => setViewBook(null)}>
-        <DialogContent className="flex max-h-[min(92vh,900px)] w-[min(96vw,900px)] max-w-[min(96vw,900px)] flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>{viewBook?.title}</DialogTitle>
+        <DialogContent className="!flex h-[80vh] max-h-[80vh] w-[min(96vw,900px)] max-w-[min(96vw,900px)] !flex-col gap-3 overflow-hidden !overflow-y-hidden p-5 sm:p-6 lg:max-w-[900px] lg:w-[900px]">
+          <DialogHeader className="shrink-0 border-b border-slate-200 pb-3 pr-14">
+            <DialogTitle className="text-lg leading-snug text-slate-900 sm:text-xl">
+              {viewBook?.title}
+            </DialogTitle>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto space-y-4">
-            <div>
-              <p className="text-sm font-medium flex items-center gap-2 mb-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+            <div className="shrink-0">
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-900">
                 <BarChart3 className="h-4 w-4" /> Chapters ({viewBook?.chapters?.length || 0})
               </p>
-              <ul className="text-sm space-y-1 max-h-32 overflow-y-auto">
+              <ul className="max-h-24 space-y-0.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm">
                 {(viewBook?.chapters || []).map((ch, i) => (
                   <li key={i} className="text-slate-700">
                     {ch.title} {ch.wordCount ? `(${ch.wordCount} words)` : ""}
@@ -1308,10 +1386,10 @@ export default function BookKnowledgeBase() {
                 ))}
               </ul>
             </div>
-            <div>
-              <p className="text-sm font-medium mb-2">Extracted text preview</p>
+            <div className="flex h-[min(22vh,176px)] min-h-[140px] shrink-0 flex-col">
+              <p className="mb-1.5 text-sm font-medium text-slate-900">Extracted text preview</p>
               {/* Book text keeps its LaTeX; show the maths typeset, not as raw $\frac$ code. */}
-              <div className="min-h-[160px] max-h-72 overflow-y-auto rounded-md border bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
+              <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-[13px] leading-relaxed text-slate-700 sm:text-sm">
                 {textPreview ? (
                   // Line by line (and tables as tables) so one line's maths never swallows the next.
                   bookTextBlocks(textPreview).map((block, i) =>
@@ -1349,53 +1427,31 @@ export default function BookKnowledgeBase() {
                 )}
               </div>
             </div>
-            <div>
-              <p className="text-sm font-medium mb-2">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <p className="mb-1.5 shrink-0 text-sm font-medium text-slate-900">
                 Chunks ({chunksPreview.length === chunksTotal
                   ? chunksTotal
                   : `${chunksPreview.length} of ${chunksTotal}`})
               </p>
               {chunksPreview.some((c) => c.needsSourceReview) ? (
-                <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                <div className="mb-2 flex shrink-0 items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
                     Suspect OCR or diagram-label text is held back from AI use. Reindex this book to re-read the affected pages.
                   </span>
                 </div>
               ) : null}
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div key={viewBook?._id} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
                 {chunksPreview.map((c, i) => {
                   // "Ch 1 › 1.2 Square Numbers · part 2 of 3": a heading line where the section changes.
-                  const section = (c.chunkLabel || "").replace(/ · part \d+ of \d+$/, "");
-                  const prevSection = i > 0 ? (chunksPreview[i - 1].chunkLabel || "").replace(/ · part \d+ of \d+$/, "") : null;
-                  const pages = c.sourcePageStart
-                    ? `p${c.sourcePageStart}${c.sourcePageEnd && c.sourcePageEnd !== c.sourcePageStart ? `–${c.sourcePageEnd}` : ""}`
-                    : "";
+                  const section = chunkSectionLabel(c.chunkLabel);
+                  const prevSection = i > 0 ? chunkSectionLabel(chunksPreview[i - 1].chunkLabel) : null;
                   return (
                     <div key={c.chunkIndex}>
                       {section && section !== prevSection ? (
-                        <p className="mt-3 mb-1 text-xs font-semibold text-slate-800">{section}</p>
+                        <p className="mb-1.5 mt-1 text-xs font-semibold text-slate-800">{section}</p>
                       ) : null}
-                      <div
-                        className={cn(
-                          "rounded border p-2 text-xs text-slate-600",
-                          c.needsSourceReview && "border-amber-300 bg-amber-50/60",
-                        )}
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold">
-                            #{c.chunkIndex} {c.chunkLabel ? c.chunkLabel.slice(section.length + 3) : c.chapter}
-                          </span>
-                          {pages ? <span className="text-slate-400">{pages}</span> : null}
-                          {c.needsSourceReview ? (
-                            <Badge className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 hover:bg-amber-100">
-                              Source text needs review
-                            </Badge>
-                          ) : null}
-                          {c.formulaDamaged ? <Badge variant="outline">held back</Badge> : null}
-                        </div>
-                        <p className="mt-1 break-words">{c.contentPreview ? <ExamMathText text={c.contentPreview} /> : null}</p>
-                      </div>
+                      <BookChunkCard chunk={c} section={section} />
                     </div>
                   );
                 })}
