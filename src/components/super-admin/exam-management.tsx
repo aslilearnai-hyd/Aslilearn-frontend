@@ -338,9 +338,13 @@ function stripPaperDirectionsClient(stem: string) {
   return s.trim();
 }
 
+function preserveExtractedMathText(value: unknown): string {
+  return exportMathText(String(value ?? ''));
+}
+
 function normalizeExtractedPdfRows(rows: any[]): any[] {
   return (rows || []).map((row, idx) => {
-    const stemRaw = stripPaperDirectionsClient(String(row.questionText || ''));
+    const stemRaw = stripPaperDirectionsClient(preserveExtractedMathText(row.questionText || ''));
     const isAr = questionLooksLikeAssertionReason({ ...row, questionText: stemRaw });
     const isRealMatch =
       row.questionType === 'match_following' ||
@@ -350,7 +354,22 @@ function normalizeExtractedPdfRows(rows: any[]): any[] {
       );
 
     // Drop false Match matter / flags stamped onto normal MCQs
-    let next = { ...row, row: row.row || idx + 1, questionText: stemRaw };
+    let next = {
+      ...row,
+      row: row.row || idx + 1,
+      questionText: stemRaw,
+      option1: preserveExtractedMathText(row.option1),
+      option2: preserveExtractedMathText(row.option2),
+      option3: preserveExtractedMathText(row.option3),
+      option4: preserveExtractedMathText(row.option4),
+      explanation: preserveExtractedMathText(row.explanation),
+      assertionText: preserveExtractedMathText(row.assertionText),
+      reasonText: preserveExtractedMathText(row.reasonText),
+      correctAnswer: preserveExtractedMathText(row.correctAnswer),
+      ...(row.sharedMatterText != null && String(row.sharedMatterText) !== ''
+        ? { sharedMatterText: preserveExtractedMathText(row.sharedMatterText) }
+        : {}),
+    };
     const inlineCase = splitInlineCaseStudyClient(next.questionText);
     if (inlineCase && !String(next.sharedMatterText || next.passageText || '').trim()) {
       next = {

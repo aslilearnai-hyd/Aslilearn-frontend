@@ -196,6 +196,24 @@ function toSubscriptRun(raw: string): string {
     .join('');
 }
 
+/**
+ * Keep degree signs as U+00B0. Gemini exam extraction writes $1^{\circ}$;
+ * OCR/PDF copy often yields ^o, º (masculine ordinal) or ˚ (ring). Those
+ * must become ° before caret-to-superscript mapping turns circ/o into ᵒ/ᶜⁱʳᶜ.
+ */
+export function normalizeDegreeSymbols(text: string): string {
+  let s = String(text ?? '');
+  if (!s) return s;
+  s = s.replace(/\u2103/g, '°C').replace(/\u2109/g, '°F');
+  s = s.replace(/\\degree\b/g, '°');
+  s = s.replace(/\^\s*\{\s*\\circ\s*\}/g, '°');
+  s = s.replace(/\^\s*\\circ\b/g, '°');
+  s = s.replace(/\\circ\b/g, '°');
+  s = s.replace(/\^\(\s*circ\s*\)/gi, '°');
+  s = s.replace(/(\d)\s*(?:\^\s*\{?\s*[oO]\s*\}?|[º˚ᵒ])/g, '$1°');
+  return s;
+}
+
 function isChemOrScienceSubject(subject?: string): boolean {
   const s = String(subject || '')
     .trim()
@@ -217,7 +235,7 @@ export function formatAsciiMathToUnicode(text: string): string {
     .map((part) => {
       if (!part) return part;
       if (part.startsWith('$')) return part;
-      let out = part;
+      let out = normalizeDegreeSymbols(part);
       for (const [re, sym] of GREEK_WORD_MAP) out = out.replace(re, sym);
 
       // Fractional powers must be handled before integer powers (x^1/2 -> x¹⁄₂).
@@ -290,7 +308,7 @@ export function formatChemistryDisplayText(text: string, subject?: string): stri
 
 /** Classroom display: mojibake repair + Unicode math powers + chemistry subscripts. */
 export function formatClassroomScienceText(value: unknown, subject?: string): string {
-  const base = arithmeticStarsToTimes(normalizeExamDisplayText(value));
+  const base = arithmeticStarsToTimes(normalizeDegreeSymbols(normalizeExamDisplayText(value)));
   return formatChemistryDisplayText(formatAsciiMathToUnicode(base), subject);
 }
 

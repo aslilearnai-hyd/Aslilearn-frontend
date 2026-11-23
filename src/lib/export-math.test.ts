@@ -18,3 +18,27 @@ test('delimited LaTeX and plain text are unchanged', () => {
   assert.equal(exportMathText(String.raw`Answer: $\frac{7}{2}$ cm`), 'Answer: ⁷⁄₂ cm');
   assert.equal(exportMathText('Plain sentence with no maths.'), 'Plain sentence with no maths.');
 });
+
+test('degree and classroom math symbols survive extraction-to-save conversion', () => {
+  const cases: Array<[string, string]> = [
+    ['(1°)', '(1°)'],
+    ['90°', '90°'],
+    ['45° C', '45° C'],
+    ['x² + y²', 'x² + y²'],
+    ['H₂O', 'H₂O'],
+    ['A × B', 'A × B'],
+    ['√25', '√25'],
+    [String.raw`$(1^{\circ})$`, '(1°)'],
+    [String.raw`$90^\circ$`, '90°'],
+    [String.raw`(1^{\circ})`, '(1°)'],
+    ['90^o', '90°'],
+    ['90º', '90°'],
+    ['πr²', 'πr²'],
+    ['x ≤ y', 'x ≤ y'],
+    ['A ÷ B', 'A ÷ B'],
+    ['±2', '±2'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(exportMathText(input), expected, `${JSON.stringify(input)} → ${JSON.stringify(expected)}`);
+  }
+});

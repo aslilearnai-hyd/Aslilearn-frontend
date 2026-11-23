@@ -1,4 +1,4 @@
-import { formatClassroomScienceText } from './exam-text-normalize.ts';
+import { formatClassroomScienceText, normalizeDegreeSymbols } from './exam-text-normalize.ts';
 import { splitMathSegments } from './math-segments.ts';
 
 /**
@@ -32,7 +32,7 @@ const script = (text: string, map: Record<string, string>, mark: string) => {
 
 /** Innermost-first: \frac{a}{b}, \sqrt[n]{x}, \sqrt{x}, ^{…}, _{…}. */
 function latexToText(latex: string): string {
-  let s = latex;
+  let s = normalizeDegreeSymbols(latex);
   for (let i = 0; i < 6; i += 1) {
     const before = s;
     s = s.replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, (_m, a: string, b: string) => {
