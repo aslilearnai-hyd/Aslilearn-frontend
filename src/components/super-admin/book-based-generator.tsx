@@ -629,6 +629,13 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
   const isCombinedPaper = !isWholeChapter && selectedSubTopicsForPayload.length > 1;
   const shouldExpandSubtopics =
     isWholeChapter && expandEachSubtopic && subtopics.length > 0;
+  // Same parts as the backend: each real subtopic + Whole chapter, each gets the record count.
+  const expandScopeCount =
+    subtopics.filter((s) => s && !/^whole\s*chapter$/i.test(s) && s !== "whole-chapter").length + 1;
+  const generateButtonLabel =
+    shouldExpandSubtopics && isValidGenerationRecordCount(generationRecordCount)
+      ? `Generate ${parseBatchSize() * expandScopeCount} with Gemini (${parseBatchSize()} × ${expandScopeCount} parts)`
+      : generationRecordCountButtonLabel(generationRecordCount);
 
   const buildGenerationPayload = (forceUnlock = false) => ({
     toolSlug: selectedTool,
@@ -1328,7 +1335,8 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
               />
               <span>
                 Also generate <strong>separately for each of the {subtopics.length} subtopic(s)</strong>,
-                plus Whole chapter. The record count is shared across these scopes and is never multiplied.
+                plus Whole chapter. Each part gets the record count, so the total is record count × {expandScopeCount} parts
+                (shown on the Generate button).
               </span>
             </label>
           ) : null}
@@ -1462,7 +1470,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                   disabled={isGenerating || !bookReady || !isValidGenerationRecordCount(generationRecordCount)}
                 >
                   {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  {isGenerating ? "Generating…" : generationRecordCountButtonLabel(generationRecordCount)}
+                  {isGenerating ? "Generating…" : generateButtonLabel}
                 </Button>
                 {generationLocked ? (
                   <Button
