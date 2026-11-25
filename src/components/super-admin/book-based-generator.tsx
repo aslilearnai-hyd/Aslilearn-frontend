@@ -59,8 +59,8 @@ import {
 import { sortClassLabelsAscending } from "@/lib/super-admin-curriculum-classes";
 import {
   DEFAULT_GENERATION_QUALITY_TIER,
-  GENERATION_QUALITY_TIERS,
-  type GenerationQualityTierId,
+  BOOK_GENERATOR_QUALITY_TIERS,
+  type BookGeneratorQualityTierId,
 } from "@/lib/generation-quality-tier";
 
 type BookOption = {
@@ -246,7 +246,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
   const [expandEachSubtopic, setExpandEachSubtopic] = useState(false);
   const [bookId, setBookId] = useState("");
   const [useBookKnowledge, setUseBookKnowledge] = useState(true);
-  const [qualityTier, setQualityTier] = useState<GenerationQualityTierId>(DEFAULT_GENERATION_QUALITY_TIER);
+  const [qualityTier, setQualityTier] = useState<BookGeneratorQualityTierId>(DEFAULT_GENERATION_QUALITY_TIER);
   const [generationRecordCount, setGenerationRecordCount] = useState("");
   const [questionCount, setQuestionCount] = useState("10");
   const [books, setBooks] = useState<BookOption[]>([]);
@@ -262,6 +262,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
     cost: GeminiCostEstimate;
     failures: string[];
     trackingMissing: boolean;
+    batchAnswers: number;
   } | null>(null);
   const [recordsReloadNonce, setRecordsReloadNonce] = useState(0);
 
@@ -697,6 +698,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
       cost,
       failures: batchFailures,
       trackingMissing,
+      batchAnswers: tokenCalls.filter((c) => c.tier === "batch").length,
     });
 
     const tokenNote = trackingMissing
@@ -1432,14 +1434,14 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                 </Label>
                 <Select
                   value={qualityTier}
-                  onValueChange={(v) => setQualityTier(v as GenerationQualityTierId)}
+                  onValueChange={(v) => setQualityTier(v as BookGeneratorQualityTierId)}
                   disabled={isGenerating}
                 >
                   <SelectTrigger id="book-quality-tier" className="max-w-xs bg-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {GENERATION_QUALITY_TIERS.map((tier) => (
+                    {BOOK_GENERATOR_QUALITY_TIERS.map((tier) => (
                       <SelectItem key={tier.id} value={tier.id}>
                         {tier.label}
                       </SelectItem>
@@ -1447,7 +1449,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-slate-600">
-                  {GENERATION_QUALITY_TIERS.find((t) => t.id === qualityTier)?.description}
+                  {BOOK_GENERATOR_QUALITY_TIERS.find((t) => t.id === qualityTier)?.description}
                 </p>
               </div>
               <p className="text-xs text-slate-600 w-full">
@@ -1530,6 +1532,11 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                     Input: {formatInr((lastBatchSummary.cost.inputUsd || 0) * lastBatchSummary.cost.exchangeRateInr)}
                     {" · "}Output: {formatInr((lastBatchSummary.cost.outputUsd || 0) * lastBatchSummary.cost.exchangeRateInr)}
                   </p>
+                  {lastBatchSummary.batchAnswers > 0 ? (
+                    <p className="text-emerald-800">
+                      Includes {lastBatchSummary.batchAnswers} Gemini Batch answer(s) billed at half price (already in the cost above).
+                    </p>
+                  ) : null}
                   {(() => {
                     const pricing = resolveGeminiPricing(lastBatchSummary.cost.model);
                     const input10k = (pricing.inputUsdPerM / 100) * lastBatchSummary.cost.exchangeRateInr;
