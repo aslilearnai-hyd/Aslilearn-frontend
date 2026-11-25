@@ -1546,6 +1546,7 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
                         Rate per 10k tokens: input {formatInr(input10k)} · output {formatInr(output10k)} ·
                         10k input + 10k output {formatInr(input10k + output10k)}. The rate is identical for
                         every subject; only token volume and LLM call count change.
+                        {lastBatchSummary.batchAnswers > 0 ? " Gemini Batch answers are billed at half of this rate." : null}
                       </p>
                     );
                   })()}
