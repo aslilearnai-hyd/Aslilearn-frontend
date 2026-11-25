@@ -35,6 +35,8 @@ export type TokenCall = {
   totalTokens?: number;
   label?: string;
   provider?: string;
+  /** "batch" = answered through the Gemini Batch API, billed at half price. */
+  tier?: string;
 };
 
 export type TokenUsageSnapshot = {
@@ -236,8 +238,10 @@ export function computeGeminiCostFromTokenUsage(
       const promptTokens = Math.max(0, Number(call.promptTokens || 0));
       const completionTokens = Math.max(0, Number(call.completionTokens || 0));
       const pricing = resolveGeminiPricing(call.model || "");
-      inputUsd += (promptTokens / 1_000_000) * pricing.inputUsdPerM;
-      outputUsd += (completionTokens / 1_000_000) * pricing.outputUsdPerM;
+      // Gemini Batch bills half the list price (same rule as the backend).
+      const tierFactor = call.tier === "batch" ? 0.5 : 1;
+      inputUsd += (promptTokens / 1_000_000) * pricing.inputUsdPerM * tierFactor;
+      outputUsd += (completionTokens / 1_000_000) * pricing.outputUsdPerM * tierFactor;
       modelTokenCounts.set(
         pricing.model,
         (modelTokenCounts.get(pricing.model) || 0) + promptTokens + completionTokens,
