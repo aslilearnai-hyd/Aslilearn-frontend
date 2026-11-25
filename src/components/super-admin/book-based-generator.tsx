@@ -81,6 +81,26 @@ type BookOption = {
   sourceTitle?: string;
 };
 
+/** One running half-price Batch run (GET /api/book-generator/batch-jobs). */
+type ActiveBatchRun = {
+  jobId: string;
+  state: string;
+  progress: string;
+  submittedAt: string | null;
+  deadlineAt: string | null;
+  toolSlug: string;
+  bookId: string;
+  className: string;
+  subjectName: string;
+  topicName: string;
+  parts: string[];
+  records: number;
+  startedBy: string;
+};
+
+const formatRunTime = (value: string | null) =>
+  value ? new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
+
 /** Book title plus its source name, so Volume 1 and Volume 2 are distinguishable. */
 function bookDisplayTitle(book: BookOption): string {
   const title = String(book.title || "").trim() || "Untitled";
@@ -471,6 +491,40 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
   useEffect(() => {
     void loadBooks();
   }, []);
+
+  // Half-price Batch runs still waiting/saving on the server. Kept in the database, so they
+  // show again after a refresh. Hidden when there are none; a run that finishes drops off the
+  // list and the Records panel reloads to show its records.
+  const [activeBatchRuns, setActiveBatchRuns] = useState<ActiveBatchRun[]>([]);
+  const activeBatchIdsRef = useRef<string[]>([]);
+  const loadActiveBatchRuns = async () => {
+    try {
+      const res = await resilientFetch(`${API_BASE_URL}/api/book-generator/batch-jobs`, {
+        headers: authHeaders(),
+        retries: 1,
+        timeoutMs: 20_000,
+      });
+      const json = await res.json();
+      if (!res.ok || !Array.isArray(json?.data)) return;
+      const runs = json.data as ActiveBatchRun[];
+      const ids = runs.map((r) => r.jobId);
+      if (activeBatchIdsRef.current.some((id) => !ids.includes(id))) setRecordsReloadNonce((n) => n + 1);
+      activeBatchIdsRef.current = ids;
+      setActiveBatchRuns(runs);
+    } catch {
+      // Network blip: keep what is shown; the next check fixes it.
+    }
+  };
+  useEffect(() => {
+    // On page load, and again when a Generate run ends.
+    if (!isGenerating) void loadActiveBatchRuns();
+  }, [isGenerating]);
+  useEffect(() => {
+    // Check every 30 s only while something is running.
+    if (!activeBatchRuns.length && !isGenerating) return;
+    const timer = setInterval(() => void loadActiveBatchRuns(), 30_000);
+    return () => clearInterval(timer);
+  }, [activeBatchRuns.length, isGenerating]);
 
   useEffect(() => {
     const boardKey = String(board || "").toUpperCase().replace(/[\s/\\-]+/g, "");
@@ -1565,6 +1619,41 @@ export default function BookBasedGenerator({ onOpenBookKnowledge, onOpenAiToolDa
           ) : null}
         </CardContent>
       </Card>
+
+      {activeBatchRuns.length > 0 ? (
+        <Card className="border-amber-200 bg-amber-50/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-700" />
+              Running half-price Batch runs ({activeBatchRuns.length})
+            </CardTitle>
+            <p className="text-xs text-slate-600">
+              You can leave or refresh this page; records appear in Records below when done.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {activeBatchRuns.map((run) => {
+              const book = books.find((b) => b._id === run.bookId);
+              const toolName = BOOK_BASED_TOOLS.find((t) => t.id === run.toolSlug)?.name || run.toolSlug;
+              return (
+                <div key={run.jobId} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-700">
+                  <p className="font-medium text-slate-900">
+                    {book ? bookDisplayTitle(book) : "Book"} · {[run.className, run.subjectName, run.topicName].filter(Boolean).join(" · ")}
+                  </p>
+                  <p className="text-xs">
+                    {toolName} · {run.records} record(s) · {run.parts.length} part(s): {run.parts.join(", ")}
+                  </p>
+                  <p className="text-xs text-amber-800">{run.progress || (run.state === "processing" ? "Saving records…" : "Waiting for Gemini Batch…")}</p>
+                  <p className="text-mini text-slate-500">
+                    Sent {formatRunTime(run.submittedAt)} · results by {formatRunTime(run.deadlineAt)}
+                    {run.startedBy ? ` · by ${run.startedBy}` : ""}
+                  </p>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <GeneratorRecordsPanel
         apiPrefix="/api/book-generator"
